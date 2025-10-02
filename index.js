@@ -20,7 +20,7 @@ const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 // ✅ إعداد عميل Groq
 const client = new Groq({ apiKey: GROQ_API_KEY });
 
-// ✅ إعداد Google Sheets API (يدعم env وملف محلي)
+// ✅ إعداد Google Sheets API
 const creds = process.env.GOOGLE_CREDENTIALS
   ? JSON.parse(process.env.GOOGLE_CREDENTIALS)
   : require("./credentials.json");
@@ -119,12 +119,15 @@ async function saveBooking({ name, phone, service, appointment }) {
     const values = [
       [name, phone, service, appointment, new Date().toISOString()],
     ];
+    console.log("📌 Saving to sheet:", values);
+
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: "Sheet1!A:E",
+      range: "Sheet1!A:E", // 👈 لازم يطابق اسم الورقة بالضبط
       valueInputOption: "USER_ENTERED",
       requestBody: { values },
     });
+
     console.log("✅ Booking saved to Google Sheets");
   } catch (err) {
     console.error("❌ Google Sheets Error:", err.message);
