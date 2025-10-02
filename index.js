@@ -119,16 +119,19 @@ async function saveBooking({ name, phone, service, appointment }) {
     const values = [
       [name, phone, service, appointment, new Date().toISOString()],
     ];
-    console.log("📌 Saving to sheet:", values);
+    console.log("📤 Sending to Google Sheets:", values);
 
-    await sheets.spreadsheets.values.append({
+    const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: "Sheet1!A:E", // 👈 لازم يطابق اسم الورقة بالضبط
+      range: "Sheet1!A:E", // اسم الورقة بالضبط
       valueInputOption: "USER_ENTERED",
       requestBody: { values },
     });
 
-    console.log("✅ Booking saved to Google Sheets");
+    console.log(
+      "✅ Google Sheets API response:",
+      result.statusText || result.status
+    );
   } catch (err) {
     console.error("❌ Google Sheets Error:", err.message);
   }
