@@ -35,6 +35,24 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: "v4", auth });
 
 // ---------------------------------------------
+// Debug: طباعة أسماء الشيتات الموجودة في الملف
+// ---------------------------------------------
+async function listSheets() {
+  try {
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+    console.log(
+      "📋 Sheets in file:",
+      meta.data.sheets.map((s) => s.properties.title)
+    );
+  } catch (err) {
+    console.error("❌ Error listing sheets:", err.message);
+  }
+}
+listSheets(); // <-- يتنفذ مرة واحدة عند تشغيل السيرفر
+
+// ---------------------------------------------
 // دوال مساعدة
 // ---------------------------------------------
 
