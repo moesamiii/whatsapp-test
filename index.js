@@ -147,7 +147,7 @@ async function sendAppointmentOptions(to) {
   console.log(`📤 DEBUG => Sending appointment options to ${to}`);
   return sendTextMessage(
     to,
-    "📅 اختر الموعد المناسب لك: 🕒 3 PM, 🌆 6 PM, 🌙 9 PM"
+    "📅 اختر الموعد المناسب لك: \n1️⃣ 3 PM \n2️⃣ 6 PM \n3️⃣ 9 PM"
   );
 }
 
@@ -240,9 +240,25 @@ app.post("/webhook", async (req, res) => {
     }
 
     // ✅ التعامل مع النصوص
-    const text = message?.text?.body;
+    const text = message?.text?.body?.trim();
     if (text) {
       console.log(`💬 DEBUG => Message from ${from}:`, text);
+
+      // لو المستخدم كتب رقم الموعد بدلاً من الضغط على الزر
+      if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
+        let appointment;
+        if (text === "3") appointment = "3 PM";
+        if (text === "6") appointment = "6 PM";
+        if (text === "9") appointment = "9 PM";
+
+        tempBookings[from] = { appointment };
+        console.log("📝 DEBUG => Appointment set manually:", appointment);
+        await sendTextMessage(
+          from,
+          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+        );
+        return res.sendStatus(200);
+      }
 
       if (tempBookings[from] && !tempBookings[from].name) {
         tempBookings[from].name = text;
