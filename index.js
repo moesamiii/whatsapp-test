@@ -20,7 +20,7 @@ const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 // ✅ إعداد عميل Groq
 const client = new Groq({ apiKey: GROQ_API_KEY });
 
-// ✅ إعداد Google Sheets API
+// ✅ إعداد Google Sheets API (يدعم env وملف محلي)
 const creds = process.env.GOOGLE_CREDENTIALS
   ? JSON.parse(process.env.GOOGLE_CREDENTIALS)
   : require("./credentials.json");
@@ -29,7 +29,6 @@ const auth = new google.auth.GoogleAuth({
   credentials: creds,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
-
 const sheets = google.sheets({ version: "v4", auth });
 
 // ---------------------------------------------
@@ -225,4 +224,6 @@ app.post("/webhook", async (req, res) => {
 
 // 🚀 للتشغيل محلياً
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`✅ Server running on http://localhost:${PORT}`)
+);
