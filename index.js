@@ -17,6 +17,9 @@ const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 
+// ✅ طباعة SPREADSHEET_ID للتأكد
+console.log("🟢 Loaded SPREADSHEET_ID:", SPREADSHEET_ID);
+
 // ✅ إعداد عميل Groq
 const client = new Groq({ apiKey: GROQ_API_KEY });
 
@@ -123,7 +126,7 @@ async function saveBooking({ name, phone, service, appointment }) {
 
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: "Sheet1!A:E", // اسم الورقة بالضبط
+      range: "Sheet1!A:E",
       valueInputOption: "USER_ENTERED",
       requestBody: { values },
     });
@@ -141,7 +144,6 @@ async function saveBooking({ name, phone, service, appointment }) {
 // Routes
 // ---------------------------------------------
 
-// ✅ Route أساسي للفحص
 app.get("/", (req, res) => {
   res.send("✅ WhatsApp Webhook for Clinic is running on Vercel!");
 });
@@ -152,8 +154,6 @@ app.get("/webhook", (req, res) => {
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  console.log("🌍 Verification Request:", { mode, token, challenge });
-
   if (mode && token === VERIFY_TOKEN) {
     res.status(200).send(challenge);
   } else {
@@ -161,63 +161,79 @@ app.get("/webhook", (req, res) => {
   }
 });
 
-// 📩 استقبال رسائل من WhatsApp + الرد الذكي (AI-first)
+// 📩 استقبال رسائل من WhatsApp
+let tempBookings = {}; // نخزن بيانات كل مستخدم مؤقتاً
+
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
-    console.log("📦 Incoming webhook body:", JSON.stringify(body, null, 2));
-
     if (!body.object) return res.sendStatus(404);
 
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from;
-
     if (!message || !from) return res.sendStatus(200);
 
-    // ✅ التعامل مع الأزرار (Button Replies)
+    // ✅ التعامل مع الأزرار
     if (message.type === "interactive") {
       const id = message?.interactive?.button_reply?.id;
-      if (id) {
-        let appointment;
-        if (id === "slot_3pm") appointment = "3 PM";
-        if (id === "slot_6pm") appointment = "6 PM";
-        if (id === "slot_9pm") appointment = "9 PM";
+      let appointment;
+      if (id === "slot_3pm") appointment = "3 PM";
+      if (id === "slot_6pm") appointment = "6 PM";
+      if (id === "slot_9pm") appointment = "9 PM";
 
-        if (appointment) {
-          const reply = `✅ تم حجز موعدك الساعة ${appointment}.`;
-
-          // 📝 حفظ في Google Sheets
-          await saveBooking({
-            name: "عميل واتساب",
-            phone: from,
-            service: "كشف طبي",
-            appointment,
-          });
-
-          await sendTextMessage(from, reply);
-        }
+      if (appointment) {
+        tempBookings[from] = { appointment }; // نحفظ الموعد مؤقتاً
+        await sendTextMessage(
+          from,
+          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+        );
       }
       return res.sendStatus(200);
     }
 
-    // ✅ التعامل مع الرسائل النصية (AI مباشرة)
+    // ✅ التعامل مع النصوص
     const text = message?.text?.body;
     if (text) {
-      try {
-        const reply = await askAI(text);
+      // لو عندنا بيانات ناقصة في tempBookings
+      if (tempBookings[from] && !tempBookings[from].name) {
+        tempBookings[from].name = text;
+        await sendTextMessage(from, "📱 ممتاز! ارسل رقم جوالك:");
+        return res.sendStatus(200);
+      } else if (tempBookings[from] && !tempBookings[from].phone) {
+        tempBookings[from].phone = text;
+        await sendTextMessage(from, "💊 تمام! اكتب نوع الخدمة المطلوبة:");
+        return res.sendStatus(200);
+      } else if (tempBookings[from] && !tempBookings[from].service) {
+        tempBookings[from].service = text;
 
-        // إذا قال "أريد أحجز" → أرسل له خيارات المواعيد
-        if (text.includes("حجز") || text.toLowerCase().includes("book")) {
-          await sendAppointmentOptions(from);
-        } else {
-          await sendTextMessage(
-            from,
-            reply || "عذراً، لم أفهم سؤالك. ممكن توضّح أكثر؟"
-          );
-        }
-      } catch (e) {
-        console.error("AI Error:", e.message);
-        await sendTextMessage(from, "❌ حدث خطأ تقني، حاول مرة أخرى لاحقاً.");
+        // نحفظ كل شيء
+        const booking = tempBookings[from];
+        await saveBooking({
+          name: booking.name,
+          phone: booking.phone,
+          service: booking.service,
+          appointment: booking.appointment,
+        });
+
+        await sendTextMessage(
+          from,
+          `✅ تم حفظ حجزك: 
+👤 الاسم: ${booking.name}
+📱 الجوال: ${booking.phone}
+💊 الخدمة: ${booking.service}
+📅 الموعد: ${booking.appointment}`
+        );
+
+        delete tempBookings[from]; // نمسح بعد الحجز
+        return res.sendStatus(200);
+      }
+
+      // طلب حجز جديد
+      if (text.includes("حجز") || text.toLowerCase().includes("book")) {
+        await sendAppointmentOptions(from);
+      } else {
+        const reply = await askAI(text);
+        await sendTextMessage(from, reply);
       }
     }
 
