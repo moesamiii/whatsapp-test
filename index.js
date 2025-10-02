@@ -76,70 +76,6 @@ detectSheetName();
 // دوال مساعدة
 // ---------------------------------------------
 
-// 🔹 تحقق من الحجز (اليوم + الوقت)
-function validateBookingRequest(userText) {
-  const daysMap = {
-    السبت: "Saturday",
-    الأحد: "Sunday",
-    الاثنين: "Monday",
-    الثلاثاء: "Tuesday",
-    الأربعاء: "Wednesday",
-    الخميس: "Thursday",
-    الجمعة: "Friday",
-  };
-
-  // 1. اكتشاف أكثر من يوم
-  const mentionedDays = Object.keys(daysMap).filter((day) =>
-    userText.includes(day)
-  );
-  if (mentionedDays.length > 1) {
-    return {
-      valid: false,
-      reason: "⚠️ لا يمكن الحجز في أكثر من يوم بنفس الوقت.",
-    };
-  }
-
-  // 2. التأكد من اليوم
-  if (mentionedDays.length === 1) {
-    const chosenDay = mentionedDays[0];
-    if (chosenDay === "الجمعة") {
-      return { valid: false, reason: "⚠️ العيادة مغلقة يوم الجمعة." };
-    }
-  }
-
-  // 3. استخراج الأوقات بصيغة 9 أو 9 AM أو 21:00
-  const timeRegex = /(\d{1,2})(?::(\d{2}))?\s?(AM|PM)?/i;
-  const match = userText.match(timeRegex);
-  if (!match) {
-    return {
-      valid: false,
-      reason: "⚠️ الرجاء تحديد وقت واضح (مثال: 10 AM أو 6 PM).",
-    };
-  }
-
-  let hour = parseInt(match[1], 10);
-  const minutes = match[2] ? parseInt(match[2], 10) : 0;
-  const ampm = match[3] ? match[3].toUpperCase() : null;
-
-  if (ampm === "PM" && hour < 12) hour += 12;
-  if (ampm === "AM" && hour === 12) hour = 0;
-
-  // 4. التأكد من الوقت (بين 9 AM و 9 PM)
-  if (hour < 9 || hour > 21) {
-    return { valid: false, reason: "⚠️ المواعيد المتاحة فقط بين 9 AM و 9 PM." };
-  }
-
-  // ✅ وقت صحيح
-  const formattedTime = `${String(hour).padStart(2, "0")}:${String(
-    minutes
-  ).padStart(2, "0")}`;
-  return {
-    valid: true,
-    time: formattedTime,
-    day: mentionedDays[0] || "بدون تحديد يوم",
-  };
-}
-
 // 🔹 استدعاء AI
 async function askAI(userMessage) {
   try {
@@ -150,19 +86,19 @@ async function askAI(userMessage) {
         {
           role: "system",
           content: `
-أنت موظف خدمة عملاء لعيادة طبية.
-مهمتك الرد فقط على:
-- المواعيد 🕒 (بين 9 AM و 9 PM)
+أنت موظف خدمة عملاء (call center) لعيادة طبية.
+مهمتك الرد فقط على الأسئلة المتعلقة بـ:
+- المواعيد 🕒
 - الأسعار 💰
 - الموقع 📍
 - الحجز 📅
 
-❌ لا توافق على أي حجز خارج هذه الأوقات.
-❌ لا توافق على الحجز يوم الجمعة.
-❌ لا توافق على الحجز إذا ذكر أكثر من يوم بنفس الجملة.
+❌ لا ترد على أي أسئلة خارج هذا النطاق.
+إذا سألك العميل عن شيء خارج عملك قل بأدب:
+"أستطيع مساعدتك فقط في المواعيد، الأسعار، الموقع، أو الحجز."
 
 💡 تحدث باحترافية وبالعربية فقط.
-          `,
+        `,
         },
         { role: "user", content: userMessage },
       ],
@@ -206,6 +142,15 @@ async function sendTextMessage(to, text) {
   }
 }
 
+// 🔹 إرسال خيارات المواعيد
+async function sendAppointmentOptions(to) {
+  console.log(`📤 DEBUG => Sending appointment options to ${to}`);
+  return sendTextMessage(
+    to,
+    "📅 اختر الموعد المناسب لك: \n1️⃣ 3 PM \n2️⃣ 6 PM \n3️⃣ 9 PM"
+  );
+}
+
 // 🔹 حفظ البيانات في Google Sheets
 async function saveBooking({ name, phone, service, appointment }) {
   try {
@@ -213,6 +158,10 @@ async function saveBooking({ name, phone, service, appointment }) {
       [name, phone, service, appointment, new Date().toISOString()],
     ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
+
+    console.log(
+      `🔍 DEBUG => Trying to append to Sheet: "${DEFAULT_SHEET_NAME}" in spreadsheet: "${SPREADSHEET_ID}"`
+    );
 
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -241,27 +190,69 @@ app.get("/", (req, res) => {
   res.send("✅ WhatsApp Webhook for Clinic is running on Vercel!");
 });
 
+app.get("/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode && token === VERIFY_TOKEN) {
+    console.log("✅ DEBUG => Webhook verified.");
+    res.status(200).send(challenge);
+  } else {
+    console.warn("⚠️ DEBUG => Webhook verification failed.");
+    res.sendStatus(403);
+  }
+});
+
+let tempBookings = {};
+
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
+    console.log(
+      "📩 DEBUG => Incoming webhook body:",
+      JSON.stringify(body, null, 2)
+    );
+
+    if (!body.object) return res.sendStatus(404);
+
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from;
     if (!message || !from) return res.sendStatus(200);
 
+    // ✅ التعامل مع الأزرار
+    if (message.type === "interactive") {
+      const id = message?.interactive?.button_reply?.id;
+      console.log("🔘 DEBUG => Button pressed:", id);
+      let appointment;
+      if (id === "slot_3pm") appointment = "3 PM";
+      if (id === "slot_6pm") appointment = "6 PM";
+      if (id === "slot_9pm") appointment = "9 PM";
+
+      if (appointment) {
+        tempBookings[from] = { appointment };
+        await sendTextMessage(
+          from,
+          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+        );
+      }
+      return res.sendStatus(200);
+    }
+
+    // ✅ التعامل مع النصوص
     const text = message?.text?.body?.trim();
     if (text) {
       console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-      // تحقق من الحجز
-      const check = validateBookingRequest(text);
-      if (!check.valid) {
-        await sendTextMessage(from, check.reason);
-        return res.sendStatus(200);
-      }
+      // لو المستخدم كتب رقم الموعد بدلاً من الضغط على الزر
+      if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
+        let appointment;
+        if (text === "3") appointment = "3 PM";
+        if (text === "6") appointment = "6 PM";
+        if (text === "9") appointment = "9 PM";
 
-      // طلب اسم ورقم وخدمة بعد تحديد الموعد
-      if (!tempBookings[from]) {
-        tempBookings[from] = { appointment: `${check.day} - ${check.time}` };
+        tempBookings[from] = { appointment };
+        console.log("📝 DEBUG => Appointment set manually:", appointment);
         await sendTextMessage(
           from,
           "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
@@ -269,7 +260,6 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // استكمال البيانات
       if (tempBookings[from] && !tempBookings[from].name) {
         tempBookings[from].name = text;
         await sendTextMessage(from, "📱 ممتاز! ارسل رقم جوالك:");
@@ -282,7 +272,14 @@ app.post("/webhook", async (req, res) => {
         tempBookings[from].service = text;
 
         const booking = tempBookings[from];
-        await saveBooking(booking);
+        console.log("📦 DEBUG => Final booking data:", booking);
+        await saveBooking({
+          name: booking.name,
+          phone: booking.phone,
+          service: booking.service,
+          appointment: booking.appointment,
+        });
+
         await sendTextMessage(
           from,
           `✅ تم حفظ حجزك: 
@@ -296,9 +293,12 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // fallback: لو مش حجز
-      const reply = await askAI(text);
-      await sendTextMessage(from, reply);
+      if (text.includes("حجز") || text.toLowerCase().includes("book")) {
+        await sendAppointmentOptions(from);
+      } else {
+        const reply = await askAI(text);
+        await sendTextMessage(from, reply);
+      }
     }
 
     res.sendStatus(200);
@@ -316,5 +316,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
   console.log(`✅ Server running on http://localhost:${PORT}`)
 );
-
-let tempBookings = {};
