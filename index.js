@@ -15,10 +15,12 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "my_secret";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 
-// ✅ طباعة SPREADSHEET_ID للتأكد
-console.log("🟢 Loaded SPREADSHEET_ID:", SPREADSHEET_ID);
+// ✅ استعملنا المتغير الجديد GOOGLE_SHEET_ID
+const SPREADSHEET_ID = (process.env.GOOGLE_SHEET_ID || "").trim();
+
+// ✅ طباعة للتأكد من القيمة الحقيقية
+console.log("🟢 SPREADSHEET_ID being used:", `"${SPREADSHEET_ID}"`);
 
 // ✅ إعداد عميل Groq
 const client = new Groq({ apiKey: GROQ_API_KEY });
@@ -35,7 +37,7 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: "v4", auth });
 
 // ---------------------------------------------
-// Debug: طباعة أسماء الشيتات الموجودة في الملف
+// Debug: طباعة أسماء الشيتات الموجودة
 // ---------------------------------------------
 async function listSheets() {
   try {
@@ -50,7 +52,7 @@ async function listSheets() {
     console.error("❌ Error listing sheets:", err.message);
   }
 }
-listSheets(); // <-- يتنفذ مرة واحدة عند تشغيل السيرفر
+listSheets(); // يتنفذ عند تشغيل السيرفر
 
 // ---------------------------------------------
 // دوال مساعدة
@@ -180,7 +182,7 @@ app.get("/webhook", (req, res) => {
 });
 
 // 📩 استقبال رسائل من WhatsApp
-let tempBookings = {}; // نخزن بيانات كل مستخدم مؤقتاً
+let tempBookings = {};
 
 app.post("/webhook", async (req, res) => {
   try {
@@ -200,7 +202,7 @@ app.post("/webhook", async (req, res) => {
       if (id === "slot_9pm") appointment = "9 PM";
 
       if (appointment) {
-        tempBookings[from] = { appointment }; // نحفظ الموعد مؤقتاً
+        tempBookings[from] = { appointment };
         await sendTextMessage(
           from,
           "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
@@ -212,7 +214,6 @@ app.post("/webhook", async (req, res) => {
     // ✅ التعامل مع النصوص
     const text = message?.text?.body;
     if (text) {
-      // لو عندنا بيانات ناقصة في tempBookings
       if (tempBookings[from] && !tempBookings[from].name) {
         tempBookings[from].name = text;
         await sendTextMessage(from, "📱 ممتاز! ارسل رقم جوالك:");
@@ -224,7 +225,6 @@ app.post("/webhook", async (req, res) => {
       } else if (tempBookings[from] && !tempBookings[from].service) {
         tempBookings[from].service = text;
 
-        // نحفظ كل شيء
         const booking = tempBookings[from];
         await saveBooking({
           name: booking.name,
@@ -242,11 +242,10 @@ app.post("/webhook", async (req, res) => {
 📅 الموعد: ${booking.appointment}`
         );
 
-        delete tempBookings[from]; // نمسح بعد الحجز
+        delete tempBookings[from];
         return res.sendStatus(200);
       }
 
-      // طلب حجز جديد
       if (text.includes("حجز") || text.toLowerCase().includes("book")) {
         await sendAppointmentOptions(from);
       } else {
