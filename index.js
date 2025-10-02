@@ -22,8 +22,20 @@ async function askAI(userMessage) {
     messages: [
       {
         role: "system",
-        content:
-          "أنت موظف خدمة عملاء (call center) لعيادة. رد فقط على الأسئلة المتعلقة بالمواعيد 🕒، الأسعار 💰، الموقع 📍، أو الحجز 📅. ولا تجاوب خارج هذا النطاق. تحدث بالعربية فقط.",
+        content: `
+أنت موظف خدمة عملاء (call center) لعيادة طبية.
+مهمتك الرد فقط على الأسئلة المتعلقة بـ:
+- المواعيد 🕒
+- الأسعار 💰
+- الموقع 📍
+- الحجز 📅
+
+❌ لا ترد على أي أسئلة خارج هذا النطاق (رياضة، سياسة، أخبار... إلخ).
+إذا سألك العميل عن شيء خارج عملك قل بأدب:
+"أستطيع مساعدتك فقط في المواعيد، الأسعار، الموقع، أو الحجز."
+
+💡 تحدث باحترافية وبالعربية فقط، ورد كأنك موظف حقيقي وليس روبوت.
+        `,
       },
       { role: "user", content: userMessage },
     ],
@@ -100,7 +112,7 @@ async function sendAppointmentOptions(to) {
   );
 }
 
-// 📩 استقبال رسائل من WhatsApp + الرد الذكي (عيادة مع AI)
+// 📩 استقبال رسائل من WhatsApp + الرد الذكي (AI-first)
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
@@ -126,51 +138,19 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ✅ التعامل مع الرسائل النصية
+    // ✅ التعامل مع الرسائل النصية (AI مباشرة)
     const text = message?.text?.body;
     if (text) {
-      const lower = text.toLowerCase();
-      let reply;
-
-      if (lower.includes("مرحبا") || lower.includes("hello")) {
-        reply = "👋 أهلاً بك في عيادتنا! كيف يمكنني مساعدتك؟";
-      } else if (
-        lower.includes("مواعيد") ||
-        lower.includes("اوقات") ||
-        lower.includes("opening")
-      ) {
-        reply =
-          "🕒 مواعيد العيادة: يومياً من 9 صباحاً حتى 9 مساءً ما عدا الجمعة.";
-      } else if (
-        lower.includes("سعر") ||
-        lower.includes("كشف") ||
-        lower.includes("فلوس") ||
-        lower.includes("price")
-      ) {
-        reply = "💰 تكلفة الكشف: 150 ريال، تشمل الاستشارة والفحص.";
-      } else if (
-        lower.includes("موقع") ||
-        lower.includes("وين") ||
-        lower.includes("address") ||
-        lower.includes("location")
-      ) {
-        reply =
-          "📍 موقع العيادة: الرياض - شارع الملك فهد.\nGoogle Maps: https://maps.google.com";
-      } else if (
-        lower.includes("حجز") ||
-        lower.includes("appointment") ||
-        lower.includes("book")
-      ) {
-        await sendAppointmentOptions(from);
-        return res.sendStatus(200);
-      } else if (lower.includes("شكرا") || lower.includes("thanks")) {
-        reply = "🙏 شكراً لك! نتمنى لك الصحة والعافية دائماً.";
-      } else {
-        // 🔥 إذا ما فيه رد جاهز → نرسل للـ AI
-        reply = await askAI(text);
+      try {
+        const reply = await askAI(text);
+        await sendTextMessage(
+          from,
+          reply || "عذراً، لم أفهم سؤالك. ممكن توضّح أكثر؟"
+        );
+      } catch (e) {
+        console.error("AI Error:", e.message);
+        await sendTextMessage(from, "❌ حدث خطأ تقني، حاول مرة أخرى لاحقاً.");
       }
-
-      if (reply) await sendTextMessage(from, reply);
     }
 
     res.sendStatus(200);
