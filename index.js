@@ -172,13 +172,49 @@ async function sendTextMessage(to, text) {
   }
 }
 
-// 🔹 إرسال خيارات المواعيد
+// 🔹 إرسال أزرار المواعيد (3 PM / 6 PM / 9 PM)
+async function sendAppointmentButtons(to) {
+  console.log(`📤 DEBUG => Sending appointment buttons to ${to}`);
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: { text: "📅 اختر الموعد المناسب لك:" },
+          action: {
+            buttons: [
+              { type: "reply", reply: { id: "slot_3pm", title: "3 PM" } },
+              { type: "reply", reply: { id: "slot_6pm", title: "6 PM" } },
+              { type: "reply", reply: { id: "slot_9pm", title: "9 PM" } },
+            ],
+          },
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    console.log("✅ DEBUG => Appointment buttons sent successfully");
+  } catch (err) {
+    console.error(
+      "❌ DEBUG => Error sending appointment buttons:",
+      err.response?.data || err.message
+    );
+  }
+}
+
+// 🔹 إرسال خيارات المواعيد (النصوص القديمة)
 async function sendAppointmentOptions(to) {
   console.log(`📤 DEBUG => Sending appointment options to ${to}`);
-  return sendTextMessage(
-    to,
-    "📅 اختر الموعد المناسب لك: \n1️⃣ 3 PM \n2️⃣ 6 PM \n3️⃣ 9 PM"
-  );
+  // الآن نستبدل الرسالة النصية بالأزرار
+  await sendAppointmentButtons(to);
 }
 
 // 🔹 حفظ البيانات في Google Sheets
@@ -274,7 +310,7 @@ app.post("/webhook", async (req, res) => {
     if (text) {
       console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-      // رقم الموعد
+      // رقم الموعد (ما زال يقبل 3 / 6 / 9)
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         let appointment;
         if (text === "3") appointment = "3 PM";
