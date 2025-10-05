@@ -172,44 +172,13 @@ async function sendTextMessage(to, text) {
   }
 }
 
-// 🔹 إرسال أزرار المواعيد (2PM - 10PM)
-async function sendTimeSlotButtons(to) {
-  console.log(`📤 DEBUG => Sending time slot buttons to ${to}`);
-  try {
-    const response = await axios.post(
-      `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to,
-        type: "interactive",
-        interactive: {
-          type: "button",
-          body: { text: "📅 اختر الوقت المناسب لحجزك:" },
-          action: {
-            buttons: [
-              { type: "reply", reply: { id: "slot_2pm", title: "2 PM" } },
-              { type: "reply", reply: { id: "slot_4pm", title: "4 PM" } },
-              { type: "reply", reply: { id: "slot_6pm", title: "6 PM" } },
-              { type: "reply", reply: { id: "slot_8pm", title: "8 PM" } },
-              { type: "reply", reply: { id: "slot_10pm", title: "10 PM" } },
-            ],
-          },
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    console.log("✅ DEBUG => Buttons sent:", response.statusText);
-  } catch (err) {
-    console.error(
-      "❌ DEBUG => Error sending buttons:",
-      err.response?.data || err.message
-    );
-  }
+// 🔹 إرسال خيارات المواعيد
+async function sendAppointmentOptions(to) {
+  console.log(`📤 DEBUG => Sending appointment options to ${to}`);
+  return sendTextMessage(
+    to,
+    "📅 اختر الموعد المناسب لك: \n1️⃣ 3 PM \n2️⃣ 6 PM \n3️⃣ 9 PM"
+  );
 }
 
 // 🔹 حفظ البيانات في Google Sheets
@@ -286,17 +255,15 @@ app.post("/webhook", async (req, res) => {
       const id = message?.interactive?.button_reply?.id;
       console.log("🔘 DEBUG => Button pressed:", id);
       let appointment;
-      if (id === "slot_2pm") appointment = "2 PM";
-      if (id === "slot_4pm") appointment = "4 PM";
+      if (id === "slot_3pm") appointment = "3 PM";
       if (id === "slot_6pm") appointment = "6 PM";
-      if (id === "slot_8pm") appointment = "8 PM";
-      if (id === "slot_10pm") appointment = "10 PM";
+      if (id === "slot_9pm") appointment = "9 PM";
 
       if (appointment) {
         tempBookings[from] = { appointment };
         await sendTextMessage(
           from,
-          "👍 تم اختيار الموعد! الآن من فضلك أرسل اسمك:"
+          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
         );
       }
       return res.sendStatus(200);
@@ -307,23 +274,34 @@ app.post("/webhook", async (req, res) => {
     if (text) {
       console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-      // ✅ بدء الحجز
-      if (text.includes("حجز") || text.toLowerCase().includes("book")) {
-        await sendTimeSlotButtons(from);
+      // رقم الموعد
+      if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
+        let appointment;
+        if (text === "3") appointment = "3 PM";
+        if (text === "6") appointment = "6 PM";
+        if (text === "9") appointment = "9 PM";
+
+        tempBookings[from] = { appointment };
+        await sendTextMessage(
+          from,
+          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+        );
         return res.sendStatus(200);
       }
 
-      // ✅ التحقق من الاسم
+      // ✅ التحقق من الاسم الصحيح
       if (tempBookings[from] && !tempBookings[from].name) {
         const userName = text.trim();
         const isValid = await validateNameWithAI(userName);
+
         if (!isValid) {
           await sendTextMessage(
             from,
             "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة، ريم..."
           );
-          return res.sendStatus(200);
+          return res.sendStatus(200); // يبقى في نفس المرحلة
         }
+
         tempBookings[from].name = userName;
         await sendTextMessage(from, "📱 ممتاز! ارسل رقم جوالك:");
         return res.sendStatus(200);
@@ -363,6 +341,7 @@ app.post("/webhook", async (req, res) => {
       // ✅ التحقق من نوع الخدمة (خدمات الأسنان فقط)
       else if (tempBookings[from] && !tempBookings[from].service) {
         const lowerText = text.toLowerCase();
+
         const allowedServices = [
           "تنظيف",
           "تبييض",
@@ -382,8 +361,8 @@ app.post("/webhook", async (req, res) => {
           "تلميع",
         ];
 
-        const isDentalService = allowedServices.some((s) =>
-          lowerText.includes(s)
+        const isDentalService = allowedServices.some((service) =>
+          lowerText.includes(service)
         );
 
         if (!isDentalService) {
@@ -418,9 +397,12 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // ✅ رد ذكي من AI
-      const reply = await askAI(text);
-      await sendTextMessage(from, reply);
+      if (text.includes("حجز") || text.toLowerCase().includes("book")) {
+        await sendAppointmentOptions(from);
+      } else {
+        const reply = await askAI(text);
+        await sendTextMessage(from, reply);
+      }
     }
 
     res.sendStatus(200);
