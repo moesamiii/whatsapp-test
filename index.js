@@ -210,9 +210,9 @@ async function sendAppointmentButtons(to) {
   }
 }
 
-// 🔹 إرسال أزرار الخدمات (قائمة List للخدمات المتعددة)
-async function sendServiceList(to) {
-  console.log(`📤 DEBUG => Sending service list to ${to}`);
+// 🔹 إرسال أزرار الخدمات
+async function sendServiceButtons(to) {
+  console.log(`📤 DEBUG => Sending service buttons to ${to}`);
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -222,89 +222,23 @@ async function sendServiceList(to) {
         type: "interactive",
         interactive: {
           type: "list",
-          header: {
-            type: "text",
-            text: "خدمات الأسنان",
-          },
-          body: {
-            text: "💊 اختر نوع الخدمة المطلوبة:",
-          },
+          body: { text: "💊 اختر نوع الخدمة المطلوبة:" },
           action: {
             button: "اختر الخدمة",
             sections: [
               {
-                title: "خدمات التجميل",
+                title: "خدمات الأسنان",
                 rows: [
-                  {
-                    id: "service_cleaning",
-                    title: "تنظيف الأسنان",
-                    description: "تنظيف شامل",
-                  },
-                  {
-                    id: "service_whitening",
-                    title: "تبييض الأسنان",
-                    description: "تبييض احترافي",
-                  },
-                  {
-                    id: "service_smile",
-                    title: "ابتسامة هوليود",
-                    description: "تجميل شامل",
-                  },
-                ],
-              },
-              {
-                title: "خدمات العلاج",
-                rows: [
-                  {
-                    id: "service_filling",
-                    title: "حشو الأسنان",
-                    description: "حشو تجميلي",
-                  },
-                  {
-                    id: "service_extraction",
-                    title: "خلع الأسنان",
-                    description: "خلع بدون ألم",
-                  },
-                  {
-                    id: "service_root",
-                    title: "علاج عصب",
-                    description: "علاج الجذور",
-                  },
-                ],
-              },
-              {
-                title: "خدمات التركيب",
-                rows: [
-                  {
-                    id: "service_implant",
-                    title: "زراعة الأسنان",
-                    description: "زراعة فورية",
-                  },
-                  {
-                    id: "service_crown",
-                    title: "تركيب تيجان",
-                    description: "تيجان خزفية",
-                  },
-                  {
-                    id: "service_braces",
-                    title: "تقويم الأسنان",
-                    description: "تقويم شفاف",
-                  },
-                ],
-              },
-              {
-                title: "خدمات أخرى",
-                rows: [
-                  {
-                    id: "service_checkup",
-                    title: "كشفية / فحص",
-                    description: "فحص شامل",
-                  },
-                  {
-                    id: "service_other",
-                    title: "خدمة أخرى",
-                    description: "اكتب الخدمة",
-                  },
+                  { id: "service_تنظيف", title: "تنظيف الأسنان" },
+                  { id: "service_تبييض", title: "تبييض الأسنان" },
+                  { id: "service_حشو", title: "حشو الأسنان" },
+                  { id: "service_خلع", title: "خلع الأسنان" },
+                  { id: "service_زراعة", title: "زراعة الأسنان" },
+                  { id: "service_تقويم", title: "تقويم الأسنان" },
+                  { id: "service_ابتسامة", title: "ابتسامة هوليود" },
+                  { id: "service_علاج_عصب", title: "علاج عصب" },
+                  { id: "service_كشفية", title: "كشفية فحص" },
+                  { id: "service_تجميل", title: "تجميل الأسنان" },
                 ],
               },
             ],
@@ -318,18 +252,19 @@ async function sendServiceList(to) {
         },
       }
     );
-    console.log("✅ DEBUG => Service list sent successfully");
+    console.log("✅ DEBUG => Service buttons sent successfully");
   } catch (err) {
     console.error(
-      "❌ DEBUG => Error sending service list:",
+      "❌ DEBUG => Error sending service buttons:",
       err.response?.data || err.message
     );
   }
 }
 
-// 🔹 إرسال خيارات المواعيد
+// 🔹 إرسال خيارات المواعيد (النصوص القديمة)
 async function sendAppointmentOptions(to) {
   console.log(`📤 DEBUG => Sending appointment options to ${to}`);
+  // الآن نستبدل الرسالة النصية بالأزرار
   await sendAppointmentButtons(to);
 }
 
@@ -402,83 +337,66 @@ app.post("/webhook", async (req, res) => {
     const from = message?.from;
     if (!message || !from) return res.sendStatus(200);
 
-    // ✅ التعامل مع الأزرار والقوائم
+    // ✅ التعامل مع الأزرار
     if (message.type === "interactive") {
       const buttonId = message?.interactive?.button_reply?.id;
       const listId = message?.interactive?.list_reply?.id;
       const id = buttonId || listId;
 
-      console.log("🔘 DEBUG => Interactive element pressed:", id);
+      console.log("🔘 DEBUG => Button/List pressed:", id);
 
       // معالجة أزرار المواعيد
-      if (id && id.startsWith("slot_")) {
-        let appointment;
-        if (id === "slot_3pm") appointment = "3 PM";
-        if (id === "slot_6pm") appointment = "6 PM";
-        if (id === "slot_9pm") appointment = "9 PM";
+      let appointment;
+      if (id === "slot_3pm") appointment = "3 PM";
+      if (id === "slot_6pm") appointment = "6 PM";
+      if (id === "slot_9pm") appointment = "9 PM";
 
-        if (appointment) {
-          tempBookings[from] = { appointment };
-          await sendTextMessage(
-            from,
-            "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
-          );
-        }
+      if (appointment) {
+        tempBookings[from] = { appointment };
+        await sendTextMessage(
+          from,
+          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+        );
         return res.sendStatus(200);
       }
 
-      // معالجة قائمة الخدمات
+      // معالجة أزرار الخدمات
       if (id && id.startsWith("service_")) {
-        const serviceMap = {
-          service_cleaning: "تنظيف الأسنان",
-          service_whitening: "تبييض الأسنان",
-          service_smile: "ابتسامة هوليود",
-          service_filling: "حشو الأسنان",
-          service_extraction: "خلع الأسنان",
-          service_root: "علاج عصب",
-          service_implant: "زراعة الأسنان",
-          service_crown: "تركيب تيجان",
-          service_braces: "تقويم الأسنان",
-          service_checkup: "كشفية / فحص",
-          service_other: null, // للخدمات المخصصة
-        };
+        const serviceName = id.replace("service_", "").replace(/_/g, " ");
 
-        const selectedService = serviceMap[id];
-
-        if (id === "service_other") {
-          await sendTextMessage(from, "💊 من فضلك اكتب نوع الخدمة المطلوبة:");
-          tempBookings[from] = {
-            ...tempBookings[from],
-            waitingForCustomService: true,
-          };
+        if (!tempBookings[from] || !tempBookings[from].phone) {
+          await sendTextMessage(
+            from,
+            "⚠️ يرجى إكمال خطوات الحجز أولاً (الموعد، الاسم، رقم الجوال)"
+          );
           return res.sendStatus(200);
         }
 
-        if (selectedService) {
-          tempBookings[from].service = selectedService;
+        tempBookings[from].service = serviceName;
 
-          const booking = tempBookings[from];
-          console.log("📦 DEBUG => Final booking data:", booking);
-          await saveBooking({
-            name: booking.name,
-            phone: booking.phone,
-            service: booking.service,
-            appointment: booking.appointment,
-          });
+        const booking = tempBookings[from];
+        console.log("📦 DEBUG => Final booking data:", booking);
+        await saveBooking({
+          name: booking.name,
+          phone: booking.phone,
+          service: booking.service,
+          appointment: booking.appointment,
+        });
 
-          await sendTextMessage(
-            from,
-            `✅ تم حفظ حجزك: 
+        await sendTextMessage(
+          from,
+          `✅ تم حفظ حجزك: 
 👤 الاسم: ${booking.name}
 📱 الجوال: ${booking.phone}
 💊 الخدمة: ${booking.service}
 📅 الموعد: ${booking.appointment}`
-          );
+        );
 
-          delete tempBookings[from];
-        }
+        delete tempBookings[from];
         return res.sendStatus(200);
       }
+
+      return res.sendStatus(200);
     }
 
     // ✅ التعامل مع النصوص
@@ -511,7 +429,7 @@ app.post("/webhook", async (req, res) => {
             from,
             "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة، ريم..."
           );
-          return res.sendStatus(200);
+          return res.sendStatus(200); // يبقى في نفس المرحلة
         }
 
         tempBookings[from].name = userName;
@@ -546,17 +464,12 @@ app.post("/webhook", async (req, res) => {
         }
 
         tempBookings[from].phone = arabicToEnglish;
-
-        // ✅ إرسال قائمة الخدمات بدلاً من طلب الكتابة
-        await sendServiceList(from);
+        await sendServiceButtons(from);
         return res.sendStatus(200);
       }
 
-      // ✅ معالجة الخدمة المخصصة (إذا اختار "خدمة أخرى")
-      else if (
-        tempBookings[from] &&
-        tempBookings[from].waitingForCustomService
-      ) {
+      // ✅ التحقق من نوع الخدمة (خدمات الأسنان فقط) - للنصوص فقط
+      else if (tempBookings[from] && !tempBookings[from].service) {
         const lowerText = text.toLowerCase();
 
         const allowedServices = [
@@ -585,13 +498,13 @@ app.post("/webhook", async (req, res) => {
         if (!isDentalService) {
           await sendTextMessage(
             from,
-            "⚠️ نعتذر، يمكننا استقبال فقط خدمات **الأسنان** مثل: تنظيف، حشو، تقويم، خلع، تبييض، ابتسامة، زراعة، إلخ.\n\nمن فضلك أرسل نوع خدمة أسنان فقط."
+            "⚠️ نعتذر، يمكننا استقبال فقط خدمات **الأسنان** مثل: تنظيف، حشو، تقويم، خلع، تبييض، ابتسامة، زراعة، إلخ.\n\nمن فضلك اختر من القائمة أو أرسل نوع خدمة أسنان فقط."
           );
+          await sendServiceButtons(from);
           return res.sendStatus(200);
         }
 
         tempBookings[from].service = text;
-        delete tempBookings[from].waitingForCustomService;
 
         const booking = tempBookings[from];
         console.log("📦 DEBUG => Final booking data:", booking);
