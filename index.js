@@ -270,8 +270,35 @@ app.post("/webhook", async (req, res) => {
         tempBookings[from].name = text;
         await sendTextMessage(from, "📱 ممتاز! ارسل رقم جوالك:");
         return res.sendStatus(200);
-      } else if (tempBookings[from] && !tempBookings[from].phone) {
-        tempBookings[from].phone = text;
+      }
+
+      // ✅ التحقق من رقم الهاتف الأردني
+      else if (tempBookings[from] && !tempBookings[from].phone) {
+        const normalized = text.replace(/[^\d٠-٩]/g, "");
+        const arabicToEnglish = normalized
+          .replace(/٠/g, "0")
+          .replace(/١/g, "1")
+          .replace(/٢/g, "2")
+          .replace(/٣/g, "3")
+          .replace(/٤/g, "4")
+          .replace(/٥/g, "5")
+          .replace(/٦/g, "6")
+          .replace(/٧/g, "7")
+          .replace(/٨/g, "8")
+          .replace(/٩/g, "9");
+
+        const isValidJordanian =
+          /^07\d{8}$/.test(arabicToEnglish) && arabicToEnglish.length === 10;
+
+        if (!isValidJordanian) {
+          await sendTextMessage(
+            from,
+            "⚠️ الرجاء إدخال رقم هاتف أردني صحيح مثل: 0785050875 أو 079xxxxxxx أو 077xxxxxxx"
+          );
+          return res.sendStatus(200);
+        }
+
+        tempBookings[from].phone = arabicToEnglish;
         await sendTextMessage(from, "💊 تمام! اكتب نوع الخدمة المطلوبة:");
         return res.sendStatus(200);
       } else if (tempBookings[from] && !tempBookings[from].service) {
