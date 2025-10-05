@@ -129,7 +129,7 @@ async function validateNameWithAI(name) {
 الاسم المدخل هو: "${name}"
 هل هذا يبدو كاسم شخص حقيقي بالعربية مثل أحمد، محمد، علي، ريم، سارة؟
 أجب فقط بـ "نعم" أو "لا".
-    `;
+`;
     const completion = await client.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: prompt }],
@@ -172,7 +172,7 @@ async function sendTextMessage(to, text) {
   }
 }
 
-// 🔹 إرسال أزرار المواعيد
+// 🔹 إرسال أزرار المواعيد (3 PM / 6 PM / 9 PM)
 async function sendAppointmentButtons(to) {
   console.log(`📤 DEBUG => Sending appointment buttons to ${to}`);
   try {
@@ -210,7 +210,7 @@ async function sendAppointmentButtons(to) {
   }
 }
 
-// 🔹 إرسال خيارات المواعيد
+// 🔹 إرسال خيارات المواعيد (النصوص القديمة)
 async function sendAppointmentOptions(to) {
   console.log(`📤 DEBUG => Sending appointment options to ${to}`);
   await sendAppointmentButtons(to);
@@ -305,6 +305,7 @@ app.post("/webhook", async (req, res) => {
     if (text) {
       console.log(`💬 DEBUG => Message from ${from}:`, text);
 
+      // رقم الموعد (ما زال يقبل 3 / 6 / 9)
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         let appointment;
         if (text === "3") appointment = "3 PM";
@@ -352,9 +353,7 @@ app.post("/webhook", async (req, res) => {
           .replace(/٨/g, "8")
           .replace(/٩/g, "9");
 
-        const isValidJordanian =
-          /^07\d{8}$/.test(arabicToEnglish) && arabicToEnglish.length === 10;
-
+        const isValidJordanian = /^07\d{8}$/.test(arabicToEnglish);
         if (!isValidJordanian) {
           await sendTextMessage(
             from,
@@ -368,8 +367,10 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // ✅ التحقق من نوع الخدمة (تحقق دقيق من الكلمات)
+      // ✅ التحقق الذكي من نوع الخدمة
       else if (tempBookings[from] && !tempBookings[from].service) {
+        const lowerText = text.toLowerCase();
+
         const allowedServices = [
           "تنظيف",
           "تبييض",
@@ -384,35 +385,44 @@ app.post("/webhook", async (req, res) => {
           "فحص",
           "تجميل الأسنان",
           "تجميل",
-          "برد الأسنان",
+          "برد",
           "ترميم",
           "تلميع",
         ];
 
-        const lowerText = text.trim();
-        const isDentalService = allowedServices.some((service) =>
-          new RegExp(`\\b${service}\\b`, "i").test(lowerText)
-        );
+        const forbiddenWords = [
+          "اللثة",
+          "اللسان",
+          "الشعر",
+          "الوجه",
+          "البشرة",
+          "العين",
+          "الجلد",
+        ];
 
-        if (!isDentalService) {
+        const hasForbidden = forbiddenWords.some((w) => lowerText.includes(w));
+        if (hasForbidden) {
           await sendTextMessage(
             from,
-            "⚠️ نعتذر، الخدمة المدخلة غير صحيحة. يمكننا استقبال فقط خدمات **الأسنان** مثل:\n" +
-              "تنظيف، تبييض، حشو، خلع، تقويم، زراعة، ابتسامة، علاج عصب، فحص، تجميل الأسنان، إلخ.\n\nمن فضلك أرسل نوع خدمة أسنان فقط."
+            "⚠️ نعتذر، الخدمة المدخلة غير صحيحة. يرجى اختيار خدمة أسنان فقط مثل: تنظيف الأسنان، حشو، تبييض، زراعة، تقويم، علاج عصب، إلخ."
           );
           return res.sendStatus(200);
         }
 
-        tempBookings[from].service = lowerText;
+        const hasValid = allowedServices.some((s) => lowerText.includes(s));
+        if (!hasValid) {
+          await sendTextMessage(
+            from,
+            "⚠️ نعتذر، يمكننا استقبال فقط خدمات **الأسنان** مثل: تنظيف، حشو، تقويم، خلع، تبييض، ابتسامة، زراعة، علاج عصب، إلخ.\n\nمن فضلك أرسل نوع خدمة أسنان فقط."
+          );
+          return res.sendStatus(200);
+        }
+
+        tempBookings[from].service = text;
 
         const booking = tempBookings[from];
         console.log("📦 DEBUG => Final booking data:", booking);
-        await saveBooking({
-          name: booking.name,
-          phone: booking.phone,
-          service: booking.service,
-          appointment: booking.appointment,
-        });
+        await saveBooking(booking);
 
         await sendTextMessage(
           from,
