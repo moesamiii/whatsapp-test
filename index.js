@@ -433,6 +433,37 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
+      // ✅ إضافة الفلتر الجديد للكلمات الخارجة عن نطاق العمل
+      const inappropriateKeywords = [
+        "غرام",
+        "رومانسي",
+        "حب",
+        "حبيب",
+        "حبيبي",
+        "حبيبتي",
+        "تعرف",
+        "علاقة",
+        "زواج",
+        "خطيبة",
+        "زوجة",
+        "غرامي",
+        "رومانسي",
+        "مواعدة",
+        "رومانسية",
+      ];
+
+      const containsInappropriate = inappropriateKeywords.some((word) =>
+        text.toLowerCase().includes(word)
+      );
+
+      if (containsInappropriate) {
+        await sendTextMessage(
+          from,
+          "⚕️ مرحبًا بك، نود إعلامك أن هذا الحساب مخصص فقط لخدمات **العيادة الطبية** مثل المواعيد، الحجز، الموقع، والأسعار. نعتذر عن عدم قدرتنا على مناقشة مواضيع خارج هذا النطاق."
+        );
+        return res.sendStatus(200);
+      }
+
       if (text.includes("حجز") || text.toLowerCase().includes("book")) {
         await sendAppointmentOptions(from);
       } else {
