@@ -98,6 +98,8 @@ async function askAI(userMessage) {
    "دعني أؤكد لك المعلومة بعد قليل."
 5. تكلّم دائمًا بالعربية الفصحى باحترام ومهنية.
 6. لا تستخدم رموز أو إيموجي إلا نادرًا.
+
+الهدف: أن تبدو وكأنك موظف حقيقي في عيادة.
 `;
 
     const completion = await client.chat.completions.create({
@@ -120,15 +122,14 @@ async function askAI(userMessage) {
   }
 }
 
-// 🔹 التحقق الذكي من الاسم باستخدام AI
+// 🔹 التحقق من الاسم عبر الذكاء الاصطناعي
 async function validateNameWithAI(name) {
   try {
     const prompt = `
 الاسم المدخل هو: "${name}"
-هل هذا يبدو كاسم شخص حقيقي (مثل أحمد، محمد علي، ريم، سارة، يوسف...)؟
-أجب فقط بكلمة واحدة: "نعم" أو "لا".
+هل هذا يبدو كاسم شخص حقيقي بالعربية مثل أحمد، محمد، علي، ريم، سارة؟
+أجب فقط بـ "نعم" أو "لا".
     `;
-
     const completion = await client.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: prompt }],
@@ -137,8 +138,7 @@ async function validateNameWithAI(name) {
     });
 
     const reply = completion.choices[0]?.message?.content?.trim();
-    console.log("🤖 DEBUG => Name validation AI reply:", reply);
-
+    console.log("🤖 DEBUG => Name validation reply:", reply);
     return reply && reply.startsWith("نعم");
   } catch (err) {
     console.error("❌ DEBUG => Name validation error:", err.message);
@@ -188,6 +188,10 @@ async function saveBooking({ name, phone, service, appointment }) {
       [name, phone, service, appointment, new Date().toISOString()],
     ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
+
+    console.log(
+      `🔍 DEBUG => Trying to append to Sheet: "${DEFAULT_SHEET_NAME}" in spreadsheet: "${SPREADSHEET_ID}"`
+    );
 
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -285,17 +289,17 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // ✅ التحقق من الاسم
+      // ✅ التحقق من الاسم الصحيح
       if (tempBookings[from] && !tempBookings[from].name) {
         const userName = text.trim();
-
         const isValid = await validateNameWithAI(userName);
+
         if (!isValid) {
           await sendTextMessage(
             from,
-            "⚠️ الرجاء إدخال اسم حقيقي مثل: محمد، سارة، أحمد، ريم..."
+            "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة، ريم..."
           );
-          return res.sendStatus(200); // لا نكمل، نبقى في نفس المرحلة
+          return res.sendStatus(200); // يبقى في نفس المرحلة
         }
 
         tempBookings[from].name = userName;
