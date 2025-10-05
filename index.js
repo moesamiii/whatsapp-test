@@ -172,7 +172,7 @@ async function sendTextMessage(to, text) {
   }
 }
 
-// 🔹 إرسال أزرار المواعيد (3 PM / 6 PM / 9 PM)
+// 🔹 إرسال أزرار المواعيد
 async function sendAppointmentButtons(to) {
   console.log(`📤 DEBUG => Sending appointment buttons to ${to}`);
   try {
@@ -210,10 +210,9 @@ async function sendAppointmentButtons(to) {
   }
 }
 
-// 🔹 إرسال خيارات المواعيد (النصوص القديمة)
+// 🔹 إرسال خيارات المواعيد
 async function sendAppointmentOptions(to) {
   console.log(`📤 DEBUG => Sending appointment options to ${to}`);
-  // الآن نستبدل الرسالة النصية بالأزرار
   await sendAppointmentButtons(to);
 }
 
@@ -224,10 +223,6 @@ async function saveBooking({ name, phone, service, appointment }) {
       [name, phone, service, appointment, new Date().toISOString()],
     ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
-
-    console.log(
-      `🔍 DEBUG => Trying to append to Sheet: "${DEFAULT_SHEET_NAME}" in spreadsheet: "${SPREADSHEET_ID}"`
-    );
 
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -310,7 +305,6 @@ app.post("/webhook", async (req, res) => {
     if (text) {
       console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-      // رقم الموعد (ما زال يقبل 3 / 6 / 9)
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         let appointment;
         if (text === "3") appointment = "3 PM";
@@ -335,7 +329,7 @@ app.post("/webhook", async (req, res) => {
             from,
             "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة، ريم..."
           );
-          return res.sendStatus(200); // يبقى في نفس المرحلة
+          return res.sendStatus(200);
         }
 
         tempBookings[from].name = userName;
@@ -374,10 +368,8 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // ✅ التحقق من نوع الخدمة (خدمات الأسنان فقط)
+      // ✅ التحقق من نوع الخدمة (تحقق دقيق من الكلمات)
       else if (tempBookings[from] && !tempBookings[from].service) {
-        const lowerText = text.toLowerCase();
-
         const allowedServices = [
           "تنظيف",
           "تبييض",
@@ -392,24 +384,26 @@ app.post("/webhook", async (req, res) => {
           "فحص",
           "تجميل الأسنان",
           "تجميل",
-          "برد",
+          "برد الأسنان",
           "ترميم",
           "تلميع",
         ];
 
+        const lowerText = text.trim();
         const isDentalService = allowedServices.some((service) =>
-          lowerText.includes(service)
+          new RegExp(`\\b${service}\\b`, "i").test(lowerText)
         );
 
         if (!isDentalService) {
           await sendTextMessage(
             from,
-            "⚠️ نعتذر، يمكننا استقبال فقط خدمات **الأسنان** مثل: تنظيف، حشو، تقويم، خلع، تبييض، ابتسامة، زراعة، إلخ.\n\nمن فضلك أرسل نوع خدمة أسنان فقط."
+            "⚠️ نعتذر، الخدمة المدخلة غير صحيحة. يمكننا استقبال فقط خدمات **الأسنان** مثل:\n" +
+              "تنظيف، تبييض، حشو، خلع، تقويم، زراعة، ابتسامة، علاج عصب، فحص، تجميل الأسنان، إلخ.\n\nمن فضلك أرسل نوع خدمة أسنان فقط."
           );
           return res.sendStatus(200);
         }
 
-        tempBookings[from].service = text;
+        tempBookings[from].service = lowerText;
 
         const booking = tempBookings[from];
         console.log("📦 DEBUG => Final booking data:", booking);
