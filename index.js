@@ -250,7 +250,7 @@ app.post("/webhook", async (req, res) => {
     if (text) {
       console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-      // لو المستخدم كتب رقم الموعد بدلاً من الضغط على الزر
+      // رقم الموعد
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         let appointment;
         if (text === "3") appointment = "3 PM";
@@ -258,7 +258,6 @@ app.post("/webhook", async (req, res) => {
         if (text === "9") appointment = "9 PM";
 
         tempBookings[from] = { appointment };
-        console.log("📝 DEBUG => Appointment set manually:", appointment);
         await sendTextMessage(
           from,
           "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
@@ -266,6 +265,7 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
+      // الاسم
       if (tempBookings[from] && !tempBookings[from].name) {
         tempBookings[from].name = text;
         await sendTextMessage(from, "📱 ممتاز! ارسل رقم جوالك:");
@@ -301,7 +301,43 @@ app.post("/webhook", async (req, res) => {
         tempBookings[from].phone = arabicToEnglish;
         await sendTextMessage(from, "💊 تمام! اكتب نوع الخدمة المطلوبة:");
         return res.sendStatus(200);
-      } else if (tempBookings[from] && !tempBookings[from].service) {
+      }
+
+      // ✅ التحقق من نوع الخدمة (خدمات الأسنان فقط)
+      else if (tempBookings[from] && !tempBookings[from].service) {
+        const lowerText = text.toLowerCase();
+
+        const allowedServices = [
+          "تنظيف",
+          "تبييض",
+          "حشو",
+          "خلع",
+          "زراعة",
+          "تركيب",
+          "تقويم",
+          "ابتسامة",
+          "علاج عصب",
+          "كشفية",
+          "فحص",
+          "تجميل الأسنان",
+          "تجميل",
+          "برد",
+          "ترميم",
+          "تلميع",
+        ];
+
+        const isDentalService = allowedServices.some((service) =>
+          lowerText.includes(service)
+        );
+
+        if (!isDentalService) {
+          await sendTextMessage(
+            from,
+            "⚠️ نعتذر، يمكننا استقبال فقط خدمات **الأسنان** مثل: تنظيف، حشو، تقويم، خلع، تبييض، ابتسامة، زراعة، إلخ.\n\nمن فضلك أرسل نوع خدمة أسنان فقط."
+          );
+          return res.sendStatus(200);
+        }
+
         tempBookings[from].service = text;
 
         const booking = tempBookings[from];
