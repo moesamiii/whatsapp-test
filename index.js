@@ -177,7 +177,7 @@ async function sendAppointmentOptions(to) {
   console.log(`📤 DEBUG => Sending appointment options to ${to}`);
   return sendTextMessage(
     to,
-    "📅 الرجاء كتابة الوقت المناسب لك بين الساعة 2 ظهرًا و 10 مساءً (مثلاً: ٣، الثالثة، 9، التاسعة، تسعة مساءً)."
+    "📅 اختر الموعد المناسب لك (من 2 إلى 10 PM): \nمثال: ٢، 5، ٧، تسعة..."
   );
 }
 
@@ -208,60 +208,10 @@ async function saveBooking({ name, phone, service, appointment }) {
   }
 }
 
-// 🔹 تحليل الوقت المرن بين 2 و10
-function parseFlexibleTime(input) {
-  const text = input
-    .toLowerCase()
-    .replace(/[^\w\s\u0660-\u0669]/g, "")
-    .trim();
-
-  // تحويل الأرقام العربية
-  const arabicToEnglish = text.replace(/[٠-٩]/g, (d) =>
-    "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString()
-  );
-
-  // البحث عن أرقام
-  const numberMatch = arabicToEnglish.match(/\d+/);
-  let hour = numberMatch ? parseInt(numberMatch[0]) : null;
-
-  // كلمات عربية إلى ساعات
-  const arabicWords = {
-    اثنين: 2,
-    الثانية: 2,
-    ثلاثة: 3,
-    الثالثة: 3,
-    اربعة: 4,
-    الرابعة: 4,
-    خمسة: 5,
-    الخامسة: 5,
-    ستة: 6,
-    السادسة: 6,
-    سبعة: 7,
-    السابعة: 7,
-    ثمانية: 8,
-    الثامنة: 8,
-    تسعة: 9,
-    التاسعة: 9,
-    عشرة: 10,
-    العاشرة: 10,
-  };
-
-  for (const [word, value] of Object.entries(arabicWords)) {
-    if (text.includes(word)) {
-      hour = value;
-      break;
-    }
-  }
-
-  if (hour && hour >= 2 && hour <= 10) {
-    return `${hour} PM`;
-  }
-  return null;
-}
-
 // ---------------------------------------------
 // Routes
 // ---------------------------------------------
+
 app.get("/", (req, res) => {
   res.send("✅ WhatsApp Webhook for Clinic is running on Vercel!");
 });
@@ -282,9 +232,34 @@ app.get("/webhook", (req, res) => {
 
 let tempBookings = {};
 
-// ---------------------------------------------
-// 📩 POST Webhook Handler
-// ---------------------------------------------
+// ✅ وظيفة مساعدة لتحويل نص عربي إلى رقم
+function normalizeArabicNumber(text) {
+  const arabicToEnglish = text
+    .replace(/[^\w\s]/g, "")
+    .replace(/٠/g, "0")
+    .replace(/١/g, "1")
+    .replace(/٢/g, "2")
+    .replace(/٣/g, "3")
+    .replace(/٤/g, "4")
+    .replace(/٥/g, "5")
+    .replace(/٦/g, "6")
+    .replace(/٧/g, "7")
+    .replace(/٨/g, "8")
+    .replace(/٩/g, "9")
+    .replace(/اثنين|إثنين|ثنين|اتنين/gi, "2")
+    .replace(/ثلاثة|تلاتة|٣/gi, "3")
+    .replace(/اربعة|أربعة/gi, "4")
+    .replace(/خمسة/gi, "5")
+    .replace(/ستة/gi, "6")
+    .replace(/سبعة/gi, "7")
+    .replace(/ثمانية|تمنية|تمانية/gi, "8")
+    .replace(/تسعة/gi, "9")
+    .replace(/عشرة/gi, "10");
+
+  return arabicToEnglish.trim();
+}
+
+// ✅ Route الرئيسي
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
@@ -295,26 +270,32 @@ app.post("/webhook", async (req, res) => {
     const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
 
-    // 🕒 المرحلة الأولى — الموعد
+    console.log(`💬 DEBUG => Message from ${from}:`, text);
+
+    // ✅ الذكاء الجديد في المواعيد (من 2 إلى 10)
     if (!tempBookings[from]) {
-      const appointment = parseFlexibleTime(text);
-      if (!appointment) {
+      const normalized = normalizeArabicNumber(text);
+      const hour = parseInt(normalized);
+
+      if (!isNaN(hour) && hour >= 2 && hour <= 10) {
+        const appointment = `${hour} PM`;
+        tempBookings[from] = { appointment };
         await sendTextMessage(
           from,
-          "⏰ العيادة تعمل من الساعة 2 ظهرًا حتى 10 مساءً.\nالرجاء إرسال وقت مناسب داخل هذه الفترة (مثل: ٣، الثالثة، 9، التاسعة، تسعة مساءً)."
+          `👍 تم اختيار الموعد الساعة ${appointment}! الآن من فضلك أرسل اسمك:`
         );
         return res.sendStatus(200);
+      } else if (
+        text.includes("حجز") ||
+        text.toLowerCase().includes("book") ||
+        text.includes("موعد")
+      ) {
+        await sendAppointmentOptions(from);
+        return res.sendStatus(200);
       }
-
-      tempBookings[from] = { appointment };
-      await sendTextMessage(
-        from,
-        "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
-      );
-      return res.sendStatus(200);
     }
 
-    // ✅ التحقق من الاسم الصحيح
+    // ✅ التحقق من الاسم
     if (tempBookings[from] && !tempBookings[from].name) {
       const userName = text.trim();
       const isValid = await validateNameWithAI(userName);
@@ -363,10 +344,9 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ✅ التحقق من نوع الخدمة (خدمات الأسنان فقط)
+    // ✅ نوع الخدمة (أسنان فقط)
     else if (tempBookings[from] && !tempBookings[from].service) {
       const lowerText = text.toLowerCase();
-
       const allowedServices = [
         "تنظيف",
         "تبييض",
@@ -386,10 +366,9 @@ app.post("/webhook", async (req, res) => {
         "تلميع",
       ];
 
-      const isDentalService = allowedServices.some((service) =>
-        lowerText.includes(service)
+      const isDentalService = allowedServices.some((s) =>
+        lowerText.includes(s)
       );
-
       if (!isDentalService) {
         await sendTextMessage(
           from,
@@ -401,17 +380,10 @@ app.post("/webhook", async (req, res) => {
       tempBookings[from].service = text;
 
       const booking = tempBookings[from];
-      console.log("📦 DEBUG => Final booking data:", booking);
-      await saveBooking({
-        name: booking.name,
-        phone: booking.phone,
-        service: booking.service,
-        appointment: booking.appointment,
-      });
-
+      await saveBooking(booking);
       await sendTextMessage(
         from,
-        `✅ تم حفظ حجزك:
+        `✅ تم حفظ حجزك: 
 👤 الاسم: ${booking.name}
 📱 الجوال: ${booking.phone}
 💊 الخدمة: ${booking.service}
@@ -422,20 +394,17 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // أي نص آخر يرجع للذكاء الاصطناعي
+    // ✅ fallback للذكاء الاصطناعي
     const reply = await askAI(text);
     await sendTextMessage(from, reply);
     res.sendStatus(200);
   } catch (err) {
-    console.error(
-      "❌ DEBUG => Webhook Error:",
-      err.response?.data || err.message
-    );
+    console.error("❌ DEBUG => Webhook Error:", err.message);
     res.sendStatus(500);
   }
 });
 
-// 🚀 للتشغيل محلياً
+// 🚀 تشغيل السيرفر
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
   console.log(`✅ Server running on http://localhost:${PORT}`)
