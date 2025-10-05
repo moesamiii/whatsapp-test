@@ -129,7 +129,7 @@ async function validateNameWithAI(name) {
 الاسم المدخل هو: "${name}"
 هل هذا يبدو كاسم شخص حقيقي بالعربية مثل أحمد، محمد، علي، ريم، سارة؟
 أجب فقط بـ "نعم" أو "لا".
-`;
+    `;
     const completion = await client.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: prompt }],
@@ -213,6 +213,7 @@ async function sendAppointmentButtons(to) {
 // 🔹 إرسال خيارات المواعيد (النصوص القديمة)
 async function sendAppointmentOptions(to) {
   console.log(`📤 DEBUG => Sending appointment options to ${to}`);
+  // الآن نستبدل الرسالة النصية بالأزرار
   await sendAppointmentButtons(to);
 }
 
@@ -223,6 +224,10 @@ async function saveBooking({ name, phone, service, appointment }) {
       [name, phone, service, appointment, new Date().toISOString()],
     ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
+
+    console.log(
+      `🔍 DEBUG => Trying to append to Sheet: "${DEFAULT_SHEET_NAME}" in spreadsheet: "${SPREADSHEET_ID}"`
+    );
 
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -330,7 +335,7 @@ app.post("/webhook", async (req, res) => {
             from,
             "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة، ريم..."
           );
-          return res.sendStatus(200);
+          return res.sendStatus(200); // يبقى في نفس المرحلة
         }
 
         tempBookings[from].name = userName;
@@ -353,7 +358,9 @@ app.post("/webhook", async (req, res) => {
           .replace(/٨/g, "8")
           .replace(/٩/g, "9");
 
-        const isValidJordanian = /^07\d{8}$/.test(arabicToEnglish);
+        const isValidJordanian =
+          /^07\d{8}$/.test(arabicToEnglish) && arabicToEnglish.length === 10;
+
         if (!isValidJordanian) {
           await sendTextMessage(
             from,
@@ -367,7 +374,7 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // ✅ التحقق الذكي من نوع الخدمة
+      // ✅ التحقق من نوع الخدمة (خدمات الأسنان فقط)
       else if (tempBookings[from] && !tempBookings[from].service) {
         const lowerText = text.toLowerCase();
 
@@ -390,30 +397,14 @@ app.post("/webhook", async (req, res) => {
           "تلميع",
         ];
 
-        const forbiddenWords = [
-          "اللثة",
-          "اللسان",
-          "الشعر",
-          "الوجه",
-          "البشرة",
-          "العين",
-          "الجلد",
-        ];
+        const isDentalService = allowedServices.some((service) =>
+          lowerText.includes(service)
+        );
 
-        const hasForbidden = forbiddenWords.some((w) => lowerText.includes(w));
-        if (hasForbidden) {
+        if (!isDentalService) {
           await sendTextMessage(
             from,
-            "⚠️ نعتذر، الخدمة المدخلة غير صحيحة. يرجى اختيار خدمة أسنان فقط مثل: تنظيف الأسنان، حشو، تبييض، زراعة، تقويم، علاج عصب، إلخ."
-          );
-          return res.sendStatus(200);
-        }
-
-        const hasValid = allowedServices.some((s) => lowerText.includes(s));
-        if (!hasValid) {
-          await sendTextMessage(
-            from,
-            "⚠️ نعتذر، يمكننا استقبال فقط خدمات **الأسنان** مثل: تنظيف، حشو، تقويم، خلع، تبييض، ابتسامة، زراعة، علاج عصب، إلخ.\n\nمن فضلك أرسل نوع خدمة أسنان فقط."
+            "⚠️ نعتذر، يمكننا استقبال فقط خدمات **الأسنان** مثل: تنظيف، حشو، تقويم، خلع، تبييض، ابتسامة، زراعة، إلخ.\n\nمن فضلك أرسل نوع خدمة أسنان فقط."
           );
           return res.sendStatus(200);
         }
@@ -422,7 +413,12 @@ app.post("/webhook", async (req, res) => {
 
         const booking = tempBookings[from];
         console.log("📦 DEBUG => Final booking data:", booking);
-        await saveBooking(booking);
+        await saveBooking({
+          name: booking.name,
+          phone: booking.phone,
+          service: booking.service,
+          appointment: booking.appointment,
+        });
 
         await sendTextMessage(
           from,
@@ -460,3 +456,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
   console.log(`✅ Server running on http://localhost:${PORT}`)
 );
+g;
