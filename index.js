@@ -172,13 +172,53 @@ async function sendTextMessage(to, text) {
   }
 }
 
-// 🔹 إرسال خيارات المواعيد
-async function sendAppointmentOptions(to) {
-  console.log(`📤 DEBUG => Sending appointment options to ${to}`);
-  return sendTextMessage(
-    to,
-    "📅 اختر الموعد المناسب لك: \n1️⃣ 3 PM \n2️⃣ 6 PM \n3️⃣ 9 PM"
-  );
+// 🔹 إرسال أزرار المواعيد (بدل النصوص 3 / 6 / 9)
+async function sendAppointmentButtons(to) {
+  console.log(`📤 DEBUG => Sending appointment buttons to ${to}`);
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: {
+            text: "📅 اختر الموعد المناسب لك:",
+          },
+          action: {
+            buttons: [
+              {
+                type: "reply",
+                reply: { id: "slot_3pm", title: "3 PM" },
+              },
+              {
+                type: "reply",
+                reply: { id: "slot_6pm", title: "6 PM" },
+              },
+              {
+                type: "reply",
+                reply: { id: "slot_9pm", title: "9 PM" },
+              },
+            ],
+          },
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    console.log("✅ DEBUG => Buttons sent successfully");
+  } catch (err) {
+    console.error(
+      "❌ DEBUG => Failed to send appointment buttons:",
+      err.response?.data || err.message
+    );
+  }
 }
 
 // 🔹 حفظ البيانات في Google Sheets
@@ -274,18 +314,9 @@ app.post("/webhook", async (req, res) => {
     if (text) {
       console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-      // رقم الموعد
-      if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
-        let appointment;
-        if (text === "3") appointment = "3 PM";
-        if (text === "6") appointment = "6 PM";
-        if (text === "9") appointment = "9 PM";
-
-        tempBookings[from] = { appointment };
-        await sendTextMessage(
-          from,
-          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
-        );
+      // ✅ عند كتابة كلمة حجز أو book → أرسل الأزرار الجديدة
+      if (text.includes("حجز") || text.toLowerCase().includes("book")) {
+        await sendAppointmentButtons(from);
         return res.sendStatus(200);
       }
 
@@ -299,7 +330,7 @@ app.post("/webhook", async (req, res) => {
             from,
             "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة، ريم..."
           );
-          return res.sendStatus(200); // يبقى في نفس المرحلة
+          return res.sendStatus(200);
         }
 
         tempBookings[from].name = userName;
@@ -397,12 +428,9 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      if (text.includes("حجز") || text.toLowerCase().includes("book")) {
-        await sendAppointmentOptions(from);
-      } else {
-        const reply = await askAI(text);
-        await sendTextMessage(from, reply);
-      }
+      // ✅ رد ذكي من AI
+      const reply = await askAI(text);
+      await sendTextMessage(from, reply);
     }
 
     res.sendStatus(200);
