@@ -177,7 +177,7 @@ async function sendAppointmentOptions(to) {
   console.log(`📤 DEBUG => Sending appointment options to ${to}`);
   return sendTextMessage(
     to,
-    "📅 اختر الموعد المناسب لك: \n1️⃣ 3 PM \n2️⃣ 6 PM \n3️⃣ 9 PM"
+    "📅 الرجاء كتابة الوقت المناسب لك بين الساعة 2 ظهرًا و 10 مساءً (مثلاً: ٣، الثالثة، 9، التاسعة، تسعة مساءً)."
   );
 }
 
@@ -188,10 +188,6 @@ async function saveBooking({ name, phone, service, appointment }) {
       [name, phone, service, appointment, new Date().toISOString()],
     ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
-
-    console.log(
-      `🔍 DEBUG => Trying to append to Sheet: "${DEFAULT_SHEET_NAME}" in spreadsheet: "${SPREADSHEET_ID}"`
-    );
 
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -212,10 +208,60 @@ async function saveBooking({ name, phone, service, appointment }) {
   }
 }
 
+// 🔹 تحليل الوقت المرن بين 2 و10
+function parseFlexibleTime(input) {
+  const text = input
+    .toLowerCase()
+    .replace(/[^\w\s\u0660-\u0669]/g, "")
+    .trim();
+
+  // تحويل الأرقام العربية
+  const arabicToEnglish = text.replace(/[٠-٩]/g, (d) =>
+    "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString()
+  );
+
+  // البحث عن أرقام
+  const numberMatch = arabicToEnglish.match(/\d+/);
+  let hour = numberMatch ? parseInt(numberMatch[0]) : null;
+
+  // كلمات عربية إلى ساعات
+  const arabicWords = {
+    اثنين: 2,
+    الثانية: 2,
+    ثلاثة: 3,
+    الثالثة: 3,
+    اربعة: 4,
+    الرابعة: 4,
+    خمسة: 5,
+    الخامسة: 5,
+    ستة: 6,
+    السادسة: 6,
+    سبعة: 7,
+    السابعة: 7,
+    ثمانية: 8,
+    الثامنة: 8,
+    تسعة: 9,
+    التاسعة: 9,
+    عشرة: 10,
+    العاشرة: 10,
+  };
+
+  for (const [word, value] of Object.entries(arabicWords)) {
+    if (text.includes(word)) {
+      hour = value;
+      break;
+    }
+  }
+
+  if (hour && hour >= 2 && hour <= 10) {
+    return `${hour} PM`;
+  }
+  return null;
+}
+
 // ---------------------------------------------
 // Routes
 // ---------------------------------------------
-
 app.get("/", (req, res) => {
   res.send("✅ WhatsApp Webhook for Clinic is running on Vercel!");
 });
@@ -236,175 +282,149 @@ app.get("/webhook", (req, res) => {
 
 let tempBookings = {};
 
+// ---------------------------------------------
+// 📩 POST Webhook Handler
+// ---------------------------------------------
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
-    console.log(
-      "📩 DEBUG => Incoming webhook body:",
-      JSON.stringify(body, null, 2)
-    );
-
-    if (!body.object) return res.sendStatus(404);
-
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from;
     if (!message || !from) return res.sendStatus(200);
 
-    // ✅ التعامل مع الأزرار
-    if (message.type === "interactive") {
-      const id = message?.interactive?.button_reply?.id;
-      console.log("🔘 DEBUG => Button pressed:", id);
-      let appointment;
-      if (id === "slot_3pm") appointment = "3 PM";
-      if (id === "slot_6pm") appointment = "6 PM";
-      if (id === "slot_9pm") appointment = "9 PM";
+    const text = message?.text?.body?.trim();
+    if (!text) return res.sendStatus(200);
 
-      if (appointment) {
-        tempBookings[from] = { appointment };
+    // 🕒 المرحلة الأولى — الموعد
+    if (!tempBookings[from]) {
+      const appointment = parseFlexibleTime(text);
+      if (!appointment) {
         await sendTextMessage(
           from,
-          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+          "⏰ العيادة تعمل من الساعة 2 ظهرًا حتى 10 مساءً.\nالرجاء إرسال وقت مناسب داخل هذه الفترة (مثل: ٣، الثالثة، 9، التاسعة، تسعة مساءً)."
         );
+        return res.sendStatus(200);
       }
+
+      tempBookings[from] = { appointment };
+      await sendTextMessage(
+        from,
+        "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+      );
       return res.sendStatus(200);
     }
 
-    // ✅ التعامل مع النصوص
-    const text = message?.text?.body?.trim();
-    if (text) {
-      console.log(`💬 DEBUG => Message from ${from}:`, text);
+    // ✅ التحقق من الاسم الصحيح
+    if (tempBookings[from] && !tempBookings[from].name) {
+      const userName = text.trim();
+      const isValid = await validateNameWithAI(userName);
 
-      // رقم الموعد
-      if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
-        let appointment;
-        if (text === "3") appointment = "3 PM";
-        if (text === "6") appointment = "6 PM";
-        if (text === "9") appointment = "9 PM";
-
-        tempBookings[from] = { appointment };
+      if (!isValid) {
         await sendTextMessage(
           from,
-          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+          "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة، ريم..."
         );
         return res.sendStatus(200);
       }
 
-      // ✅ التحقق من الاسم الصحيح
-      if (tempBookings[from] && !tempBookings[from].name) {
-        const userName = text.trim();
-        const isValid = await validateNameWithAI(userName);
+      tempBookings[from].name = userName;
+      await sendTextMessage(from, "📱 ممتاز! ارسل رقم جوالك:");
+      return res.sendStatus(200);
+    }
 
-        if (!isValid) {
-          await sendTextMessage(
-            from,
-            "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة، ريم..."
-          );
-          return res.sendStatus(200); // يبقى في نفس المرحلة
-        }
+    // ✅ التحقق من رقم الهاتف الأردني
+    else if (tempBookings[from] && !tempBookings[from].phone) {
+      const normalized = text.replace(/[^\d٠-٩]/g, "");
+      const arabicToEnglish = normalized
+        .replace(/٠/g, "0")
+        .replace(/١/g, "1")
+        .replace(/٢/g, "2")
+        .replace(/٣/g, "3")
+        .replace(/٤/g, "4")
+        .replace(/٥/g, "5")
+        .replace(/٦/g, "6")
+        .replace(/٧/g, "7")
+        .replace(/٨/g, "8")
+        .replace(/٩/g, "9");
 
-        tempBookings[from].name = userName;
-        await sendTextMessage(from, "📱 ممتاز! ارسل رقم جوالك:");
-        return res.sendStatus(200);
-      }
+      const isValidJordanian =
+        /^07\d{8}$/.test(arabicToEnglish) && arabicToEnglish.length === 10;
 
-      // ✅ التحقق من رقم الهاتف الأردني
-      else if (tempBookings[from] && !tempBookings[from].phone) {
-        const normalized = text.replace(/[^\d٠-٩]/g, "");
-        const arabicToEnglish = normalized
-          .replace(/٠/g, "0")
-          .replace(/١/g, "1")
-          .replace(/٢/g, "2")
-          .replace(/٣/g, "3")
-          .replace(/٤/g, "4")
-          .replace(/٥/g, "5")
-          .replace(/٦/g, "6")
-          .replace(/٧/g, "7")
-          .replace(/٨/g, "8")
-          .replace(/٩/g, "9");
-
-        const isValidJordanian =
-          /^07\d{8}$/.test(arabicToEnglish) && arabicToEnglish.length === 10;
-
-        if (!isValidJordanian) {
-          await sendTextMessage(
-            from,
-            "⚠️ الرجاء إدخال رقم هاتف أردني صحيح مثل: 0785050875 أو 079xxxxxxx أو 077xxxxxxx"
-          );
-          return res.sendStatus(200);
-        }
-
-        tempBookings[from].phone = arabicToEnglish;
-        await sendTextMessage(from, "💊 تمام! اكتب نوع الخدمة المطلوبة:");
-        return res.sendStatus(200);
-      }
-
-      // ✅ التحقق من نوع الخدمة (خدمات الأسنان فقط)
-      else if (tempBookings[from] && !tempBookings[from].service) {
-        const lowerText = text.toLowerCase();
-
-        const allowedServices = [
-          "تنظيف",
-          "تبييض",
-          "حشو",
-          "خلع",
-          "زراعة",
-          "تركيب",
-          "تقويم",
-          "ابتسامة",
-          "علاج عصب",
-          "كشفية",
-          "فحص",
-          "تجميل الأسنان",
-          "تجميل",
-          "برد",
-          "ترميم",
-          "تلميع",
-        ];
-
-        const isDentalService = allowedServices.some((service) =>
-          lowerText.includes(service)
-        );
-
-        if (!isDentalService) {
-          await sendTextMessage(
-            from,
-            "⚠️ نعتذر، يمكننا استقبال فقط خدمات **الأسنان** مثل: تنظيف، حشو، تقويم، خلع، تبييض، ابتسامة، زراعة، إلخ.\n\nمن فضلك أرسل نوع خدمة أسنان فقط."
-          );
-          return res.sendStatus(200);
-        }
-
-        tempBookings[from].service = text;
-
-        const booking = tempBookings[from];
-        console.log("📦 DEBUG => Final booking data:", booking);
-        await saveBooking({
-          name: booking.name,
-          phone: booking.phone,
-          service: booking.service,
-          appointment: booking.appointment,
-        });
-
+      if (!isValidJordanian) {
         await sendTextMessage(
           from,
-          `✅ تم حفظ حجزك: 
+          "⚠️ الرجاء إدخال رقم هاتف أردني صحيح مثل: 0785050875 أو 079xxxxxxx أو 077xxxxxxx"
+        );
+        return res.sendStatus(200);
+      }
+
+      tempBookings[from].phone = arabicToEnglish;
+      await sendTextMessage(from, "💊 تمام! اكتب نوع الخدمة المطلوبة:");
+      return res.sendStatus(200);
+    }
+
+    // ✅ التحقق من نوع الخدمة (خدمات الأسنان فقط)
+    else if (tempBookings[from] && !tempBookings[from].service) {
+      const lowerText = text.toLowerCase();
+
+      const allowedServices = [
+        "تنظيف",
+        "تبييض",
+        "حشو",
+        "خلع",
+        "زراعة",
+        "تركيب",
+        "تقويم",
+        "ابتسامة",
+        "علاج عصب",
+        "كشفية",
+        "فحص",
+        "تجميل الأسنان",
+        "تجميل",
+        "برد",
+        "ترميم",
+        "تلميع",
+      ];
+
+      const isDentalService = allowedServices.some((service) =>
+        lowerText.includes(service)
+      );
+
+      if (!isDentalService) {
+        await sendTextMessage(
+          from,
+          "⚠️ نعتذر، يمكننا استقبال فقط خدمات **الأسنان** مثل: تنظيف، حشو، تقويم، خلع، تبييض، ابتسامة، زراعة، إلخ.\n\nمن فضلك أرسل نوع خدمة أسنان فقط."
+        );
+        return res.sendStatus(200);
+      }
+
+      tempBookings[from].service = text;
+
+      const booking = tempBookings[from];
+      console.log("📦 DEBUG => Final booking data:", booking);
+      await saveBooking({
+        name: booking.name,
+        phone: booking.phone,
+        service: booking.service,
+        appointment: booking.appointment,
+      });
+
+      await sendTextMessage(
+        from,
+        `✅ تم حفظ حجزك:
 👤 الاسم: ${booking.name}
 📱 الجوال: ${booking.phone}
 💊 الخدمة: ${booking.service}
 📅 الموعد: ${booking.appointment}`
-        );
+      );
 
-        delete tempBookings[from];
-        return res.sendStatus(200);
-      }
-
-      if (text.includes("حجز") || text.toLowerCase().includes("book")) {
-        await sendAppointmentOptions(from);
-      } else {
-        const reply = await askAI(text);
-        await sendTextMessage(from, reply);
-      }
+      delete tempBookings[from];
+      return res.sendStatus(200);
     }
 
+    // أي نص آخر يرجع للذكاء الاصطناعي
+    const reply = await askAI(text);
+    await sendTextMessage(from, reply);
     res.sendStatus(200);
   } catch (err) {
     console.error(
