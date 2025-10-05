@@ -213,7 +213,6 @@ async function sendAppointmentButtons(to) {
 // 🔹 إرسال خيارات المواعيد (النصوص القديمة)
 async function sendAppointmentOptions(to) {
   console.log(`📤 DEBUG => Sending appointment options to ${to}`);
-  // الآن نستبدل الرسالة النصية بالأزرار
   await sendAppointmentButtons(to);
 }
 
@@ -224,10 +223,6 @@ async function saveBooking({ name, phone, service, appointment }) {
       [name, phone, service, appointment, new Date().toISOString()],
     ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
-
-    console.log(
-      `🔍 DEBUG => Trying to append to Sheet: "${DEFAULT_SHEET_NAME}" in spreadsheet: "${SPREADSHEET_ID}"`
-    );
 
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -310,6 +305,36 @@ app.post("/webhook", async (req, res) => {
     if (text) {
       console.log(`💬 DEBUG => Message from ${from}:`, text);
 
+      // ✅ الفلتر للكلمات الخارجة أو غير المناسبة
+      const inappropriateKeywords = [
+        "غرام",
+        "رومانسي",
+        "رومانسية",
+        "حب",
+        "حبيب",
+        "حبيبي",
+        "حبيبتي",
+        "تعرف",
+        "علاقة",
+        "زواج",
+        "خطيبة",
+        "زوجة",
+        "غرامي",
+        "مواعدة",
+      ];
+
+      const containsInappropriate = inappropriateKeywords.some((word) =>
+        text.toLowerCase().includes(word)
+      );
+
+      if (containsInappropriate) {
+        await sendTextMessage(
+          from,
+          "⚕️ مرحبًا بك، نود إعلامك أن هذا الحساب مخصص فقط لخدمات **العيادة الطبية** مثل المواعيد، الحجز، الموقع، والأسعار. نعتذر عن عدم قدرتنا على مناقشة مواضيع خارج هذا النطاق."
+        );
+        return res.sendStatus(200);
+      }
+
       // رقم الموعد (ما زال يقبل 3 / 6 / 9)
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         let appointment;
@@ -325,25 +350,23 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // ✅ التحقق من الاسم الصحيح
+      // ✅ التحقق من الاسم
       if (tempBookings[from] && !tempBookings[from].name) {
         const userName = text.trim();
         const isValid = await validateNameWithAI(userName);
-
         if (!isValid) {
           await sendTextMessage(
             from,
             "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة، ريم..."
           );
-          return res.sendStatus(200); // يبقى في نفس المرحلة
+          return res.sendStatus(200);
         }
-
         tempBookings[from].name = userName;
         await sendTextMessage(from, "📱 ممتاز! ارسل رقم جوالك:");
         return res.sendStatus(200);
       }
 
-      // ✅ التحقق من رقم الهاتف الأردني
+      // ✅ رقم الهاتف
       else if (tempBookings[from] && !tempBookings[from].phone) {
         const normalized = text.replace(/[^\d٠-٩]/g, "");
         const arabicToEnglish = normalized
@@ -374,10 +397,9 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // ✅ التحقق من نوع الخدمة (خدمات الأسنان فقط)
+      // ✅ نوع الخدمة (خدمات الأسنان فقط)
       else if (tempBookings[from] && !tempBookings[from].service) {
         const lowerText = text.toLowerCase();
-
         const allowedServices = [
           "تنظيف",
           "تبييض",
@@ -397,10 +419,9 @@ app.post("/webhook", async (req, res) => {
           "تلميع",
         ];
 
-        const isDentalService = allowedServices.some((service) =>
-          lowerText.includes(service)
+        const isDentalService = allowedServices.some((s) =>
+          lowerText.includes(s)
         );
-
         if (!isDentalService) {
           await sendTextMessage(
             from,
@@ -410,9 +431,7 @@ app.post("/webhook", async (req, res) => {
         }
 
         tempBookings[from].service = text;
-
         const booking = tempBookings[from];
-        console.log("📦 DEBUG => Final booking data:", booking);
         await saveBooking({
           name: booking.name,
           phone: booking.phone,
@@ -422,7 +441,7 @@ app.post("/webhook", async (req, res) => {
 
         await sendTextMessage(
           from,
-          `✅ تم حفظ حجزك: 
+          `✅ تم حفظ حجزك:
 👤 الاسم: ${booking.name}
 📱 الجوال: ${booking.phone}
 💊 الخدمة: ${booking.service}
@@ -430,37 +449,6 @@ app.post("/webhook", async (req, res) => {
         );
 
         delete tempBookings[from];
-        return res.sendStatus(200);
-      }
-
-      // ✅ إضافة الفلتر الجديد للكلمات الخارجة عن نطاق العمل
-      const inappropriateKeywords = [
-        "غرام",
-        "رومانسي",
-        "حب",
-        "حبيب",
-        "حبيبي",
-        "حبيبتي",
-        "تعرف",
-        "علاقة",
-        "زواج",
-        "خطيبة",
-        "زوجة",
-        "غرامي",
-        "رومانسي",
-        "مواعدة",
-        "رومانسية",
-      ];
-
-      const containsInappropriate = inappropriateKeywords.some((word) =>
-        text.toLowerCase().includes(word)
-      );
-
-      if (containsInappropriate) {
-        await sendTextMessage(
-          from,
-          "⚕️ مرحبًا بك، نود إعلامك أن هذا الحساب مخصص فقط لخدمات **العيادة الطبية** مثل المواعيد، الحجز، الموقع، والأسعار. نعتذر عن عدم قدرتنا على مناقشة مواضيع خارج هذا النطاق."
-        );
         return res.sendStatus(200);
       }
 
@@ -482,7 +470,7 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// 🚀 للتشغيل محلياً
+// 🚀 تشغيل السيرفر
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
   console.log(`✅ Server running on http://localhost:${PORT}`)
