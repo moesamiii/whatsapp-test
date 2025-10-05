@@ -76,7 +76,7 @@ detectSheetName();
 // دوال مساعدة
 // ---------------------------------------------
 
-// 🔹 استدعاء AI
+// 🔹 استدعاء AI العام
 async function askAI(userMessage) {
   try {
     console.log("🤖 DEBUG => Sending message to AI:", userMessage);
@@ -98,8 +98,6 @@ async function askAI(userMessage) {
    "دعني أؤكد لك المعلومة بعد قليل."
 5. تكلّم دائمًا بالعربية الفصحى باحترام ومهنية.
 6. لا تستخدم رموز أو إيموجي إلا نادرًا.
-
-الهدف: أن تبدو وكأنك موظف حقيقي في عيادة.
 `;
 
     const completion = await client.chat.completions.create({
@@ -122,37 +120,28 @@ async function askAI(userMessage) {
   }
 }
 
-// ✅ وظيفة التحقق الذكي من الاسم
-async function isValidNameSmart(name) {
-  // تحقق مبدئي: لا يحتوي على أرقام أو رموز أو كلمات غير لائقة
-  if (
-    !name ||
-    name.length < 2 ||
-    name.length > 40 ||
-    /[0-9!@#$%^&*()_+=<>?/\\|[\]{}]/.test(name) ||
-    /(ما بدي|شو دخلك|بدون اسم|ليش|اسم مستعار|مش فاضي|غلط|هاها)/i.test(name)
-  ) {
-    return false;
-  }
-
+// 🔹 التحقق الذكي من الاسم باستخدام AI
+async function validateNameWithAI(name) {
   try {
+    const prompt = `
+الاسم المدخل هو: "${name}"
+هل هذا يبدو كاسم شخص حقيقي (مثل أحمد، محمد علي، ريم، سارة، يوسف...)؟
+أجب فقط بكلمة واحدة: "نعم" أو "لا".
+    `;
+
     const completion = await client.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      messages: [
-        {
-          role: "user",
-          content: `هل "${name}" اسم شخص حقيقي؟ أجب فقط بـ نعم أو لا.`,
-        },
-      ],
+      messages: [{ role: "user", content: prompt }],
       temperature: 0,
       max_completion_tokens: 10,
     });
 
-    const result = completion.choices[0]?.message?.content?.trim();
-    console.log(`🤖 Name Check for "${name}":`, result);
-    return /^نعم/i.test(result);
+    const reply = completion.choices[0]?.message?.content?.trim();
+    console.log("🤖 DEBUG => Name validation AI reply:", reply);
+
+    return reply && reply.startsWith("نعم");
   } catch (err) {
-    console.error("❌ Name validation AI Error:", err.message);
+    console.error("❌ DEBUG => Name validation error:", err.message);
     return false;
   }
 }
@@ -200,10 +189,6 @@ async function saveBooking({ name, phone, service, appointment }) {
     ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
 
-    console.log(
-      `🔍 DEBUG => Trying to append to Sheet: "${DEFAULT_SHEET_NAME}" in spreadsheet: "${SPREADSHEET_ID}"`
-    );
-
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: `${DEFAULT_SHEET_NAME}!A:E`,
@@ -250,18 +235,48 @@ let tempBookings = {};
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
+    console.log(
+      "📩 DEBUG => Incoming webhook body:",
+      JSON.stringify(body, null, 2)
+    );
+
+    if (!body.object) return res.sendStatus(404);
+
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from;
     if (!message || !from) return res.sendStatus(200);
 
+    // ✅ التعامل مع الأزرار
+    if (message.type === "interactive") {
+      const id = message?.interactive?.button_reply?.id;
+      console.log("🔘 DEBUG => Button pressed:", id);
+      let appointment;
+      if (id === "slot_3pm") appointment = "3 PM";
+      if (id === "slot_6pm") appointment = "6 PM";
+      if (id === "slot_9pm") appointment = "9 PM";
+
+      if (appointment) {
+        tempBookings[from] = { appointment };
+        await sendTextMessage(
+          from,
+          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+        );
+      }
+      return res.sendStatus(200);
+    }
+
+    // ✅ التعامل مع النصوص
     const text = message?.text?.body?.trim();
     if (text) {
+      console.log(`💬 DEBUG => Message from ${from}:`, text);
+
       // رقم الموعد
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         let appointment;
         if (text === "3") appointment = "3 PM";
         if (text === "6") appointment = "6 PM";
         if (text === "9") appointment = "9 PM";
+
         tempBookings[from] = { appointment };
         await sendTextMessage(
           from,
@@ -270,18 +285,20 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // ✅ التحقق الذكي من الاسم
+      // ✅ التحقق من الاسم
       if (tempBookings[from] && !tempBookings[from].name) {
-        const validName = await isValidNameSmart(text);
-        if (!validName) {
+        const userName = text.trim();
+
+        const isValid = await validateNameWithAI(userName);
+        if (!isValid) {
           await sendTextMessage(
             from,
-            "⚠️ الرجاء إدخال اسمك الحقيقي فقط (بدون ألقاب أو أسماء مستعارة).\nمثال: أحمد، مريم، خالد."
+            "⚠️ الرجاء إدخال اسم حقيقي مثل: محمد، سارة، أحمد، ريم..."
           );
-          return res.sendStatus(200);
+          return res.sendStatus(200); // لا نكمل، نبقى في نفس المرحلة
         }
 
-        tempBookings[from].name = text;
+        tempBookings[from].name = userName;
         await sendTextMessage(from, "📱 ممتاز! ارسل رقم جوالك:");
         return res.sendStatus(200);
       }
@@ -320,6 +337,7 @@ app.post("/webhook", async (req, res) => {
       // ✅ التحقق من نوع الخدمة (خدمات الأسنان فقط)
       else if (tempBookings[from] && !tempBookings[from].service) {
         const lowerText = text.toLowerCase();
+
         const allowedServices = [
           "تنظيف",
           "تبييض",
@@ -352,8 +370,16 @@ app.post("/webhook", async (req, res) => {
         }
 
         tempBookings[from].service = text;
+
         const booking = tempBookings[from];
-        await saveBooking(booking);
+        console.log("📦 DEBUG => Final booking data:", booking);
+        await saveBooking({
+          name: booking.name,
+          phone: booking.phone,
+          service: booking.service,
+          appointment: booking.appointment,
+        });
+
         await sendTextMessage(
           from,
           `✅ تم حفظ حجزك: 
@@ -362,6 +388,7 @@ app.post("/webhook", async (req, res) => {
 💊 الخدمة: ${booking.service}
 📅 الموعد: ${booking.appointment}`
         );
+
         delete tempBookings[from];
         return res.sendStatus(200);
       }
@@ -376,7 +403,10 @@ app.post("/webhook", async (req, res) => {
 
     res.sendStatus(200);
   } catch (err) {
-    console.error("❌ DEBUG => Webhook Error:", err.message);
+    console.error(
+      "❌ DEBUG => Webhook Error:",
+      err.response?.data || err.message
+    );
     res.sendStatus(500);
   }
 });
