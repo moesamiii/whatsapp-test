@@ -10,7 +10,7 @@ const {
   sendAppointmentOptions,
   saveBooking,
   detectSheetName,
-  getAllBookings, // ✅ new
+  getAllBookings,
 } = require("./helpers");
 
 const app = express();
@@ -123,6 +123,7 @@ app.post("/webhook", async (req, res) => {
         delete tempBookings[from];
         return res.sendStatus(200);
       }
+
       return res.sendStatus(200);
     }
 
@@ -181,25 +182,24 @@ app.post("/webhook", async (req, res) => {
         );
         return res.sendStatus(200);
       }
+
       tempBookings[from].phone = normalized;
       await sendServiceButtons(from);
       return res.sendStatus(200);
     }
 
-    // Step 4: Manual service text
+    // Step 4: Only allow service selection via buttons
     if (tempBookings[from] && !tempBookings[from].service) {
-      tempBookings[from].service = text;
-      const booking = tempBookings[from];
-      await saveBooking(booking);
-      await sendTextMessage(
-        from,
-        `✅ تم حفظ حجزك:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
-      );
-      delete tempBookings[from];
+      // If user typed manually instead of selecting
+      if (text === "القائمة" || text.toLowerCase() === "list") {
+        await sendServiceButtons(from);
+      } else {
+        await sendTextMessage(
+          from,
+          "⚠️ لو سمحت اختر الخدمة من القائمة التي أرسلناها 👇\n" +
+            "أرسل كلمة 'القائمة' لإعادة عرض الخيارات."
+        );
+      }
       return res.sendStatus(200);
     }
 
