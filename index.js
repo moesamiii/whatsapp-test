@@ -38,28 +38,39 @@ const tempBookings = global.tempBookings;
 // ---------------------------------------------
 // 🧠 Voice Transcription Helper (fixed)
 // ---------------------------------------------
-async function transcribeAudio(audioUrl) {
+async function transcribeAudio(mediaId) {
   try {
-    // 1️⃣ Get the actual media download URL from WhatsApp API
-    const mediaResponse = await axios.get(audioUrl, {
-      headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-      },
-    });
+    console.log("🎙️ Starting transcription for media ID:", mediaId);
 
-    const mediaDownloadUrl = mediaResponse.data.url;
+    // 1️⃣ Get media URL from WhatsApp API
+    const mediaUrlResponse = await axios.get(
+      `https://graph.facebook.com/v17.0/${mediaId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        },
+      }
+    );
 
-    // 2️⃣ Download the actual audio binary from the media URL
-    const audioResponse = await axios.get(mediaDownloadUrl, {
+    const mediaUrl = mediaUrlResponse.data.url;
+    console.log("📥 Got media URL, downloading audio...");
+
+    // 2️⃣ Download the actual audio file
+    const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
       headers: {
         Authorization: `Bearer ${WHATSAPP_TOKEN}`,
       },
     });
 
-    // 3️⃣ Send audio to OpenAI Whisper
+    console.log("✅ Audio downloaded, sending to Whisper...");
+
+    // 3️⃣ Send to OpenAI Whisper
     const form = new FormData();
-    form.append("file", Buffer.from(audioResponse.data), "voice.ogg");
+    form.append("file", Buffer.from(audioResponse.data), {
+      filename: "voice.ogg",
+      contentType: "audio/ogg",
+    });
     form.append("model", "whisper-1");
 
     const result = await axios.post(
@@ -73,9 +84,13 @@ async function transcribeAudio(audioUrl) {
       }
     );
 
+    console.log("✅ Transcription successful:", result.data.text);
     return result.data.text;
   } catch (err) {
-    console.error("❌ Voice transcription failed:", err.message);
+    console.error(
+      "❌ Voice transcription failed:",
+      err.response?.data || err.message
+    );
     return null;
   }
 }
@@ -131,9 +146,9 @@ app.post("/webhook", async (req, res) => {
     // 🎙️ Handle voice message
     if (message.type === "audio") {
       console.log("🎧 Voice message received from:", from);
-      const audioUrl = message.audio.url;
+      const mediaId = message.audio.id;
 
-      const transcript = await transcribeAudio(audioUrl);
+      const transcript = await transcribeAudio(mediaId);
       if (!transcript) {
         await sendTextMessage(
           from,
