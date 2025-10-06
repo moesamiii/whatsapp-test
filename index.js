@@ -44,7 +44,7 @@ async function transcribeAudio(mediaId) {
 
     // 1️⃣ Get media URL from WhatsApp API
     const mediaUrlResponse = await axios.get(
-      `https://graph.facebook.com/v17.0/${mediaId}`,
+      `https://graph.facebook.com/v21.0/${mediaId}`,
       {
         headers: {
           Authorization: `Bearer ${WHATSAPP_TOKEN}`,
@@ -52,7 +52,17 @@ async function transcribeAudio(mediaId) {
       }
     );
 
+    console.log(
+      "📥 Media URL response:",
+      JSON.stringify(mediaUrlResponse.data, null, 2)
+    );
     const mediaUrl = mediaUrlResponse.data.url;
+
+    if (!mediaUrl) {
+      console.error("❌ No media URL in response");
+      return null;
+    }
+
     console.log("📥 Got media URL, downloading audio...");
 
     // 2️⃣ Download the actual audio file
@@ -63,13 +73,18 @@ async function transcribeAudio(mediaId) {
       },
     });
 
-    console.log("✅ Audio downloaded, sending to Whisper...");
+    console.log(
+      "✅ Audio downloaded, size:",
+      audioResponse.data.byteLength,
+      "bytes"
+    );
+    console.log("✅ Sending to Whisper...");
 
     // 3️⃣ Send to OpenAI Whisper
     const form = new FormData();
     form.append("file", Buffer.from(audioResponse.data), {
       filename: "voice.ogg",
-      contentType: "audio/ogg",
+      contentType: "audio/ogg; codecs=opus",
     });
     form.append("model", "whisper-1");
 
@@ -87,10 +102,15 @@ async function transcribeAudio(mediaId) {
     console.log("✅ Transcription successful:", result.data.text);
     return result.data.text;
   } catch (err) {
-    console.error(
-      "❌ Voice transcription failed:",
-      err.response?.data || err.message
-    );
+    console.error("❌ Voice transcription failed:");
+    console.error("Error message:", err.message);
+    if (err.response) {
+      console.error("Response status:", err.response.status);
+      console.error(
+        "Response data:",
+        JSON.stringify(err.response.data, null, 2)
+      );
+    }
     return null;
   }
 }
@@ -146,7 +166,18 @@ app.post("/webhook", async (req, res) => {
     // 🎙️ Handle voice message
     if (message.type === "audio") {
       console.log("🎧 Voice message received from:", from);
+      console.log(
+        "📦 Full audio object:",
+        JSON.stringify(message.audio, null, 2)
+      );
+
       const mediaId = message.audio.id;
+
+      if (!mediaId) {
+        console.error("❌ No media ID found in message");
+        await sendTextMessage(from, "⚠️ خطأ في استقبال الرسالة الصوتية");
+        return res.sendStatus(200);
+      }
 
       const transcript = await transcribeAudio(mediaId);
       if (!transcript) {
@@ -158,8 +189,40 @@ app.post("/webhook", async (req, res) => {
       }
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
-      const reply = await askAI(transcript);
-      await sendTextMessage(from, reply);
+
+      // Check if user is in booking flow
+      if (!tempBookings[from]) {
+        const reply = await askAI(transcript);
+        await sendTextMessage(from, reply);
+      } else {
+        // If in booking flow, treat voice as text input
+        if (tempBookings[from] && !tempBookings[from].name) {
+          const isValid = await validateNameWithAI(transcript);
+          if (!isValid) {
+            await sendTextMessage(
+              from,
+              "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
+            );
+            return res.sendStatus(200);
+          }
+          tempBookings[from].name = transcript;
+          await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
+        } else if (tempBookings[from] && !tempBookings[from].service) {
+          tempBookings[from].service = transcript;
+          const booking = tempBookings[from];
+          await saveBooking(booking);
+          await sendTextMessage(
+            from,
+            `✅ تم حفظ حجزك بنجاح:
+👤 ${booking.name}
+📱 ${booking.phone}
+💊 ${booking.service}
+📅 ${booking.appointment}`
+          );
+          delete tempBookings[from];
+        }
+      }
+
       return res.sendStatus(200);
     }
 
