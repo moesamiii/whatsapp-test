@@ -7,310 +7,336 @@
     <style>
       * {
         box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
       body {
-        font-family: "Segoe UI", Tahoma, sans-serif;
-        margin: 0;
-        background: linear-gradient(to bottom right, #f3f9ff, #e7f1fb);
+        font-family: "Segoe UI", sans-serif;
+        background: linear-gradient(to bottom, #f3f9ff, #e8f1fa);
         color: #333;
-      }
-
-      header {
-        background: #2a6cb3;
-        color: white;
-        padding: 20px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      }
-      header h1 {
-        margin: 0;
-        font-size: 26px;
-      }
-      header p {
-        margin: 5px 0 0;
-        font-size: 14px;
-        opacity: 0.9;
-      }
-
-      .container {
-        max-width: 1100px;
-        margin: 30px auto;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        padding: 25px;
-      }
-
-      .stats {
-        display: flex;
-        justify-content: space-around;
-        flex-wrap: wrap;
-        margin-bottom: 30px;
-      }
-
-      .stat-box {
-        background: #f5faff;
-        border: 1px solid #c7e0ff;
-        border-radius: 10px;
-        padding: 15px 25px;
-        margin: 10px;
-        flex: 1;
-        min-width: 220px;
-        text-align: center;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         transition: 0.3s;
       }
-      .stat-box:hover {
+      body.dark {
+        background: #111;
+        color: #ddd;
+      }
+      header {
+        background: #2a6cb3;
+        color: #fff;
+        padding: 15px 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 5px #0002;
+      }
+      header h1 {
+        font-size: 22px;
+      }
+      .container {
+        max-width: 1100px;
+        margin: 25px auto;
+        padding: 20px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 3px 10px #0001;
+        transition: 0.3s;
+      }
+      body.dark .container {
+        background: #1b1b1b;
+      }
+      .stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 25px;
+      }
+      .stat {
+        flex: 1;
+        min-width: 200px;
+        background: #f6faff;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 2px 4px #0001;
+        transition: 0.3s;
+      }
+      .stat:hover {
         transform: scale(1.03);
       }
-      .stat-box h3 {
-        margin: 10px 0 5px;
-        font-size: 22px;
-        color: #2a6cb3;
+      body.dark .stat {
+        background: #222;
+        color: #ddd;
       }
-      .stat-box p {
-        margin: 0;
-        color: #666;
-        font-size: 14px;
-      }
-
       .filter-bar {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
         flex-wrap: wrap;
+        margin-bottom: 10px;
       }
-
-      .filter-bar input {
+      input,
+      select {
+        padding: 8px 10px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+      }
+      button {
+        background: #2a6cb3;
+        color: #fff;
+        border: none;
         padding: 8px 12px;
         border-radius: 6px;
-        border: 1px solid #ccc;
-        width: 250px;
+        cursor: pointer;
+        transition: 0.3s;
       }
-
+      button:hover {
+        opacity: 0.8;
+      }
       table {
         width: 100%;
         border-collapse: collapse;
         border-radius: 10px;
         overflow: hidden;
-        background: white;
+        background: #fff;
+        margin-top: 10px;
       }
       th,
       td {
-        padding: 12px;
+        padding: 10px;
         border-bottom: 1px solid #eee;
         text-align: left;
       }
       th {
         background: #2a6cb3;
-        color: white;
+        color: #fff;
         cursor: pointer;
-        user-select: none;
       }
       tr:hover {
         background: #f7faff;
       }
-
-      .chart-container {
-        margin-top: 40px;
+      body.dark table,
+      body.dark tr:hover {
+        background: #222;
+        color: #ddd;
       }
-
       footer {
         text-align: center;
-        padding: 15px;
-        color: #777;
-        font-size: 14px;
+        padding: 12px;
+        color: #666;
+        font-size: 13px;
       }
-
+      canvas {
+        margin-top: 20px;
+      }
       @media (max-width: 700px) {
         .stats {
           flex-direction: column;
-          align-items: center;
-        }
-        .filter-bar input {
-          width: 100%;
-          margin-top: 10px;
         }
       }
     </style>
   </head>
   <body>
     <header>
-      <h1>📊 Clinic Dashboard</h1>
-      <p>Live overview of all patient bookings from Google Sheets</p>
+      <div>
+        <h1>📊 Clinic Dashboard</h1>
+        <p style="font-size: 13px; opacity: 0.9">Google Sheets live sync</p>
+      </div>
+      <div>
+        <button id="themeBtn">🌙</button>
+      </div>
     </header>
 
     <div class="container">
       <div class="stats">
-        <div class="stat-box">
-          <h3 id="totalBookings">0</h3>
+        <div class="stat">
+          <h2 id="total">0</h2>
           <p>Total Bookings</p>
         </div>
-        <div class="stat-box">
-          <h3 id="todayBookings">0</h3>
+        <div class="stat">
+          <h2 id="today">0</h2>
           <p>Today's Bookings</p>
         </div>
-        <div class="stat-box">
-          <h3 id="popularService">-</h3>
+        <div class="stat">
+          <h2 id="popular">-</h2>
           <p>Most Popular Service</p>
         </div>
       </div>
 
       <div class="filter-bar">
-        <h2>📅 Booking Records</h2>
-        <input
-          type="text"
-          id="searchInput"
-          placeholder="🔍 Search by name, phone, or service..."
-        />
+        <div>
+          <input
+            id="search"
+            placeholder="🔍 Search name, phone, or service..."
+          />
+          <input type="date" id="dateFilter" />
+          <button onclick="downloadCSV()">⬇ Export</button>
+        </div>
+        <button onclick="load()">🔄 Refresh</button>
       </div>
 
-      <table id="bookingTable">
+      <table id="tbl">
         <thead>
           <tr>
-            <th onclick="sortTable(0)">Name ⬍</th>
-            <th onclick="sortTable(1)">Phone ⬍</th>
-            <th onclick="sortTable(2)">Service ⬍</th>
-            <th onclick="sortTable(3)">Appointment ⬍</th>
-            <th onclick="sortTable(4)">Time ⬍</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Service</th>
+            <th>Appointment</th>
+            <th>Time</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
 
-      <div class="chart-container">
-        <canvas id="chart" height="120"></canvas>
+      <div
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          justify-content: center;
+        "
+      >
+        <canvas id="bar" width="400" height="200"></canvas>
+        <canvas id="pie" width="200" height="200"></canvas>
       </div>
     </div>
 
-    <footer>© 2025 Smile Clinic Dashboard • Auto-updates every 15s</footer>
+    <footer>© 2025 Smile Clinic — Auto refreshes every 15s</footer>
 
     <script>
-      let chart;
+      let bar, pie;
+      const q = (s) => document.querySelector(s);
+      const animateNum = (el, to) => {
+        let n = 0;
+        const s = to / 40;
+        const i = setInterval(() => {
+          n += s;
+          el.textContent = Math.min(Math.round(n), to);
+          if (n >= to) clearInterval(i);
+        }, 15);
+      };
 
-      async function loadBookings() {
-        try {
-          const res = await fetch("/api/bookings");
-          const data = await res.json();
-
-          renderTable(data);
-          updateStats(data);
-          renderChart(data);
-        } catch (err) {
-          console.error("❌ Failed to load bookings:", err);
-        }
+      async function load() {
+        const res = await fetch("/api/bookings");
+        let data = await res.json();
+        const s = q("#search").value.toLowerCase(),
+          d = q("#dateFilter").value;
+        data = data.filter(
+          (b) =>
+            (b.name?.toLowerCase().includes(s) ||
+              b.phone?.includes(s) ||
+              b.service?.toLowerCase().includes(s)) &&
+            (!d || b.timestamp?.startsWith(d))
+        );
+        renderTable(data);
+        updateStats(data);
+        drawCharts(data);
       }
 
-      function renderTable(data) {
-        const tbody = document.querySelector("#bookingTable tbody");
-        const search = document
-          .getElementById("searchInput")
-          .value.toLowerCase();
-
-        tbody.innerHTML = "";
-        data
-          .filter(
-            (b) =>
-              b.name?.toLowerCase().includes(search) ||
-              b.phone?.toLowerCase().includes(search) ||
-              b.service?.toLowerCase().includes(search)
-          )
-          .forEach((b) => {
-            const row = document.createElement("tr");
-            row.innerHTML = `
-              <td>${b.name || "-"}</td>
-              <td>${b.phone || "-"}</td>
-              <td>${b.service || "-"}</td>
-              <td>${b.appointment || "-"}</td>
-              <td>${
-                b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
-              }</td>
-            `;
-            tbody.appendChild(row);
-          });
+      function renderTable(d) {
+        const tb = q("#tbl tbody");
+        tb.innerHTML = "";
+        d.forEach((b) => {
+          const r = document.createElement("tr");
+          r.innerHTML = `<td>${b.name || "-"}</td><td>${
+            b.phone || "-"
+          }</td><td>${b.service || "-"}</td><td>${
+            b.appointment || "-"
+          }</td><td>${
+            b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
+          }</td>`;
+          tb.appendChild(r);
+        });
       }
 
-      function updateStats(data) {
-        document.getElementById("totalBookings").textContent = data.length;
-
+      function updateStats(d) {
+        animateNum(q("#total"), d.length);
         const today = new Date().toISOString().split("T")[0];
-        const todayCount = data.filter((b) =>
-          b.timestamp?.startsWith(today)
-        ).length;
-        document.getElementById("todayBookings").textContent = todayCount;
-
-        const serviceCounts = {};
-        data.forEach((b) => {
-          if (b.service) {
-            serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
-          }
-        });
-
-        const popular = Object.entries(serviceCounts).sort(
-          (a, b) => b[1] - a[1]
-        )[0];
-        document.getElementById("popularService").textContent = popular
-          ? popular[0]
-          : "N/A";
+        animateNum(
+          q("#today"),
+          d.filter((b) => b.timestamp?.startsWith(today)).length
+        );
+        const sc = {};
+        d.forEach(
+          (b) => b.service && (sc[b.service] = (sc[b.service] || 0) + 1)
+        );
+        const top = Object.entries(sc).sort((a, b) => b[1] - a[1])[0];
+        q("#popular").textContent = top ? top[0] : "N/A";
       }
 
-      function renderChart(data) {
-        const serviceCounts = {};
-        data.forEach((b) => {
-          serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
-        });
-
-        const ctx = document.getElementById("chart").getContext("2d");
-        if (chart) chart.destroy();
-
-        chart = new Chart(ctx, {
+      function drawCharts(d) {
+        const sc = {};
+        d.forEach((b) => (sc[b.service] = (sc[b.service] || 0) + 1));
+        const labels = Object.keys(sc),
+          vals = Object.values(sc);
+        if (bar) bar.destroy();
+        if (pie) pie.destroy();
+        bar = new Chart(q("#bar"), {
           type: "bar",
           data: {
-            labels: Object.keys(serviceCounts),
+            labels,
+            datasets: [{ data: vals, backgroundColor: "#2a6cb3" }],
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } },
+          },
+        });
+        pie = new Chart(q("#pie"), {
+          type: "pie",
+          data: {
+            labels,
             datasets: [
               {
-                label: "Bookings per Service",
-                data: Object.values(serviceCounts),
-                backgroundColor: "rgba(42, 108, 179, 0.7)",
-                borderRadius: 6,
+                data: vals,
+                backgroundColor: [
+                  "#2a6cb3",
+                  "#5fb1e0",
+                  "#8fd2a7",
+                  "#f6c343",
+                  "#f47b7b",
+                ],
               },
             ],
           },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { display: false },
-            },
-            scales: {
-              y: { beginAtZero: true },
-            },
-          },
+          options: { plugins: { legend: { position: "bottom" } } },
         });
       }
 
-      // Sorting
-      function sortTable(columnIndex) {
-        const table = document.getElementById("bookingTable");
-        const rows = Array.from(table.tBodies[0].rows);
-        const asc = table.dataset.sortOrder === "asc" ? false : true;
-        table.dataset.sortOrder = asc ? "asc" : "desc";
-
-        rows.sort((a, b) => {
-          const aText = a.cells[columnIndex].textContent.trim().toLowerCase();
-          const bText = b.cells[columnIndex].textContent.trim().toLowerCase();
-          return asc ? aText.localeCompare(bText) : bText.localeCompare(aText);
-        });
-
-        rows.forEach((r) => table.tBodies[0].appendChild(r));
+      function downloadCSV() {
+        fetch("/api/bookings")
+          .then((r) => r.json())
+          .then((d) => {
+            const csv = [
+              "Name,Phone,Service,Appointment,Time",
+              ...d.map(
+                (b) =>
+                  `${b.name},${b.phone},${b.service},${b.appointment},${b.timestamp}`
+              ),
+            ].join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "bookings.csv";
+            a.click();
+          });
       }
 
-      document
-        .getElementById("searchInput")
-        .addEventListener("input", loadBookings);
-
-      // Auto-refresh every 15 seconds
-      loadBookings();
-      setInterval(loadBookings, 15000);
+      // theme toggle
+      const btn = q("#themeBtn");
+      btn.onclick = () => {
+        document.body.classList.toggle("dark");
+        btn.textContent = document.body.classList.contains("dark")
+          ? "☀️"
+          : "🌙";
+        localStorage.setItem("dark", document.body.classList.contains("dark"));
+      };
+      if (localStorage.getItem("dark") === "true") {
+        document.body.classList.add("dark");
+        btn.textContent = "☀️";
+      }
+      q("#search").oninput = q("#dateFilter").onchange = load;
+      load();
+      setInterval(load, 15000);
     </script>
   </body>
 </html>
