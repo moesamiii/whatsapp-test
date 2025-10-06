@@ -1,6 +1,9 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
+const axios = require("axios");
+const FormData = require("form-data");
+
 const {
   askAI,
   validateNameWithAI,
@@ -20,15 +23,46 @@ app.use(bodyParser.json());
 // Environment Variables
 // ---------------------------------------------
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "my_secret";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // Detect sheet name on startup
 detectSheetName();
 
 // ---------------------------------------------
-// Global booking memory (keeps state persistent)
+// Global booking memory
 // ---------------------------------------------
 global.tempBookings = global.tempBookings || {};
 const tempBookings = global.tempBookings;
+
+// ---------------------------------------------
+// 🧠 Voice Transcription Helper
+// ---------------------------------------------
+async function transcribeAudio(audioUrl) {
+  try {
+    const audioData = await axios.get(audioUrl, {
+      responseType: "arraybuffer",
+    });
+    const form = new FormData();
+    form.append("file", Buffer.from(audioData.data), "voice.ogg");
+    form.append("model", "whisper-1");
+
+    const result = await axios.post(
+      "https://api.openai.com/v1/audio/transcriptions",
+      form,
+      {
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          ...form.getHeaders(),
+        },
+      }
+    );
+
+    return result.data.text;
+  } catch (err) {
+    console.error("❌ Voice transcription failed:", err.message);
+    return null;
+  }
+}
 
 // ---------------------------------------------
 // Routes
@@ -37,12 +71,10 @@ app.get("/", (req, res) => {
   res.send("✅ WhatsApp Webhook for Clinic is running on Vercel!");
 });
 
-// ✅ Serve Dashboard Page
 app.get("/dashboard", async (req, res) => {
   res.sendFile(path.join(__dirname, "dashboard.html"));
 });
 
-// ✅ API route for dashboard to fetch bookings
 app.get("/api/bookings", async (req, res) => {
   try {
     const data = await getAllBookings();
@@ -79,6 +111,24 @@ app.post("/webhook", async (req, res) => {
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from;
     if (!message || !from) return res.sendStatus(200);
+
+    // 🎙️ Handle voice message
+    if (message.type === "audio") {
+      console.log("🎧 Voice message received from:", from);
+      const audioUrl = message.audio.url;
+      const transcript = await transcribeAudio(audioUrl);
+      if (!transcript) {
+        await sendTextMessage(
+          from,
+          "⚠️ لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى 🎙️"
+        );
+        return res.sendStatus(200);
+      }
+      console.log(`🗣️ Transcribed text: "${transcript}"`);
+      const reply = await askAI(transcript);
+      await sendTextMessage(from, reply);
+      return res.sendStatus(200);
+    }
 
     // ✅ Handle interactive messages (buttons / lists)
     if (message.type === "interactive") {
@@ -123,7 +173,6 @@ app.post("/webhook", async (req, res) => {
         delete tempBookings[from];
         return res.sendStatus(200);
       }
-
       return res.sendStatus(200);
     }
 
@@ -132,7 +181,7 @@ app.post("/webhook", async (req, res) => {
     if (!text) return res.sendStatus(200);
     console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-    // Step 1: Appointment shortcut (3, 6, 9)
+    // Step 1: Appointment shortcut
     if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
       const appointment = `${text} PM`;
       tempBookings[from] = { appointment };
@@ -185,7 +234,7 @@ app.post("/webhook", async (req, res) => {
 
       tempBookings[from].phone = normalized;
 
-      // ⏳ Delay before showing buttons
+      // ⏳ Delay then show buttons
       setTimeout(async () => {
         try {
           await sendServiceButtons(from);
@@ -204,11 +253,10 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // Step 4: Service input (manual or button)
+    // Step 4: Service input
     if (tempBookings[from] && !tempBookings[from].service) {
       const booking = tempBookings[from];
-      booking.service = text; // accept manual text
-
+      booking.service = text;
       await saveBooking(booking);
       await sendTextMessage(
         from,
