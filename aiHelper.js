@@ -27,7 +27,8 @@ async function askAI(userMessage) {
 `;
 
     const completion = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "llama-4-scout",
+
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
