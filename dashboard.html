@@ -5,79 +5,265 @@
     <title>Clinic Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 20px;
-        background: #f8f9fa;
+      * {
+        box-sizing: border-box;
       }
-      h1 {
+      body {
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        margin: 0;
+        background: linear-gradient(to bottom right, #f3f9ff, #e7f1fb);
+        color: #333;
+      }
+
+      header {
+        background: #2a6cb3;
+        color: white;
+        padding: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      header h1 {
+        margin: 0;
+        font-size: 26px;
+      }
+      header p {
+        margin: 5px 0 0;
+        font-size: 14px;
+        opacity: 0.9;
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: 30px auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 25px;
+      }
+
+      .stats {
+        display: flex;
+        justify-content: space-around;
+        flex-wrap: wrap;
+        margin-bottom: 30px;
+      }
+
+      .stat-box {
+        background: #f5faff;
+        border: 1px solid #c7e0ff;
+        border-radius: 10px;
+        padding: 15px 25px;
+        margin: 10px;
+        flex: 1;
+        min-width: 220px;
+        text-align: center;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        transition: 0.3s;
+      }
+      .stat-box:hover {
+        transform: scale(1.03);
+      }
+      .stat-box h3 {
+        margin: 10px 0 5px;
+        font-size: 22px;
         color: #2a6cb3;
       }
+      .stat-box p {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+      }
+
+      .filter-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+      }
+
+      .filter-bar input {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        width: 250px;
+      }
+
       table {
-        border-collapse: collapse;
         width: 100%;
-        background: #fff;
+        border-collapse: collapse;
+        border-radius: 10px;
+        overflow: hidden;
+        background: white;
       }
       th,
       td {
-        border: 1px solid #ccc;
-        padding: 10px;
+        padding: 12px;
+        border-bottom: 1px solid #eee;
         text-align: left;
       }
       th {
-        background: #e0e0e0;
+        background: #2a6cb3;
+        color: white;
+        cursor: pointer;
+        user-select: none;
       }
-      canvas {
-        margin-top: 30px;
+      tr:hover {
+        background: #f7faff;
+      }
+
+      .chart-container {
+        margin-top: 40px;
+      }
+
+      footer {
+        text-align: center;
+        padding: 15px;
+        color: #777;
+        font-size: 14px;
+      }
+
+      @media (max-width: 700px) {
+        .stats {
+          flex-direction: column;
+          align-items: center;
+        }
+        .filter-bar input {
+          width: 100%;
+          margin-top: 10px;
+        }
       }
     </style>
   </head>
   <body>
-    <h1>📊 Clinic Dashboard</h1>
-    <p>Showing all bookings from Google Sheets</p>
+    <header>
+      <h1>📊 Clinic Dashboard</h1>
+      <p>Live overview of all patient bookings from Google Sheets</p>
+    </header>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Phone</th>
-          <th>Service</th>
-          <th>Appointment</th>
-          <th>Time</th>
-        </tr>
-      </thead>
-      <tbody id="bookingsTable"></tbody>
-    </table>
+    <div class="container">
+      <div class="stats">
+        <div class="stat-box">
+          <h3 id="totalBookings">0</h3>
+          <p>Total Bookings</p>
+        </div>
+        <div class="stat-box">
+          <h3 id="todayBookings">0</h3>
+          <p>Today's Bookings</p>
+        </div>
+        <div class="stat-box">
+          <h3 id="popularService">-</h3>
+          <p>Most Popular Service</p>
+        </div>
+      </div>
 
-    <canvas id="chart" width="400" height="200"></canvas>
+      <div class="filter-bar">
+        <h2>📅 Booking Records</h2>
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="🔍 Search by name, phone, or service..."
+        />
+      </div>
+
+      <table id="bookingTable">
+        <thead>
+          <tr>
+            <th onclick="sortTable(0)">Name ⬍</th>
+            <th onclick="sortTable(1)">Phone ⬍</th>
+            <th onclick="sortTable(2)">Service ⬍</th>
+            <th onclick="sortTable(3)">Appointment ⬍</th>
+            <th onclick="sortTable(4)">Time ⬍</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="chart-container">
+        <canvas id="chart" height="120"></canvas>
+      </div>
+    </div>
+
+    <footer>© 2025 Smile Clinic Dashboard • Auto-updates every 15s</footer>
 
     <script>
+      let chart;
+
       async function loadBookings() {
-        const res = await fetch("/api/bookings");
-        const data = await res.json();
+        try {
+          const res = await fetch("/api/bookings");
+          const data = await res.json();
 
-        const table = document.getElementById("bookingsTable");
-        table.innerHTML = "";
+          renderTable(data);
+          updateStats(data);
+          renderChart(data);
+        } catch (err) {
+          console.error("❌ Failed to load bookings:", err);
+        }
+      }
 
+      function renderTable(data) {
+        const tbody = document.querySelector("#bookingTable tbody");
+        const search = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+
+        tbody.innerHTML = "";
+        data
+          .filter(
+            (b) =>
+              b.name?.toLowerCase().includes(search) ||
+              b.phone?.toLowerCase().includes(search) ||
+              b.service?.toLowerCase().includes(search)
+          )
+          .forEach((b) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td>${b.name || "-"}</td>
+              <td>${b.phone || "-"}</td>
+              <td>${b.service || "-"}</td>
+              <td>${b.appointment || "-"}</td>
+              <td>${
+                b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
+              }</td>
+            `;
+            tbody.appendChild(row);
+          });
+      }
+
+      function updateStats(data) {
+        document.getElementById("totalBookings").textContent = data.length;
+
+        const today = new Date().toISOString().split("T")[0];
+        const todayCount = data.filter((b) =>
+          b.timestamp?.startsWith(today)
+        ).length;
+        document.getElementById("todayBookings").textContent = todayCount;
+
+        const serviceCounts = {};
         data.forEach((b) => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${b.name || ""}</td>
-            <td>${b.phone || ""}</td>
-            <td>${b.service || ""}</td>
-            <td>${b.appointment || ""}</td>
-            <td>${new Date(b.time).toLocaleString() || ""}</td>
-          `;
-          table.appendChild(row);
+          if (b.service) {
+            serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
+          }
         });
 
+        const popular = Object.entries(serviceCounts).sort(
+          (a, b) => b[1] - a[1]
+        )[0];
+        document.getElementById("popularService").textContent = popular
+          ? popular[0]
+          : "N/A";
+      }
+
+      function renderChart(data) {
         const serviceCounts = {};
         data.forEach((b) => {
           serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
         });
 
         const ctx = document.getElementById("chart").getContext("2d");
-        new Chart(ctx, {
+        if (chart) chart.destroy();
+
+        chart = new Chart(ctx, {
           type: "bar",
           data: {
             labels: Object.keys(serviceCounts),
@@ -86,13 +272,45 @@
                 label: "Bookings per Service",
                 data: Object.values(serviceCounts),
                 backgroundColor: "rgba(42, 108, 179, 0.7)",
+                borderRadius: 6,
               },
             ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+            },
+            scales: {
+              y: { beginAtZero: true },
+            },
           },
         });
       }
 
+      // Sorting
+      function sortTable(columnIndex) {
+        const table = document.getElementById("bookingTable");
+        const rows = Array.from(table.tBodies[0].rows);
+        const asc = table.dataset.sortOrder === "asc" ? false : true;
+        table.dataset.sortOrder = asc ? "asc" : "desc";
+
+        rows.sort((a, b) => {
+          const aText = a.cells[columnIndex].textContent.trim().toLowerCase();
+          const bText = b.cells[columnIndex].textContent.trim().toLowerCase();
+          return asc ? aText.localeCompare(bText) : bText.localeCompare(aText);
+        });
+
+        rows.forEach((r) => table.tBodies[0].appendChild(r));
+      }
+
+      document
+        .getElementById("searchInput")
+        .addEventListener("input", loadBookings);
+
+      // Auto-refresh every 15 seconds
       loadBookings();
+      setInterval(loadBookings, 15000);
     </script>
   </body>
 </html>
