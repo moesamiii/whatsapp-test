@@ -23,7 +23,7 @@ app.use(bodyParser.json());
 // Environment Variables
 // ---------------------------------------------
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "my_secret";
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
 // Detect sheet name on startup
@@ -36,7 +36,7 @@ global.tempBookings = global.tempBookings || {};
 const tempBookings = global.tempBookings;
 
 // ---------------------------------------------
-// 🧠 Voice Transcription Helper (fixed)
+// 🧠 Voice Transcription Helper (using Groq Whisper)
 // ---------------------------------------------
 async function transcribeAudio(mediaId) {
   try {
@@ -78,22 +78,24 @@ async function transcribeAudio(mediaId) {
       audioResponse.data.byteLength,
       "bytes"
     );
-    console.log("✅ Sending to Whisper...");
+    console.log("✅ Sending to Groq Whisper...");
 
-    // 3️⃣ Send to OpenAI Whisper
+    // 3️⃣ Send to Groq Whisper API
     const form = new FormData();
     form.append("file", Buffer.from(audioResponse.data), {
       filename: "voice.ogg",
       contentType: "audio/ogg; codecs=opus",
     });
-    form.append("model", "whisper-1");
+    form.append("model", "whisper-large-v3");
+    form.append("language", "ar");
+    form.append("response_format", "json");
 
     const result = await axios.post(
-      "https://api.openai.com/v1/audio/transcriptions",
+      "https://api.groq.com/openai/v1/audio/transcriptions",
       form,
       {
         headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          Authorization: `Bearer ${GROQ_API_KEY}`,
           ...form.getHeaders(),
         },
       }
