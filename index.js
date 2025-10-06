@@ -88,20 +88,12 @@ app.post("/webhook", async (req, res) => {
           );
           return res.sendStatus(200);
         }
-
         tempBookings[from].service = serviceName;
         const booking = tempBookings[from];
-
-        const result = await saveBooking(booking);
-        if (!result.success) {
-          await sendTextMessage(from, `⚠️ ${result.message}`);
-          delete tempBookings[from];
-          return res.sendStatus(200);
-        }
-
+        await saveBooking(booking);
         await sendTextMessage(
           from,
-          `✅ تم حفظ حجزك بنجاح:
+          `✅ تم حفظ حجزك:
 👤 ${booking.name}
 📱 ${booking.phone}
 💊 ${booking.service}
@@ -177,17 +169,10 @@ app.post("/webhook", async (req, res) => {
     if (tempBookings[from] && !tempBookings[from].service) {
       tempBookings[from].service = text;
       const booking = tempBookings[from];
-
-      const result = await saveBooking(booking);
-      if (!result.success) {
-        await sendTextMessage(from, `⚠️ ${result.message}`);
-        delete tempBookings[from];
-        return res.sendStatus(200);
-      }
-
+      await saveBooking(booking);
       await sendTextMessage(
         from,
-        `✅ تم حفظ حجزك بنجاح:
+        `✅ تم حفظ حجزك:
 👤 ${booking.name}
 📱 ${booking.phone}
 💊 ${booking.service}
