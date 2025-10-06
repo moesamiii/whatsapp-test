@@ -194,8 +194,18 @@ app.post("/webhook", async (req, res) => {
 
       // Check if user is in booking flow
       if (!tempBookings[from]) {
-        const reply = await askAI(transcript);
-        await sendTextMessage(from, reply);
+        // Check if voice message contains booking keywords
+        if (
+          transcript.includes("حجز") ||
+          transcript.toLowerCase().includes("book") ||
+          transcript.includes("موعد") ||
+          transcript.includes("appointment")
+        ) {
+          await sendAppointmentOptions(from);
+        } else {
+          const reply = await askAI(transcript);
+          await sendTextMessage(from, reply);
+        }
       } else {
         // If in booking flow, treat voice as text input
         if (tempBookings[from] && !tempBookings[from].name) {
@@ -209,6 +219,48 @@ app.post("/webhook", async (req, res) => {
           }
           tempBookings[from].name = transcript;
           await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
+        } else if (tempBookings[from] && !tempBookings[from].phone) {
+          // Handle phone number from voice
+          const normalized = transcript
+            .replace(/[^\d٠-٩]/g, "")
+            .replace(/٠/g, "0")
+            .replace(/١/g, "1")
+            .replace(/٢/g, "2")
+            .replace(/٣/g, "3")
+            .replace(/٤/g, "4")
+            .replace(/٥/g, "5")
+            .replace(/٦/g, "6")
+            .replace(/٧/g, "7")
+            .replace(/٨/g, "8")
+            .replace(/٩/g, "9");
+
+          const isValid = /^07\d{8}$/.test(normalized);
+          if (!isValid) {
+            await sendTextMessage(
+              from,
+              "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
+            );
+            return res.sendStatus(200);
+          }
+
+          tempBookings[from].phone = normalized;
+
+          // ⏳ Delay then show buttons
+          setTimeout(async () => {
+            try {
+              await sendServiceButtons(from);
+            } catch {
+              await sendTextMessage(
+                from,
+                "💊 الآن اكتب نوع الخدمة المطلوبة (مثل تنظيف الأسنان أو تبييض الأسنان)"
+              );
+            }
+          }, 1000);
+
+          await sendTextMessage(
+            from,
+            "💊 يرجى اختيار الخدمة من القائمة أو كتابتها يدويًا:"
+          );
         } else if (tempBookings[from] && !tempBookings[from].service) {
           tempBookings[from].service = transcript;
           const booking = tempBookings[from];
