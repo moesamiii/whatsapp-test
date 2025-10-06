@@ -105,8 +105,13 @@ async function sendAppointmentButtons(to) {
           body: { text: "📅 اختر الموعد المناسب لك:" },
           action: {
             buttons: [
-              { type: "reply", reply: { id: "slot_3pm", title: "3 PM" } },
-              { type: "reply", reply: { id: "slot_6pm", title: "6 PM" } },
+              { type: "reply", reply: { id: "slot_3pm", title: "2 PM" } },
+              { type: "reply", reply: { id: "slot_6pm", title: "3 PM" } },
+              { type: "reply", reply: { id: "slot_9pm", title: "4 PM" } },
+              { type: "reply", reply: { id: "slot_9pm", title: "5 PM" } },
+              { type: "reply", reply: { id: "slot_9pm", title: "6 PM" } },
+              { type: "reply", reply: { id: "slot_9pm", title: "7 PM" } },
+              { type: "reply", reply: { id: "slot_9pm", title: "8 PM" } },
               { type: "reply", reply: { id: "slot_9pm", title: "9 PM" } },
             ],
           },
