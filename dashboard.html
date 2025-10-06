@@ -6,7 +6,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       body {
-        font-family: Arial;
+        font-family: Arial, sans-serif;
         margin: 20px;
         background: #f8f9fa;
       }
@@ -36,7 +36,7 @@
     <h1>📊 Clinic Dashboard</h1>
     <p>Showing all bookings from Google Sheets</p>
 
-    <table id="dataTable">
+    <table>
       <thead>
         <tr>
           <th>Name</th>
@@ -46,49 +46,53 @@
           <th>Time</th>
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody id="bookingsTable"></tbody>
     </table>
 
     <canvas id="chart" width="400" height="200"></canvas>
 
     <script>
-      async function loadData() {
+      async function loadBookings() {
         const res = await fetch("/api/bookings");
         const data = await res.json();
 
-        const tbody = document.querySelector("#dataTable tbody");
-        tbody.innerHTML = "";
-        data.forEach((row) => {
-          const tr = document.createElement("tr");
-          row.forEach((cell) => {
-            const td = document.createElement("td");
-            td.textContent = cell;
-            tr.appendChild(td);
-          });
-          tbody.appendChild(tr);
+        const table = document.getElementById("bookingsTable");
+        table.innerHTML = "";
+
+        data.forEach((b) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${b.name || ""}</td>
+            <td>${b.phone || ""}</td>
+            <td>${b.service || ""}</td>
+            <td>${b.appointment || ""}</td>
+            <td>${new Date(b.time).toLocaleString() || ""}</td>
+          `;
+          table.appendChild(row);
         });
 
-        // Chart: number of bookings per service
-        const counts = {};
-        data.forEach((r) => (counts[r[2]] = (counts[r[2]] || 0) + 1));
+        const serviceCounts = {};
+        data.forEach((b) => {
+          serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
+        });
 
         const ctx = document.getElementById("chart").getContext("2d");
         new Chart(ctx, {
           type: "bar",
           data: {
-            labels: Object.keys(counts),
+            labels: Object.keys(serviceCounts),
             datasets: [
               {
                 label: "Bookings per Service",
-                data: Object.values(counts),
-                backgroundColor: "rgba(42, 108, 179, 0.6)",
+                data: Object.values(serviceCounts),
+                backgroundColor: "rgba(42, 108, 179, 0.7)",
               },
             ],
           },
         });
       }
 
-      loadData();
+      loadBookings();
     </script>
   </body>
 </html>

@@ -10,6 +10,7 @@ const {
   sendAppointmentOptions,
   saveBooking,
   detectSheetName,
+  getAllBookings, // ✅ new
 } = require("./helpers");
 
 const app = express();
@@ -36,9 +37,20 @@ app.get("/", (req, res) => {
   res.send("✅ WhatsApp Webhook for Clinic is running on Vercel!");
 });
 
-// ✅ Serve Dashboard Page (NEW)
+// ✅ Serve Dashboard Page
 app.get("/dashboard", async (req, res) => {
   res.sendFile(path.join(__dirname, "dashboard.html"));
+});
+
+// ✅ API route for dashboard to fetch bookings
+app.get("/api/bookings", async (req, res) => {
+  try {
+    const data = await getAllBookings();
+    res.json(data);
+  } catch (err) {
+    console.error("❌ Error fetching bookings:", err.message);
+    res.status(500).json({ error: "Failed to fetch bookings" });
+  }
 });
 
 // ---------------------------------------------

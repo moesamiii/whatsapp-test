@@ -80,6 +80,7 @@ async function sendTextMessage(to, text) {
         },
       }
     );
+    console.log("✅ DEBUG => Message sent successfully to WhatsApp API");
   } catch (err) {
     console.error(
       "❌ DEBUG => WhatsApp send error:",
@@ -161,6 +162,13 @@ async function sendServiceButtons(to) {
                   { id: "service_تجميل", title: "تجميل الأسنان" },
                 ],
               },
+              {
+                title: "خدمات أخرى",
+                rows: [
+                  { id: "service_استشارة", title: "استشارة عامة" },
+                  { id: "service_اشعة", title: "أشعة تشخيصية" },
+                ],
+              },
             ],
           },
         },
@@ -210,14 +218,39 @@ async function saveBooking({ name, phone, service, appointment }) {
     });
 
     console.log(
-      "✅ DEBUG => Google Sheets API response:",
+      "✅ DEBUG => Google Sheets API append response:",
       result.statusText || result.status
     );
   } catch (err) {
     console.error(
-      "❌ DEBUG => Google Sheets Error:",
+      "❌ DEBUG => Google Sheets append error:",
       err.response?.data || err.message
     );
+  }
+}
+
+// ---------------------------------------------
+// 🧾 Update an existing booking
+// (optional future enhancement)
+// ---------------------------------------------
+async function updateBooking(rowIndex, { name, phone, service, appointment }) {
+  try {
+    const values = [
+      [name, phone, service, appointment, new Date().toISOString()],
+    ];
+    const range = `${DEFAULT_SHEET_NAME}!A${rowIndex}:E${rowIndex}`;
+    console.log(`✏️ DEBUG => Updating booking at row ${rowIndex}:`, values);
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values },
+    });
+
+    console.log("✅ DEBUG => Booking updated successfully.");
+  } catch (err) {
+    console.error("❌ DEBUG => Failed to update booking:", err.message);
   }
 }
 
@@ -226,6 +259,9 @@ async function saveBooking({ name, phone, service, appointment }) {
 // ---------------------------------------------
 async function getAllBookings() {
   try {
+    console.log(
+      `📥 DEBUG => Fetching all bookings from "${DEFAULT_SHEET_NAME}"`
+    );
     const range = `${DEFAULT_SHEET_NAME}!A:E`;
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -233,19 +269,45 @@ async function getAllBookings() {
     });
 
     const rows = response.data.values || [];
+    console.log(`📊 DEBUG => Retrieved ${rows.length} rows from Google Sheets`);
+
     if (rows.length === 0) return [];
 
-    // Convert rows to structured objects
-    return rows.map(([name, phone, service, appointment, timestamp]) => ({
-      name,
-      phone,
-      service,
-      appointment,
-      timestamp,
-    }));
+    // Convert rows to structured JSON objects
+    const bookings = rows.map(
+      ([name, phone, service, appointment, timestamp]) => ({
+        name: name || "",
+        phone: phone || "",
+        service: service || "",
+        appointment: appointment || "",
+        time: timestamp || "",
+      })
+    );
+
+    return bookings;
   } catch (err) {
-    console.error("❌ DEBUG => Error fetching bookings:", err.message);
+    console.error(
+      "❌ DEBUG => Error fetching bookings:",
+      err.response?.data || err.message
+    );
     return [];
+  }
+}
+
+// ---------------------------------------------
+// 🧠 Validate if Google Sheet connection works
+// ---------------------------------------------
+async function testGoogleConnection() {
+  try {
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+    console.log(
+      "✅ Google Sheets connected. Found sheets:",
+      meta.data.sheets.map((s) => s.properties.title)
+    );
+  } catch (err) {
+    console.error("❌ Failed to connect to Google Sheets:", err.message);
   }
 }
 
@@ -261,5 +323,7 @@ module.exports = {
   sendServiceButtons,
   sendAppointmentOptions,
   saveBooking,
-  getAllBookings, // ✅ added new function
+  updateBooking,
+  getAllBookings,
+  testGoogleConnection,
 };
