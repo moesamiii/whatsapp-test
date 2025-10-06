@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Clinic Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: Arial;
+        margin: 20px;
+        background: #f8f9fa;
+      }
+      h1 {
+        color: #2a6cb3;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        background: #fff;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background: #e0e0e0;
+      }
+      canvas {
+        margin-top: 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>📊 Clinic Dashboard</h1>
+    <p>Showing all bookings from Google Sheets</p>
+
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Service</th>
+          <th>Appointment</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <canvas id="chart" width="400" height="200"></canvas>
+
+    <script>
+      async function loadData() {
+        const res = await fetch("/api/bookings");
+        const data = await res.json();
+
+        const tbody = document.querySelector("#dataTable tbody");
+        tbody.innerHTML = "";
+        data.forEach((row) => {
+          const tr = document.createElement("tr");
+          row.forEach((cell) => {
+            const td = document.createElement("td");
+            td.textContent = cell;
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+
+        // Chart: number of bookings per service
+        const counts = {};
+        data.forEach((r) => (counts[r[2]] = (counts[r[2]] || 0) + 1));
+
+        const ctx = document.getElementById("chart").getContext("2d");
+        new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: Object.keys(counts),
+            datasets: [
+              {
+                label: "Bookings per Service",
+                data: Object.values(counts),
+                backgroundColor: "rgba(42, 108, 179, 0.6)",
+              },
+            ],
+          },
+        });
+      }
+
+      loadData();
+    </script>
+  </body>
+</html>

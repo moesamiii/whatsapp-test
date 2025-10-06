@@ -1,5 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const path = require("path");
 const {
   askAI,
   validateNameWithAI,
@@ -35,6 +36,14 @@ app.get("/", (req, res) => {
   res.send("✅ WhatsApp Webhook for Clinic is running on Vercel!");
 });
 
+// ✅ Serve Dashboard Page (NEW)
+app.get("/dashboard", async (req, res) => {
+  res.sendFile(path.join(__dirname, "dashboard.html"));
+});
+
+// ---------------------------------------------
+// Webhook Verification
+// ---------------------------------------------
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];

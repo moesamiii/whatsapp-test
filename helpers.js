@@ -222,6 +222,34 @@ async function saveBooking({ name, phone, service, appointment }) {
 }
 
 // ---------------------------------------------
+// 📖 Get all bookings from Google Sheets (for dashboard)
+// ---------------------------------------------
+async function getAllBookings() {
+  try {
+    const range = `${DEFAULT_SHEET_NAME}!A:E`;
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range,
+    });
+
+    const rows = response.data.values || [];
+    if (rows.length === 0) return [];
+
+    // Convert rows to structured objects
+    return rows.map(([name, phone, service, appointment, timestamp]) => ({
+      name,
+      phone,
+      service,
+      appointment,
+      timestamp,
+    }));
+  } catch (err) {
+    console.error("❌ DEBUG => Error fetching bookings:", err.message);
+    return [];
+  }
+}
+
+// ---------------------------------------------
 // ✅ Export everything
 // ---------------------------------------------
 module.exports = {
@@ -233,4 +261,5 @@ module.exports = {
   sendServiceButtons,
   sendAppointmentOptions,
   saveBooking,
+  getAllBookings, // ✅ added new function
 };
