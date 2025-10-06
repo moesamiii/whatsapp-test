@@ -1,32 +1,55 @@
 // clinicBotReplies.js
-module.exports = function getReply(text) {
-  const lower = text.toLowerCase();
+function normalize(text) {
+  return text
+    .toLowerCase()
+    .replace(/[!?.،]/g, "")
+    .trim();
+}
 
-  if (lower.includes("مرحبا") || lower.includes("hello")) {
-    return "👋 أهلاً بك في عيادتنا! كيف يمكنني مساعدتك؟";
-  } else if (
-    lower.includes("مواعيد") ||
-    lower.includes("اوقات") ||
-    lower.includes("opening")
-  ) {
-    return "🕒 مواعيد العيادة: يومياً من 9 صباحاً حتى 9 مساءً ما عدا الجمعة.";
-  } else if (
-    lower.includes("سعر") ||
-    lower.includes("كشف") ||
-    lower.includes("فلوس") ||
-    lower.includes("price")
-  ) {
-    return "💰 تكلفة الكشف: 150 ريال، تشمل الاستشارة والفحص.";
-  } else if (
-    lower.includes("موقع") ||
-    lower.includes("وين") ||
-    lower.includes("address") ||
-    lower.includes("location")
-  ) {
-    return "📍 موقع العيادة: الرياض - شارع الملك فهد.\nGoogle Maps: https://maps.google.com";
-  } else if (lower.includes("شكرا") || lower.includes("thanks")) {
-    return "🙏 شكراً لك! نتمنى لك الصحة والعافية دائماً.";
+const keywords = {
+  greeting: ["مرحبا", "اهلا", "hello", "hi", "hey", "السلام"],
+  schedule: [
+    "مواعيد",
+    "اوقات",
+    "دوام",
+    "opening",
+    "hours",
+    "schedule",
+    "work time",
+  ],
+  price: ["سعر", "الفلوس", "كشف", "تكلفة", "price", "cost", "fees"],
+  location: ["موقع", "وين", "address", "location", "map", "place"],
+  thanks: ["شكرا", "thx", "thanks", "thank you", "مشكور"],
+};
+
+function getReply(text) {
+  const lower = normalize(text);
+
+  // Helper to check if text includes any word from list
+  const includesAny = (arr) => arr.some((w) => lower.includes(w));
+
+  if (includesAny(keywords.greeting)) {
+    return "👋 أهلاً وسهلاً في *عيادة ابتسامة الطبيّة*! كيف يمكنني مساعدتك اليوم؟";
   }
 
-  return `🤖 أهلاً! استلمت رسالتك: "${text}"\n\nيمكنك أن تسألني عن: المواعيد 🕒، الأسعار 💰، الموقع 📍، أو الحجز 📅.`;
-};
+  if (includesAny(keywords.schedule)) {
+    return "🕒 مواعيد العمل: يومياً من *9 صباحاً إلى 9 مساءً* ما عدا *الجمعة مغلق*.";
+  }
+
+  if (includesAny(keywords.price)) {
+    return "💰 تكلفة الكشف: *150 ريال* وتشمل الاستشارة والفحص الكامل.";
+  }
+
+  if (includesAny(keywords.location)) {
+    return "📍 موقع العيادة: *عمّان – عبدون، خلف بنك الإسكان، الطابق الأول*.\nGoogle Maps: https://maps.google.com";
+  }
+
+  if (includesAny(keywords.thanks)) {
+    return "🙏 العفو! نتمنى لك يوماً جميلاً وصحة دائمة 💚";
+  }
+
+  // Default fallback
+  return `🤖 استلمت رسالتك: “${text}”\n\nيمكنك سؤالي عن: *المواعيد 🕒، الأسعار 💰، الموقع 📍، أو الحجز 📅*.`;
+}
+
+module.exports = getReply;
