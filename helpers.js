@@ -1,4 +1,3 @@
-// helpers.js
 const axios = require("axios");
 const { google } = require("googleapis");
 const { askAI, validateNameWithAI } = require("./aiHelper"); // ✅ Import AI utilities
@@ -190,17 +189,47 @@ async function sendAppointmentOptions(to) {
 }
 
 // ---------------------------------------------
+// 🔍 Check if appointment slot is available
+// ---------------------------------------------
+async function isAppointmentAvailable(appointment) {
+  try {
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${DEFAULT_SHEET_NAME}!A:E`,
+    });
+
+    const rows = result.data.values || [];
+    const taken = rows.some(
+      (row) => row[3] && row[3].toLowerCase() === appointment.toLowerCase()
+    );
+
+    console.log(`🔎 DEBUG => Appointment ${appointment} taken:`, taken);
+    return !taken; // ✅ true means available
+  } catch (err) {
+    console.error("❌ DEBUG => Error checking appointment:", err.message);
+    return true; // fallback to available
+  }
+}
+
+// ---------------------------------------------
 // 🧾 Save booking to Google Sheets
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
   try {
+    // ✅ check availability first
+    const available = await isAppointmentAvailable(appointment);
+    if (!available) {
+      console.warn("⚠️ Appointment already taken:", appointment);
+      return {
+        success: false,
+        message: "عذرًا، هذا الموعد محجوز بالفعل. يرجى اختيار وقت آخر.",
+      };
+    }
+
     const values = [
       [name, phone, service, appointment, new Date().toISOString()],
     ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
-    console.log(
-      `🔍 DEBUG => Appending to sheet "${DEFAULT_SHEET_NAME}" in spreadsheet "${SPREADSHEET_ID}"`
-    );
 
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -213,11 +242,13 @@ async function saveBooking({ name, phone, service, appointment }) {
       "✅ DEBUG => Google Sheets API response:",
       result.statusText || result.status
     );
+    return { success: true };
   } catch (err) {
     console.error(
       "❌ DEBUG => Google Sheets Error:",
       err.response?.data || err.message
     );
+    return { success: false, message: "حدث خطأ أثناء حفظ الحجز." };
   }
 }
 
