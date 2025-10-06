@@ -23,9 +23,14 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "my_secret";
 detectSheetName();
 
 // ---------------------------------------------
+// Global booking memory (prevents random resets)
+// ---------------------------------------------
+global.tempBookings = global.tempBookings || {};
+const tempBookings = global.tempBookings;
+
+// ---------------------------------------------
 // Routes
 // ---------------------------------------------
-
 app.get("/", (req, res) => {
   res.send("✅ WhatsApp Webhook for Clinic is running on Vercel!");
 });
@@ -45,12 +50,6 @@ app.get("/webhook", (req, res) => {
 });
 
 // ---------------------------------------------
-// Global booking memory (prevents random resets)
-// ---------------------------------------------
-global.tempBookings = global.tempBookings || {};
-const tempBookings = global.tempBookings;
-
-// ---------------------------------------------
 // Webhook Logic
 // ---------------------------------------------
 app.post("/webhook", async (req, res) => {
@@ -60,7 +59,7 @@ app.post("/webhook", async (req, res) => {
     const from = message?.from;
     if (!message || !from) return res.sendStatus(200);
 
-    // ✅ Interactive Messages (Buttons / Lists)
+    // ✅ Handle Interactive Messages (buttons/lists)
     if (message.type === "interactive") {
       const buttonId = message?.interactive?.button_reply?.id;
       const listId = message?.interactive?.list_reply?.id;
@@ -68,7 +67,7 @@ app.post("/webhook", async (req, res) => {
 
       console.log("🔘 DEBUG => Button/List pressed:", id);
 
-      // Appointment slots
+      // Appointment selection
       let appointment;
       if (id === "slot_3pm") appointment = "3 PM";
       if (id === "slot_6pm") appointment = "6 PM";
@@ -120,7 +119,7 @@ app.post("/webhook", async (req, res) => {
     if (text) {
       console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-      // Step 1: Appointment shortcut
+      // Step 1: Appointment shortcut (3 / 6 / 9)
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         const appointment = `${text} PM`;
         tempBookings[from] = { appointment };
@@ -172,6 +171,7 @@ app.post("/webhook", async (req, res) => {
           );
           return res.sendStatus(200);
         }
+
         tempBookings[from].phone = normalized;
         console.log(`📞 ${from} entered phone: ${normalized}`);
         await sendServiceButtons(from);
@@ -196,12 +196,14 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // Step 5: New inquiries or AI chat
-      if (text.includes("حجز") || text.toLowerCase().includes("book")) {
-        await sendAppointmentOptions(from);
-      } else {
-        const reply = await askAI(text);
-        await sendTextMessage(from, reply);
+      // ✅ Step 5: AI messages — only if no booking in progress
+      if (!tempBookings[from]) {
+        if (text.includes("حجز") || text.toLowerCase().includes("book")) {
+          await sendAppointmentOptions(from);
+        } else {
+          const reply = await askAI(text);
+          await sendTextMessage(from, reply);
+        }
       }
     }
 
