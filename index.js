@@ -24,6 +24,7 @@ app.use(bodyParser.json());
 // ---------------------------------------------
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "my_secret";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
 // Detect sheet name on startup
 detectSheetName();
@@ -35,15 +36,30 @@ global.tempBookings = global.tempBookings || {};
 const tempBookings = global.tempBookings;
 
 // ---------------------------------------------
-// 🧠 Voice Transcription Helper
+// 🧠 Voice Transcription Helper (fixed)
 // ---------------------------------------------
 async function transcribeAudio(audioUrl) {
   try {
-    const audioData = await axios.get(audioUrl, {
-      responseType: "arraybuffer",
+    // 1️⃣ Get the actual media download URL from WhatsApp API
+    const mediaResponse = await axios.get(audioUrl, {
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+      },
     });
+
+    const mediaDownloadUrl = mediaResponse.data.url;
+
+    // 2️⃣ Download the actual audio binary from the media URL
+    const audioResponse = await axios.get(mediaDownloadUrl, {
+      responseType: "arraybuffer",
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+      },
+    });
+
+    // 3️⃣ Send audio to OpenAI Whisper
     const form = new FormData();
-    form.append("file", Buffer.from(audioData.data), "voice.ogg");
+    form.append("file", Buffer.from(audioResponse.data), "voice.ogg");
     form.append("model", "whisper-1");
 
     const result = await axios.post(
@@ -116,6 +132,7 @@ app.post("/webhook", async (req, res) => {
     if (message.type === "audio") {
       console.log("🎧 Voice message received from:", from);
       const audioUrl = message.audio.url;
+
       const transcript = await transcribeAudio(audioUrl);
       if (!transcript) {
         await sendTextMessage(
@@ -124,6 +141,7 @@ app.post("/webhook", async (req, res) => {
         );
         return res.sendStatus(200);
       }
+
       console.log(`🗣️ Transcribed text: "${transcript}"`);
       const reply = await askAI(transcript);
       await sendTextMessage(from, reply);
