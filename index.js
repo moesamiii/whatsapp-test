@@ -184,26 +184,45 @@ app.post("/webhook", async (req, res) => {
       }
 
       tempBookings[from].phone = normalized;
-      await sendServiceButtons(from);
+
+      // ⏳ Delay before showing buttons
+      setTimeout(async () => {
+        try {
+          await sendServiceButtons(from);
+        } catch {
+          await sendTextMessage(
+            from,
+            "💊 الآن اكتب نوع الخدمة المطلوبة (مثل تنظيف الأسنان أو تبييض الأسنان)"
+          );
+        }
+      }, 1000);
+
+      await sendTextMessage(
+        from,
+        "💊 يرجى اختيار الخدمة من القائمة أو كتابتها يدويًا:"
+      );
       return res.sendStatus(200);
     }
 
-    // Step 4: Only allow service selection via buttons
+    // Step 4: Service input (manual or button)
     if (tempBookings[from] && !tempBookings[from].service) {
-      // If user typed manually instead of selecting
-      if (text === "القائمة" || text.toLowerCase() === "list") {
-        await sendServiceButtons(from);
-      } else {
-        await sendTextMessage(
-          from,
-          "⚠️ لو سمحت اختر الخدمة من القائمة التي أرسلناها 👇\n" +
-            "أرسل كلمة 'القائمة' لإعادة عرض الخيارات."
-        );
-      }
+      const booking = tempBookings[from];
+      booking.service = text; // accept manual text
+
+      await saveBooking(booking);
+      await sendTextMessage(
+        from,
+        `✅ تم حفظ حجزك بنجاح:
+👤 ${booking.name}
+📱 ${booking.phone}
+💊 ${booking.service}
+📅 ${booking.appointment}`
+      );
+      delete tempBookings[from];
       return res.sendStatus(200);
     }
 
-    // ✅ Step 5: Only AI chat if NO active booking in progress
+    // ✅ Step 5: AI chat fallback
     if (!tempBookings[from]) {
       if (text.includes("حجز") || text.toLowerCase().includes("book")) {
         await sendAppointmentOptions(from);
