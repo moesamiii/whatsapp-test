@@ -7,6 +7,20 @@ function detectLanguage(text) {
   return arabic.test(text) ? "ar" : "en";
 }
 
+// 🔹 التحقق مما إذا كان المستخدم يريد الحجز يوم الجمعة
+function isFridayBooking(text) {
+  const fridayWords = [
+    "الجمعة",
+    "يوم الجمعة", // بالعربية
+    "friday",
+    "on friday",
+    "this friday", // بالإنجليزية
+  ];
+  return fridayWords.some((word) =>
+    text.toLowerCase().includes(word.toLowerCase())
+  );
+}
+
 // 🤖 الذكاء الاصطناعي الذكي ثنائي اللغة
 async function askAI(userMessage) {
   try {
@@ -15,7 +29,7 @@ async function askAI(userMessage) {
     const lang = detectLanguage(userMessage);
     console.log("🌐 Detected language:", lang);
 
-    // 🟢 Arabic system prompt (ثابت ومقيد)
+    // 🟢 Arabic system prompt
     const arabicPrompt = `
 أنت موظف خدمة عملاء ذكي وودود في "عيادة ابتسامة الطبيّة".
 📍 الموقع: عمّان – عبدون، خلف بنك الإسكان، الطابق الأول.
@@ -38,7 +52,7 @@ async function askAI(userMessage) {
    🕒 "دوامنا من الساعة 2 ظهرًا إلى 10 مساءً، والجمعة مغلق."
 `;
 
-    // 🔵 English system prompt (fixed and controlled)
+    // 🔵 English system prompt
     const englishPrompt = `
 You are a smart and friendly customer service assistant at "Smile Medical Clinic".
 📍 Location: Amman – Abdoun, behind Housing Bank, First Floor.
@@ -64,14 +78,21 @@ Your job is to help clients with:
 
     const systemPrompt = lang === "ar" ? arabicPrompt : englishPrompt;
 
-    // 🧠 AI call
+    // 🛑 التحقق أولاً: هل المستخدم يريد الحجز يوم الجمعة؟
+    if (isFridayBooking(userMessage)) {
+      return lang === "ar"
+        ? "عذرًا، يوم الجمعة عطلة رسمية لدينا، والعيادة مغلقة. يسعدنا خدمتك في أي يوم آخر من السبت إلى الخميس 🌷"
+        : "Sorry, the clinic is closed on Fridays. We’d be happy to assist you any other day from Saturday to Thursday 🌷";
+    }
+
+    // 🧠 إذا لم يكن الجمعة، تابع مع الذكاء الاصطناعي
     const completion = await client.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ],
-      temperature: 0.6, // أكثر انضباطًا لعدم التخمين
+      temperature: 0.6,
       max_completion_tokens: 512,
     });
 
