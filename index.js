@@ -118,7 +118,7 @@ async function transcribeAudio(mediaId) {
 }
 
 // ---------------------------------------------
-// 🧑‍⚕️ Doctor Validation Helper (Enhanced)
+// 🧑‍⚕️ Doctor Validation Helper (Enhanced & Fixed)
 // ---------------------------------------------
 
 // ✅ List of real doctors
@@ -129,39 +129,132 @@ const validDoctors = [
   "دكتور ليلى منصور",
 ];
 
-// Extract first names for flexible matching
-function extractDoctorFirstName(fullName) {
-  const parts = fullName.split(" ");
-  return parts.find((p) => !p.includes("دكتور")) || "";
+// Extract doctor first names and create variations
+function getDoctorVariations() {
+  const variations = [];
+  validDoctors.forEach((fullName) => {
+    const parts = fullName.split(" ");
+    // Get the name part (skip "دكتور" and title)
+    const doctorName = parts.slice(1).join(" "); // "أحمد يوسف", "سارة خالد", etc.
+    const firstName = parts[1]; // "أحمد", "سارة", etc.
+
+    variations.push({
+      fullName: fullName,
+      firstName: firstName,
+      searchTerms: [firstName.toLowerCase(), doctorName.toLowerCase()],
+    });
+  });
+  return variations;
 }
 
-// Build list of first names
-const doctorFirstNames = validDoctors.map((d) => extractDoctorFirstName(d));
+const doctorVariations = getDoctorVariations();
 
-// Detect doctor by first name or with "دكتور"
-function detectDoctorName(text) {
-  const words = text.split(/\s+/);
-  for (const word of words) {
-    const clean = word.replace(/[^\u0600-\u06FFA-Za-z]/g, "");
-    if (doctorFirstNames.some((n) => clean.includes(n))) {
-      return clean;
+// List of common name keywords to EXCLUDE from doctor detection
+const commonNameKeywords = [
+  "محمد",
+  "أحمد",
+  "علي",
+  "حسن",
+  "حسين",
+  "عمر",
+  "خالد",
+  "يوسف",
+  "فاطمة",
+  "عائشة",
+  "مريم",
+  "زينب",
+  "سارة",
+  "ليلى",
+  "نور",
+  "منى",
+];
+
+// Detect doctor name in text with context awareness
+function detectDoctorName(text, isInBookingFlow = false) {
+  const lowerText = text.toLowerCase();
+
+  // If user is in booking flow and just providing their name, don't detect doctor
+  if (isInBookingFlow) {
+    // Check if this looks like just a name (no "دكتور", "عند", etc.)
+    if (
+      !lowerText.includes("دكتور") &&
+      !lowerText.includes("عند") &&
+      !lowerText.includes("مع") &&
+      !lowerText.includes("حجز")
+    ) {
+      console.log("🚫 User is providing their name, not selecting doctor");
+      return null;
     }
   }
+
+  // Check for "دكتور" keyword + name
+  if (lowerText.includes("دكتور")) {
+    for (const doctor of doctorVariations) {
+      if (doctor.searchTerms.some((term) => lowerText.includes(term))) {
+        console.log(`✅ Found doctor with 'دكتور' keyword: ${doctor.fullName}`);
+        return {
+          name: doctor.firstName,
+          fullName: doctor.fullName,
+          isValid: true,
+        };
+      }
+    }
+
+    // Found "دكتور" but unknown name
+    const words = text.split(/\s+/);
+    const doctorIndex = words.findIndex((w) => w.includes("دكتور"));
+    if (doctorIndex >= 0 && words[doctorIndex + 1]) {
+      const unknownName = words[doctorIndex + 1].replace(
+        /[^\u0600-\u06FFA-Za-z]/g,
+        ""
+      );
+      console.log(`⚠️ Found 'دكتور' with unknown name: ${unknownName}`);
+      return {
+        name: unknownName,
+        fullName: `دكتور ${unknownName}`,
+        isValid: false,
+      };
+    }
+  }
+
+  // Check for "عند" or "مع" keyword + name
+  if (lowerText.includes("عند") || lowerText.includes("مع")) {
+    for (const doctor of doctorVariations) {
+      if (doctor.searchTerms.some((term) => lowerText.includes(term))) {
+        console.log(
+          `✅ Found doctor with 'عند/مع' keyword: ${doctor.fullName}`
+        );
+        return {
+          name: doctor.firstName,
+          fullName: doctor.fullName,
+          isValid: true,
+        };
+      }
+    }
+
+    // Found "عند/مع" but unknown name
+    const words = text.split(/\s+/);
+    const keywordIndex = words.findIndex(
+      (w) => w.includes("عند") || w.includes("مع")
+    );
+    if (keywordIndex >= 0 && words[keywordIndex + 1]) {
+      const unknownName = words[keywordIndex + 1].replace(
+        /[^\u0600-\u06FFA-Za-z]/g,
+        ""
+      );
+      // Only flag as doctor selection if it's not a common name used alone
+      if (!commonNameKeywords.includes(unknownName)) {
+        console.log(`⚠️ Found 'عند/مع' with unknown name: ${unknownName}`);
+        return {
+          name: unknownName,
+          fullName: unknownName,
+          isValid: false,
+        };
+      }
+    }
+  }
+
   return null;
-}
-
-// Match against valid doctors by first name
-function isValidDoctorName(name) {
-  if (!name) return false;
-  return doctorFirstNames.some((n) =>
-    name.toLowerCase().includes(n.toLowerCase())
-  );
-}
-
-// Get full doctor name for response
-function getFullDoctorName(name) {
-  const match = validDoctors.find((doc) => doc.includes(name));
-  return match || name;
 }
 
 // ---------------------------------------------
@@ -232,22 +325,30 @@ app.post("/webhook", async (req, res) => {
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
 
-      // 🧑‍⚕️ Doctor detection
-      const doctorMention = detectDoctorName(transcript);
-      if (doctorMention) {
-        if (!isValidDoctorName(doctorMention)) {
+      // 🧑‍⚕️ Doctor detection (only if NOT in booking flow)
+      const isInBookingFlow = !!tempBookings[from];
+      const doctorInfo = detectDoctorName(
+        transcript,
+        isInBookingFlow && !!tempBookings[from].appointment
+      );
+
+      if (doctorInfo && !isInBookingFlow) {
+        if (!doctorInfo.isValid) {
           await sendTextMessage(
             from,
-            `⚠️ لم أتعرف على ${doctorMention}، سيتم المتابعة كحجز عام بدون تحديد طبيب.`
+            `⚠️ عذراً، ${doctorInfo.name} غير موجود في عيادتنا. سيتم المتابعة كحجز عام بدون تحديد طبيب.`
           );
         } else {
-          const fullName = getFullDoctorName(doctorMention);
-          await sendTextMessage(from, `✅ تم اختيار ${fullName}.`);
+          await sendTextMessage(from, `✅ تم اختيار ${doctorInfo.fullName}.`);
+          if (!tempBookings[from]) {
+            tempBookings[from] = {};
+          }
+          tempBookings[from].doctor = doctorInfo.fullName;
         }
       }
 
       // Booking flow
-      if (!tempBookings[from]) {
+      if (!tempBookings[from] || !tempBookings[from].appointment) {
         if (
           transcript.includes("حجز") ||
           transcript.toLowerCase().includes("book") ||
@@ -272,7 +373,7 @@ app.post("/webhook", async (req, res) => {
 
       if (id?.startsWith("slot_")) {
         const appointment = id.replace("slot_", "").toUpperCase();
-        tempBookings[from] = { appointment };
+        tempBookings[from] = { appointment, ...(tempBookings[from] || {}) };
         console.log(`🗓️ ${from} selected appointment: ${appointment}`);
         await sendTextMessage(
           from,
@@ -293,14 +394,18 @@ app.post("/webhook", async (req, res) => {
         tempBookings[from].service = serviceName;
         const booking = tempBookings[from];
         await saveBooking(booking);
-        await sendTextMessage(
-          from,
-          `✅ تم حفظ حجزك:
+
+        let confirmMessage = `✅ تم حفظ حجزك بنجاح:
 👤 ${booking.name}
 📱 ${booking.phone}
 💊 ${booking.service}
-📅 ${booking.appointment}`
-        );
+📅 ${booking.appointment}`;
+
+        if (booking.doctor) {
+          confirmMessage += `\n🩺 ${booking.doctor}`;
+        }
+
+        await sendTextMessage(from, confirmMessage);
         delete tempBookings[from];
         return res.sendStatus(200);
       }
@@ -312,24 +417,35 @@ app.post("/webhook", async (req, res) => {
     if (!text) return res.sendStatus(200);
     console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-    // 🧑‍⚕️ Doctor detection for text (flexible first name)
-    const doctorMention = detectDoctorName(text);
-    if (doctorMention) {
-      if (!isValidDoctorName(doctorMention)) {
+    // 🧑‍⚕️ Doctor detection for text (only if NOT providing name in booking flow)
+    const isInBookingFlow =
+      tempBookings[from] &&
+      tempBookings[from].appointment &&
+      !tempBookings[from].name;
+    const doctorInfo = detectDoctorName(text, isInBookingFlow);
+
+    if (doctorInfo && !isInBookingFlow) {
+      if (!doctorInfo.isValid) {
         await sendTextMessage(
           from,
-          `⚠️ لم أتعرف على ${doctorMention}، سيتم المتابعة كحجز عام بدون تحديد طبيب.`
+          `⚠️ عذراً، ${doctorInfo.name} غير موجود في عيادتنا. سيتم المتابعة كحجز عام بدون تحديد طبيب.`
         );
       } else {
-        const fullName = getFullDoctorName(doctorMention);
-        await sendTextMessage(from, `✅ تم اختيار ${fullName}.`);
+        await sendTextMessage(from, `✅ تم اختيار ${doctorInfo.fullName}.`);
+        if (!tempBookings[from]) {
+          tempBookings[from] = {};
+        }
+        tempBookings[from].doctor = doctorInfo.fullName;
       }
     }
 
     // Step 1: Appointment shortcut
-    if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
+    if (
+      (!tempBookings[from] || !tempBookings[from].appointment) &&
+      ["3", "6", "9"].includes(text)
+    ) {
       const appointment = `${text} PM`;
-      tempBookings[from] = { appointment };
+      tempBookings[from] = { appointment, ...(tempBookings[from] || {}) };
       await sendTextMessage(
         from,
         "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
@@ -338,7 +454,11 @@ app.post("/webhook", async (req, res) => {
     }
 
     // Step 2: Name input
-    if (tempBookings[from] && !tempBookings[from].name) {
+    if (
+      tempBookings[from] &&
+      tempBookings[from].appointment &&
+      !tempBookings[from].name
+    ) {
       const userName = text.trim();
       const isValid = await validateNameWithAI(userName);
       if (!isValid) {
@@ -354,7 +474,11 @@ app.post("/webhook", async (req, res) => {
     }
 
     // Step 3: Phone input
-    if (tempBookings[from] && !tempBookings[from].phone) {
+    if (
+      tempBookings[from] &&
+      tempBookings[from].name &&
+      !tempBookings[from].phone
+    ) {
       const normalized = text
         .replace(/[^\d٠-٩]/g, "")
         .replace(/٠/g, "0")
@@ -398,24 +522,32 @@ app.post("/webhook", async (req, res) => {
     }
 
     // Step 4: Service input
-    if (tempBookings[from] && !tempBookings[from].service) {
+    if (
+      tempBookings[from] &&
+      tempBookings[from].phone &&
+      !tempBookings[from].service
+    ) {
       const booking = tempBookings[from];
       booking.service = text;
       await saveBooking(booking);
-      await sendTextMessage(
-        from,
-        `✅ تم حفظ حجزك بنجاح:
+
+      let confirmMessage = `✅ تم حفظ حجزك بنجاح:
 👤 ${booking.name}
 📱 ${booking.phone}
 💊 ${booking.service}
-📅 ${booking.appointment}`
-      );
+📅 ${booking.appointment}`;
+
+      if (booking.doctor) {
+        confirmMessage += `\n🩺 ${booking.doctor}`;
+      }
+
+      await sendTextMessage(from, confirmMessage);
       delete tempBookings[from];
       return res.sendStatus(200);
     }
 
-    // ✅ Step 5: AI chat fallback
-    if (!tempBookings[from]) {
+    // ✅ Step 5: AI chat fallback / Start new booking
+    if (!tempBookings[from] || !tempBookings[from].appointment) {
       if (text.includes("حجز") || text.toLowerCase().includes("book")) {
         await sendAppointmentOptions(from);
       } else {
