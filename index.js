@@ -36,112 +36,6 @@ global.tempBookings = global.tempBookings || {};
 const tempBookings = global.tempBookings;
 
 // ---------------------------------------------
-// 🧰 Safety & Helper Utilities (Added)
-// ---------------------------------------------
-
-// 🧹 Clean user text (remove hidden or weird chars)
-function cleanUserText(text = "") {
-  return text
-    .replace(/[\u200B-\u200D\uFEFF]/g, "")
-    .replace(/[\r\n]+/g, " ")
-    .trim();
-}
-
-// 🧠 Simple classification for better safety
-function classifyMessage(text) {
-  const lower = text.toLowerCase();
-  if (/^(مرحبا|السلام|هاي|اهلا|hello|hi)/i.test(lower)) return "greeting";
-  if (/(حجز|موعد|book|appointment)/i.test(lower)) return "booking";
-  if (/(غبي|تافه|fuck|زفت|shit|stupid)/i.test(lower)) return "rude";
-  return "general";
-}
-
-// 🧱 Global safe wrapper
-async function safeHandle(fn, from, context = "unknown") {
-  try {
-    await fn();
-  } catch (err) {
-    console.error(`❌ Error in ${context}:`, err.message);
-    await sendTextMessage(
-      from,
-      "⚠️ حدث خطأ غير متوقع أثناء معالجة الرسالة، لا تقلق سنكمل معك بعد قليل 🙏"
-    );
-  }
-}
-
-// 📅 Extended Friday keywords (Arabic, English, slang)
-const fridayWords = [
-  "الجمعة",
-  "الجمعه",
-  "جمعة",
-  "جمعه",
-  "يوم الجمعة",
-  "يوم الجمعه",
-  "يوم لجمعة",
-  "لجمعة",
-  "لجمعه",
-  "يوم الجمع",
-  "الجمعة المباركة",
-  "جمعة مباركة",
-  "يوم الجمعة المباركة",
-  "الجمعة الفضيلة",
-  "friday",
-  "Friday",
-  "FRIDAY",
-  "fri",
-  "Fri",
-  "FRI",
-  "fryday",
-  "Fryday",
-  "frayday",
-  "Frayday",
-  "fridai",
-  "Fridai",
-  "freeday",
-  "Freeday",
-  "fryda",
-  "frydi",
-  "frid",
-  "frdy",
-  "فرايدي",
-  "فرايـدي",
-  "فريداي",
-  "فريدي",
-  "فراي دي",
-  "فري داي",
-  "فرايداي",
-  "فرايدييه",
-  "فرايديي",
-  "فرايد",
-  "فريديي",
-  "الويكند",
-  "ويكند",
-  "الويك إند",
-  "ويك إند",
-  "نهاية الأسبوع",
-  "نهاية الاسبوع",
-  "عطلة الجمعة",
-  "عطلة الويكند",
-  "عطلة نهاية الأسبوع",
-  "العطلة",
-  "يوم العطلة",
-  "عطله الجمعه",
-  "يوم الراحة",
-  "الراحة الأسبوعية",
-  "fraydi",
-  "fridie",
-  "fraidy",
-  "fraidai",
-  "fraidaiy",
-  "fraiddey",
-  "fraday",
-  "fradei",
-  "fridday",
-  "friiday",
-  "friddayy",
-];
-
-// ---------------------------------------------
 // 🧠 Voice Transcription Helper (using Groq Whisper)
 // ---------------------------------------------
 async function transcribeAudio(mediaId) {
@@ -239,6 +133,8 @@ app.post("/webhook", async (req, res) => {
     const from = message?.from;
     if (!message || !from) return res.sendStatus(200);
 
+    const fridayWords = ["الجمعة", "Friday", "friday"];
+
     // 🎙️ Voice messages
     if (message.type === "audio") {
       const mediaId = message.audio.id;
@@ -266,49 +162,33 @@ app.post("/webhook", async (req, res) => {
           "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
         );
 
+        // ✅ Start booking flow after Friday message
         setTimeout(async () => {
-          await safeHandle(
-            async () => {
-              await sendTextMessage(
-                from,
-                "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇"
-              );
-              await sendAppointmentOptions(from);
-            },
+          await sendTextMessage(
             from,
-            "after Friday"
+            "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇"
           );
+          await sendAppointmentOptions(from);
         }, 2000);
 
         return res.sendStatus(200);
       }
 
-      const cleaned = cleanUserText(transcript);
-      const category = classifyMessage(cleaned);
-      if (category === "rude") {
-        await sendTextMessage(from, "🙏 نعتذر منك، لنكمل الحديث بهدوء 🌷");
-        return res.sendStatus(200);
-      }
-
       if (!tempBookings[from]) {
         if (
-          cleaned.includes("حجز") ||
-          cleaned.toLowerCase().includes("book") ||
-          cleaned.includes("موعد") ||
-          cleaned.includes("appointment")
+          transcript.includes("حجز") ||
+          transcript.toLowerCase().includes("book") ||
+          transcript.includes("موعد") ||
+          transcript.includes("appointment")
         ) {
           await sendAppointmentOptions(from);
         } else {
-          const reply = await askAI(cleaned);
-          await sendTextMessage(
-            from,
-            reply || "🤖 لم أفهم تمامًا، ممكن توضح أكثر؟"
-          );
+          const reply = await askAI(transcript);
+          await sendTextMessage(from, reply);
         }
       } else {
-        // your original booking handling logic unchanged
         if (tempBookings[from] && !tempBookings[from].name) {
-          const isValid = await validateNameWithAI(cleaned);
+          const isValid = await validateNameWithAI(transcript);
           if (!isValid) {
             await sendTextMessage(
               from,
@@ -316,10 +196,10 @@ app.post("/webhook", async (req, res) => {
             );
             return res.sendStatus(200);
           }
-          tempBookings[from].name = cleaned;
+          tempBookings[from].name = transcript;
           await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
         } else if (tempBookings[from] && !tempBookings[from].phone) {
-          const normalized = cleaned
+          const normalized = transcript
             .replace(/[^\d٠-٩]/g, "")
             .replace(/٠/g, "0")
             .replace(/١/g, "1")
@@ -358,7 +238,7 @@ app.post("/webhook", async (req, res) => {
             "💊 يرجى اختيار الخدمة من القائمة أو كتابتها يدويًا:"
           );
         } else if (tempBookings[from] && !tempBookings[from].service) {
-          tempBookings[from].service = cleaned;
+          tempBookings[from].service = transcript;
           const booking = tempBookings[from];
           await saveBooking(booking);
           await sendTextMessage(
@@ -396,18 +276,13 @@ app.post("/webhook", async (req, res) => {
             "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
           );
 
+          // ✅ Continue booking after Friday message
           setTimeout(async () => {
-            await safeHandle(
-              async () => {
-                await sendTextMessage(
-                  from,
-                  "📅 لنبدأ الحجز، اختر الوقت المناسب 👇"
-                );
-                await sendAppointmentOptions(from);
-              },
+            await sendTextMessage(
               from,
-              "after Friday slot"
+              "📅 لنبدأ الحجز، اختر الوقت المناسب 👇"
             );
+            await sendAppointmentOptions(from);
           }, 2000);
 
           return res.sendStatus(200);
@@ -448,15 +323,9 @@ app.post("/webhook", async (req, res) => {
     }
 
     // ✅ Handle text messages
-    const text = cleanUserText(message?.text?.body?.trim());
+    const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
     console.log(`💬 DEBUG => Message from ${from}:`, text);
-
-    const category = classifyMessage(text);
-    if (category === "rude") {
-      await sendTextMessage(from, "🙏 نعتذر منك، لنكمل الحديث بهدوء 🌷");
-      return res.sendStatus(200);
-    }
 
     // 🛑 Check if user typed Friday manually
     if (
@@ -469,24 +338,16 @@ app.post("/webhook", async (req, res) => {
         "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
       );
 
+      // ✅ Start booking flow after informing
       setTimeout(async () => {
-        await safeHandle(
-          async () => {
-            await sendTextMessage(
-              from,
-              "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇"
-            );
-            await sendAppointmentOptions(from);
-          },
-          from,
-          "after Friday text"
-        );
+        await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
+        await sendAppointmentOptions(from);
       }, 2000);
 
       return res.sendStatus(200);
     }
 
-    // (All your original booking flow remains)
+    // Step 1: Appointment shortcut
     if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
       const appointment = `${text} PM`;
       tempBookings[from] = { appointment };
@@ -497,6 +358,7 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    // Step 2: Name input
     if (tempBookings[from] && !tempBookings[from].name) {
       const userName = text.trim();
       const isValid = await validateNameWithAI(userName);
@@ -512,6 +374,7 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    // Step 3: Phone input
     if (tempBookings[from] && !tempBookings[from].phone) {
       const normalized = text
         .replace(/[^\d٠-٩]/g, "")
@@ -554,6 +417,7 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    // Step 4: Service input
     if (tempBookings[from] && !tempBookings[from].service) {
       const booking = tempBookings[from];
       booking.service = text;
@@ -570,15 +434,13 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    // ✅ Step 5: AI chat fallback
     if (!tempBookings[from]) {
       if (text.includes("حجز") || text.toLowerCase().includes("book")) {
         await sendAppointmentOptions(from);
       } else {
         const reply = await askAI(text);
-        await sendTextMessage(
-          from,
-          reply || "🤖 لم أفهم تمامًا، ممكن توضح أكثر؟"
-        );
+        await sendTextMessage(from, reply);
       }
     }
 
