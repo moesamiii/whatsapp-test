@@ -126,13 +126,12 @@ function detectDoctorName(text) {
   return match ? match[0] : null;
 }
 
-// Example of valid doctors (customize this list)
+// ✅ List of 4 real doctors (change anytime)
 const validDoctors = [
-  "دكتور أحمد",
-  "دكتور محمد",
-  "دكتور علي",
-  "Doctor Ahmed",
-  "Dr. Sarah",
+  "دكتور أحمد يوسف",
+  "دكتور سارة خالد",
+  "دكتور محمد علي",
+  "دكتور ليلى منصور",
 ];
 
 function isValidDoctorName(name) {
