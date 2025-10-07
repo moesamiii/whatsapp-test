@@ -42,45 +42,24 @@ async function transcribeAudio(mediaId) {
   try {
     console.log("🎙️ Starting transcription for media ID:", mediaId);
 
-    // 1️⃣ Get media URL from WhatsApp API
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
       {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-        },
+        headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
       }
     );
 
-    console.log(
-      "📥 Media URL response:",
-      JSON.stringify(mediaUrlResponse.data, null, 2)
-    );
     const mediaUrl = mediaUrlResponse.data.url;
-
     if (!mediaUrl) {
       console.error("❌ No media URL in response");
       return null;
     }
 
-    console.log("📥 Got media URL, downloading audio...");
-
-    // 2️⃣ Download the actual audio file
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
-      headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-      },
+      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
     });
 
-    console.log(
-      "✅ Audio downloaded, size:",
-      audioResponse.data.byteLength,
-      "bytes"
-    );
-    console.log("✅ Sending to Groq Whisper...");
-
-    // 3️⃣ Send to Groq Whisper API
     const form = new FormData();
     form.append("file", Buffer.from(audioResponse.data), {
       filename: "voice.ogg",
@@ -100,18 +79,11 @@ async function transcribeAudio(mediaId) {
         },
       }
     );
-
-    console.log("✅ Transcription successful:", result.data.text);
     return result.data.text;
   } catch (err) {
-    console.error("❌ Voice transcription failed:");
-    console.error("Error message:", err.message);
+    console.error("❌ Voice transcription failed:", err.message);
     if (err.response) {
-      console.error("Response status:", err.response.status);
-      console.error(
-        "Response data:",
-        JSON.stringify(err.response.data, null, 2)
-      );
+      console.error("Response:", JSON.stringify(err.response.data, null, 2));
     }
     return null;
   }
@@ -120,8 +92,6 @@ async function transcribeAudio(mediaId) {
 // ---------------------------------------------
 // 🧑‍⚕️ Doctor Validation Helper (Enhanced)
 // ---------------------------------------------
-
-// ✅ List of real doctors
 const validDoctors = [
   "دكتور أحمد يوسف",
   "دكتور سارة خالد",
@@ -135,10 +105,8 @@ function extractDoctorFirstName(fullName) {
   return parts.find((p) => !p.includes("دكتور")) || "";
 }
 
-// Build list of first names
 const doctorFirstNames = validDoctors.map((d) => extractDoctorFirstName(d));
 
-// Detect doctor by first name or with "دكتور"
 function detectDoctorName(text) {
   const words = text.split(/\s+/);
   for (const word of words) {
@@ -150,7 +118,6 @@ function detectDoctorName(text) {
   return null;
 }
 
-// Match against valid doctors by first name
 function isValidDoctorName(name) {
   if (!name) return false;
   return doctorFirstNames.some((n) =>
@@ -158,7 +125,6 @@ function isValidDoctorName(name) {
   );
 }
 
-// Get full doctor name for response
 function getFullDoctorName(name) {
   const match = validDoctors.find((doc) => doc.includes(name));
   return match || name;
@@ -180,7 +146,6 @@ app.get("/api/bookings", async (req, res) => {
     const data = await getAllBookings();
     res.json(data);
   } catch (err) {
-    console.error("❌ Error fetching bookings:", err.message);
     res.status(500).json({ error: "Failed to fetch bookings" });
   }
 });
@@ -194,10 +159,8 @@ app.get("/webhook", (req, res) => {
   const challenge = req.query["hub.challenge"];
 
   if (mode && token === VERIFY_TOKEN) {
-    console.log("✅ DEBUG => Webhook verified.");
     res.status(200).send(challenge);
   } else {
-    console.warn("⚠️ DEBUG => Webhook verification failed.");
     res.sendStatus(403);
   }
 });
@@ -212,9 +175,10 @@ app.post("/webhook", async (req, res) => {
     const from = message?.from;
     if (!message || !from) return res.sendStatus(200);
 
-    // 🎙️ Handle voice message
+    // ---------------------------------------------
+    // 🎙️ Voice messages
+    // ---------------------------------------------
     if (message.type === "audio") {
-      console.log("🎧 Voice message received from:", from);
       const mediaId = message.audio.id;
       if (!mediaId) {
         await sendTextMessage(from, "⚠️ خطأ في استقبال الرسالة الصوتية");
@@ -223,57 +187,54 @@ app.post("/webhook", async (req, res) => {
 
       const transcript = await transcribeAudio(mediaId);
       if (!transcript) {
-        await sendTextMessage(
-          from,
-          "⚠️ لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى 🎙️"
-        );
+        await sendTextMessage(from, "⚠️ لم أتمكن من فهم الرسالة الصوتية 🎙️");
         return res.sendStatus(200);
       }
 
-      console.log(`🗣️ Transcribed text: "${transcript}"`);
-
-      // 🧑‍⚕️ Doctor detection
-      const doctorMention = detectDoctorName(transcript);
-      if (doctorMention) {
-        if (!isValidDoctorName(doctorMention)) {
-          await sendTextMessage(
-            from,
-            `⚠️ لم أتعرف على ${doctorMention}، سيتم المتابعة كحجز عام بدون تحديد طبيب.`
-          );
-        } else {
-          const fullName = getFullDoctorName(doctorMention);
-          await sendTextMessage(from, `✅ تم اختيار ${fullName}.`);
+      // 🧑‍⚕️ Doctor detection only if no active booking
+      if (!tempBookings[from]) {
+        const doctorMention = detectDoctorName(transcript);
+        if (doctorMention) {
+          if (!isValidDoctorName(doctorMention)) {
+            await sendTextMessage(
+              from,
+              `⚠️ لم أتعرف على الدكتور/ة ${doctorMention}، سيتم المتابعة كحجز عام بدون تحديد طبيب.`
+            );
+          } else {
+            const fullName = getFullDoctorName(doctorMention);
+            await sendTextMessage(from, `✅ تم اختيار ${fullName}.`);
+            tempBookings[from] = { doctor: fullName };
+          }
         }
       }
 
-      // Booking flow
-      if (!tempBookings[from]) {
-        if (
-          transcript.includes("حجز") ||
-          transcript.toLowerCase().includes("book") ||
-          transcript.includes("موعد") ||
-          transcript.includes("appointment")
-        ) {
-          await sendAppointmentOptions(from);
-        } else {
-          const reply = await askAI(transcript);
-          await sendTextMessage(from, reply);
-        }
+      // Continue booking
+      if (
+        transcript.includes("حجز") ||
+        transcript.toLowerCase().includes("book") ||
+        transcript.includes("موعد") ||
+        transcript.includes("appointment")
+      ) {
+        await sendAppointmentOptions(from);
+      } else {
+        const reply = await askAI(transcript);
+        await sendTextMessage(from, reply);
       }
       return res.sendStatus(200);
     }
 
-    // ✅ Handle interactive messages (buttons / lists)
+    // ---------------------------------------------
+    // 🧩 Interactive messages (buttons / lists)
+    // ---------------------------------------------
     if (message.type === "interactive") {
       const id =
         message?.interactive?.button_reply?.id ||
         message?.interactive?.list_reply?.id;
-      console.log("🔘 DEBUG => Button/List pressed:", id);
 
       if (id?.startsWith("slot_")) {
         const appointment = id.replace("slot_", "").toUpperCase();
-        tempBookings[from] = { appointment };
-        console.log(`🗓️ ${from} selected appointment: ${appointment}`);
+        tempBookings[from] = tempBookings[from] || {};
+        tempBookings[from].appointment = appointment;
         await sendTextMessage(
           from,
           "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
@@ -290,6 +251,7 @@ app.post("/webhook", async (req, res) => {
           );
           return res.sendStatus(200);
         }
+
         tempBookings[from].service = serviceName;
         const booking = tempBookings[from];
         await saveBooking(booking);
@@ -299,6 +261,7 @@ app.post("/webhook", async (req, res) => {
 👤 ${booking.name}
 📱 ${booking.phone}
 💊 ${booking.service}
+🧑‍⚕️ ${booking.doctor || "حجز عام"}
 📅 ${booking.appointment}`
         );
         delete tempBookings[from];
@@ -307,22 +270,26 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ✅ Handle text messages
+    // ---------------------------------------------
+    // 💬 Text messages
+    // ---------------------------------------------
     const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
-    console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-    // 🧑‍⚕️ Doctor detection for text (flexible first name)
-    const doctorMention = detectDoctorName(text);
-    if (doctorMention) {
-      if (!isValidDoctorName(doctorMention)) {
-        await sendTextMessage(
-          from,
-          `⚠️ لم أتعرف على ${doctorMention}، سيتم المتابعة كحجز عام بدون تحديد طبيب.`
-        );
-      } else {
-        const fullName = getFullDoctorName(doctorMention);
-        await sendTextMessage(from, `✅ تم اختيار ${fullName}.`);
+    // 🧑‍⚕️ Doctor detection only if NOT mid-booking
+    if (!tempBookings[from]) {
+      const doctorMention = detectDoctorName(text);
+      if (doctorMention) {
+        if (!isValidDoctorName(doctorMention)) {
+          await sendTextMessage(
+            from,
+            `⚠️ لم أتعرف على الدكتور/ة ${doctorMention}، سيتم المتابعة كحجز عام بدون تحديد طبيب.`
+          );
+        } else {
+          const fullName = getFullDoctorName(doctorMention);
+          await sendTextMessage(from, `✅ تم اختيار ${fullName}.`);
+          tempBookings[from] = { doctor: fullName };
+        }
       }
     }
 
@@ -378,7 +345,6 @@ app.post("/webhook", async (req, res) => {
       }
 
       tempBookings[from].phone = normalized;
-
       setTimeout(async () => {
         try {
           await sendServiceButtons(from);
@@ -408,13 +374,14 @@ app.post("/webhook", async (req, res) => {
 👤 ${booking.name}
 📱 ${booking.phone}
 💊 ${booking.service}
+🧑‍⚕️ ${booking.doctor || "حجز عام"}
 📅 ${booking.appointment}`
       );
       delete tempBookings[from];
       return res.sendStatus(200);
     }
 
-    // ✅ Step 5: AI chat fallback
+    // Step 5: AI fallback
     if (!tempBookings[from]) {
       if (text.includes("حجز") || text.toLowerCase().includes("book")) {
         await sendAppointmentOptions(from);
@@ -426,7 +393,7 @@ app.post("/webhook", async (req, res) => {
 
     res.sendStatus(200);
   } catch (err) {
-    console.error("❌ DEBUG => Webhook Error:", err.message);
+    console.error("❌ Webhook Error:", err.message);
     res.sendStatus(500);
   }
 });
