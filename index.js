@@ -42,7 +42,6 @@ async function transcribeAudio(mediaId) {
   try {
     console.log("🎙️ Starting transcription for media ID:", mediaId);
 
-    // 1️⃣ Get media URL from WhatsApp API
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
       {
@@ -52,20 +51,9 @@ async function transcribeAudio(mediaId) {
       }
     );
 
-    console.log(
-      "📥 Media URL response:",
-      JSON.stringify(mediaUrlResponse.data, null, 2)
-    );
     const mediaUrl = mediaUrlResponse.data.url;
+    if (!mediaUrl) return null;
 
-    if (!mediaUrl) {
-      console.error("❌ No media URL in response");
-      return null;
-    }
-
-    console.log("📥 Got media URL, downloading audio...");
-
-    // 2️⃣ Download the actual audio file
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
       headers: {
@@ -73,14 +61,6 @@ async function transcribeAudio(mediaId) {
       },
     });
 
-    console.log(
-      "✅ Audio downloaded, size:",
-      audioResponse.data.byteLength,
-      "bytes"
-    );
-    console.log("✅ Sending to Groq Whisper...");
-
-    // 3️⃣ Send to Groq Whisper API
     const form = new FormData();
     form.append("file", Buffer.from(audioResponse.data), {
       filename: "voice.ogg",
@@ -101,18 +81,9 @@ async function transcribeAudio(mediaId) {
       }
     );
 
-    console.log("✅ Transcription successful:", result.data.text);
     return result.data.text;
   } catch (err) {
-    console.error("❌ Voice transcription failed:");
-    console.error("Error message:", err.message);
-    if (err.response) {
-      console.error("Response status:", err.response.status);
-      console.error(
-        "Response data:",
-        JSON.stringify(err.response.data, null, 2)
-      );
-    }
+    console.error("❌ Voice transcription failed:", err.message);
     return null;
   }
 }
@@ -133,7 +104,6 @@ app.get("/api/bookings", async (req, res) => {
     const data = await getAllBookings();
     res.json(data);
   } catch (err) {
-    console.error("❌ Error fetching bookings:", err.message);
     res.status(500).json({ error: "Failed to fetch bookings" });
   }
 });
@@ -147,10 +117,8 @@ app.get("/webhook", (req, res) => {
   const challenge = req.query["hub.challenge"];
 
   if (mode && token === VERIFY_TOKEN) {
-    console.log("✅ DEBUG => Webhook verified.");
     res.status(200).send(challenge);
   } else {
-    console.warn("⚠️ DEBUG => Webhook verification failed.");
     res.sendStatus(403);
   }
 });
@@ -165,21 +133,10 @@ app.post("/webhook", async (req, res) => {
     const from = message?.from;
     if (!message || !from) return res.sendStatus(200);
 
-    // 🎙️ Handle voice message
+    // 🎙️ Voice messages
     if (message.type === "audio") {
-      console.log("🎧 Voice message received from:", from);
-      console.log(
-        "📦 Full audio object:",
-        JSON.stringify(message.audio, null, 2)
-      );
-
       const mediaId = message.audio.id;
-
-      if (!mediaId) {
-        console.error("❌ No media ID found in message");
-        await sendTextMessage(from, "⚠️ خطأ في استقبال الرسالة الصوتية");
-        return res.sendStatus(200);
-      }
+      if (!mediaId) return res.sendStatus(200);
 
       const transcript = await transcribeAudio(mediaId);
       if (!transcript) {
@@ -192,9 +149,21 @@ app.post("/webhook", async (req, res) => {
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
 
-      // Check if user is in booking flow
+      // 🛑 check if user mentioned Friday
+      const fridayWords = ["الجمعة", "Friday", "friday"];
+      if (
+        fridayWords.some((word) =>
+          transcript.toLowerCase().includes(word.toLowerCase())
+        )
+      ) {
+        await sendTextMessage(
+          from,
+          "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، سنقوم بحجزك في يوم آخر بإذن الله 🌷"
+        );
+        return res.sendStatus(200);
+      }
+
       if (!tempBookings[from]) {
-        // Check if voice message contains booking keywords
         if (
           transcript.includes("حجز") ||
           transcript.toLowerCase().includes("book") ||
@@ -207,7 +176,6 @@ app.post("/webhook", async (req, res) => {
           await sendTextMessage(from, reply);
         }
       } else {
-        // If in booking flow, treat voice as text input
         if (tempBookings[from] && !tempBookings[from].name) {
           const isValid = await validateNameWithAI(transcript);
           if (!isValid) {
@@ -220,7 +188,6 @@ app.post("/webhook", async (req, res) => {
           tempBookings[from].name = transcript;
           await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
         } else if (tempBookings[from] && !tempBookings[from].phone) {
-          // Handle phone number from voice
           const normalized = transcript
             .replace(/[^\d٠-٩]/g, "")
             .replace(/٠/g, "0")
@@ -244,8 +211,6 @@ app.post("/webhook", async (req, res) => {
           }
 
           tempBookings[from].phone = normalized;
-
-          // ⏳ Delay then show buttons
           setTimeout(async () => {
             try {
               await sendServiceButtons(from);
@@ -290,8 +255,22 @@ app.post("/webhook", async (req, res) => {
       // Appointment slots
       if (id?.startsWith("slot_")) {
         const appointment = id.replace("slot_", "").toUpperCase();
+
+        // 🛑 Check if it's Friday
+        const fridayWords = ["الجمعة", "Friday", "friday"];
+        if (
+          fridayWords.some((word) =>
+            appointment.toLowerCase().includes(word.toLowerCase())
+          )
+        ) {
+          await sendTextMessage(
+            from,
+            "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، سنقوم بحجزك في يوم آخر بإذن الله 🌷"
+          );
+          return res.sendStatus(200);
+        }
+
         tempBookings[from] = { appointment };
-        console.log(`🗓️ ${from} selected appointment: ${appointment}`);
         await sendTextMessage(
           from,
           "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
@@ -330,6 +309,20 @@ app.post("/webhook", async (req, res) => {
     const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
     console.log(`💬 DEBUG => Message from ${from}:`, text);
+
+    // 🛑 Check if user typed Friday manually
+    const fridayWords = ["الجمعة", "Friday", "friday"];
+    if (
+      fridayWords.some((word) =>
+        text.toLowerCase().includes(word.toLowerCase())
+      )
+    ) {
+      await sendTextMessage(
+        from,
+        "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، سنقوم بحجزك في يوم آخر بإذن الله 🌷"
+      );
+      return res.sendStatus(200);
+    }
 
     // Step 1: Appointment shortcut
     if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
@@ -383,8 +376,6 @@ app.post("/webhook", async (req, res) => {
       }
 
       tempBookings[from].phone = normalized;
-
-      // ⏳ Delay then show buttons
       setTimeout(async () => {
         try {
           await sendServiceButtons(from);
