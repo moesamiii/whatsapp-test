@@ -90,47 +90,7 @@ async function sendTextMessage(to, text) {
 }
 
 // ---------------------------------------------
-// 📅 Appointment buttons
-// ---------------------------------------------
-async function sendAppointmentButtons(to) {
-  console.log(`📤 DEBUG => Sending appointment buttons to ${to}`);
-  try {
-    await axios.post(
-      `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to,
-        type: "interactive",
-        interactive: {
-          type: "button",
-          body: { text: "📅 اختر الموعد المناسب لك:" },
-          action: {
-            buttons: [
-              { type: "reply", reply: { id: "slot_3pm", title: "3 PM" } },
-              { type: "reply", reply: { id: "slot_6pm", title: "6 PM" } },
-              { type: "reply", reply: { id: "slot_9pm", title: "9 PM" } },
-            ],
-          },
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    console.log("✅ DEBUG => Appointment buttons sent successfully");
-  } catch (err) {
-    console.error(
-      "❌ DEBUG => Error sending appointment buttons:",
-      err.response?.data || err.message
-    );
-  }
-}
-
-// ---------------------------------------------
-// 💊 Service buttons
+// 💊 Service buttons (keep this part)
 // ---------------------------------------------
 async function sendServiceButtons(to) {
   console.log(`📤 DEBUG => Sending service buttons to ${to}`);
@@ -190,20 +150,12 @@ async function sendServiceButtons(to) {
 }
 
 // ---------------------------------------------
-// 🗓️ Send appointment options (shortcut)
-// ---------------------------------------------
-async function sendAppointmentOptions(to) {
-  console.log(`📤 DEBUG => Sending appointment options to ${to}`);
-  await sendAppointmentButtons(to);
-}
-
-// ---------------------------------------------
 // 🧾 Save booking to Google Sheets
 // ---------------------------------------------
-async function saveBooking({ name, phone, service, appointment }) {
+async function saveBooking({ name, phone, service, doctor }) {
   try {
     const values = [
-      [name, phone, service, appointment, new Date().toISOString()],
+      [name, phone, service, doctor || "", new Date().toISOString()],
     ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
     console.log(
@@ -230,13 +182,12 @@ async function saveBooking({ name, phone, service, appointment }) {
 }
 
 // ---------------------------------------------
-// 🧾 Update an existing booking
-// (optional future enhancement)
+// 🧾 Update an existing booking (optional)
 // ---------------------------------------------
-async function updateBooking(rowIndex, { name, phone, service, appointment }) {
+async function updateBooking(rowIndex, { name, phone, service, doctor }) {
   try {
     const values = [
-      [name, phone, service, appointment, new Date().toISOString()],
+      [name, phone, service, doctor || "", new Date().toISOString()],
     ];
     const range = `${DEFAULT_SHEET_NAME}!A${rowIndex}:E${rowIndex}`;
     console.log(`✏️ DEBUG => Updating booking at row ${rowIndex}:`, values);
@@ -255,7 +206,7 @@ async function updateBooking(rowIndex, { name, phone, service, appointment }) {
 }
 
 // ---------------------------------------------
-// 📖 Get all bookings from Google Sheets (for dashboard)
+// 📖 Get all bookings from Google Sheets
 // ---------------------------------------------
 async function getAllBookings() {
   try {
@@ -273,16 +224,13 @@ async function getAllBookings() {
 
     if (rows.length === 0) return [];
 
-    // Convert rows to structured JSON objects
-    const bookings = rows.map(
-      ([name, phone, service, appointment, timestamp]) => ({
-        name: name || "",
-        phone: phone || "",
-        service: service || "",
-        appointment: appointment || "",
-        time: timestamp || "",
-      })
-    );
+    const bookings = rows.map(([name, phone, service, doctor, timestamp]) => ({
+      name: name || "",
+      phone: phone || "",
+      service: service || "",
+      doctor: doctor || "",
+      time: timestamp || "",
+    }));
 
     return bookings;
   } catch (err) {
@@ -295,7 +243,7 @@ async function getAllBookings() {
 }
 
 // ---------------------------------------------
-// 🧠 Validate if Google Sheet connection works
+// 🧠 Validate Google Sheets connection
 // ---------------------------------------------
 async function testGoogleConnection() {
   try {
@@ -319,9 +267,7 @@ module.exports = {
   validateNameWithAI,
   detectSheetName,
   sendTextMessage,
-  sendAppointmentButtons,
   sendServiceButtons,
-  sendAppointmentOptions,
   saveBooking,
   updateBooking,
   getAllBookings,
