@@ -16,6 +16,14 @@ const {
   getAllBookings,
 } = require("./helpers");
 
+// 🆕 استيراد أدوات التحقق من ملف aiHelper
+const {
+  isValidDoctor,
+  isValidService,
+  getDoctorsList,
+  getServicesList,
+} = require("./aiHelper");
+
 const app = express();
 app.use(bodyParser.json());
 
@@ -42,7 +50,6 @@ async function transcribeAudio(mediaId) {
   try {
     console.log("🎙️ Starting transcription for media ID:", mediaId);
 
-    // 1️⃣ Get media URL from WhatsApp API
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
       {
@@ -52,20 +59,12 @@ async function transcribeAudio(mediaId) {
       }
     );
 
-    console.log(
-      "📥 Media URL response:",
-      JSON.stringify(mediaUrlResponse.data, null, 2)
-    );
     const mediaUrl = mediaUrlResponse.data.url;
-
     if (!mediaUrl) {
       console.error("❌ No media URL in response");
       return null;
     }
 
-    console.log("📥 Got media URL, downloading audio...");
-
-    // 2️⃣ Download the actual audio file
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
       headers: {
@@ -73,14 +72,6 @@ async function transcribeAudio(mediaId) {
       },
     });
 
-    console.log(
-      "✅ Audio downloaded, size:",
-      audioResponse.data.byteLength,
-      "bytes"
-    );
-    console.log("✅ Sending to Groq Whisper...");
-
-    // 3️⃣ Send to Groq Whisper API
     const form = new FormData();
     form.append("file", Buffer.from(audioResponse.data), {
       filename: "voice.ogg",
@@ -167,20 +158,7 @@ app.post("/webhook", async (req, res) => {
 
     // 🎙️ Handle voice message
     if (message.type === "audio") {
-      console.log("🎧 Voice message received from:", from);
-      console.log(
-        "📦 Full audio object:",
-        JSON.stringify(message.audio, null, 2)
-      );
-
       const mediaId = message.audio.id;
-
-      if (!mediaId) {
-        console.error("❌ No media ID found in message");
-        await sendTextMessage(from, "⚠️ خطأ في استقبال الرسالة الصوتية");
-        return res.sendStatus(200);
-      }
-
       const transcript = await transcribeAudio(mediaId);
       if (!transcript) {
         await sendTextMessage(
@@ -192,91 +170,51 @@ app.post("/webhook", async (req, res) => {
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
 
-      // Check if user is in booking flow
-      if (!tempBookings[from]) {
-        // Check if voice message contains booking keywords
-        if (
-          transcript.includes("حجز") ||
-          transcript.toLowerCase().includes("book") ||
-          transcript.includes("موعد") ||
-          transcript.includes("appointment")
-        ) {
-          await sendAppointmentOptions(from);
-        } else {
-          const reply = await askAI(transcript);
-          await sendTextMessage(from, reply);
-        }
-      } else {
-        // If in booking flow, treat voice as text input
-        if (tempBookings[from] && !tempBookings[from].name) {
-          const isValid = await validateNameWithAI(transcript);
-          if (!isValid) {
-            await sendTextMessage(
-              from,
-              "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
-            );
-            return res.sendStatus(200);
-          }
-          tempBookings[from].name = transcript;
-          await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
-        } else if (tempBookings[from] && !tempBookings[from].phone) {
-          // Handle phone number from voice
-          const normalized = transcript
-            .replace(/[^\d٠-٩]/g, "")
-            .replace(/٠/g, "0")
-            .replace(/١/g, "1")
-            .replace(/٢/g, "2")
-            .replace(/٣/g, "3")
-            .replace(/٤/g, "4")
-            .replace(/٥/g, "5")
-            .replace(/٦/g, "6")
-            .replace(/٧/g, "7")
-            .replace(/٨/g, "8")
-            .replace(/٩/g, "9");
+      // 🆕 Doctor/Service Validation before booking
+      const lang = /[\u0600-\u06FF]/.test(transcript) ? "ar" : "en";
+      const doctors = getDoctorsList(lang);
+      const services = getServicesList(lang);
 
-          const isValid = /^07\d{8}$/.test(normalized);
-          if (!isValid) {
-            await sendTextMessage(
-              from,
-              "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
-            );
-            return res.sendStatus(200);
-          }
+      if (
+        transcript.includes("حجز") ||
+        transcript.toLowerCase().includes("book") ||
+        transcript.includes("موعد") ||
+        transcript.includes("appointment")
+      ) {
+        // تحقق من الطبيب أو الخدمة قبل البدء بالحجز
+        const mentionedDoctor = doctors.find((doc) =>
+          transcript.includes(doc.split(" ")[1])
+        );
+        const mentionedService = services.find((srv) =>
+          transcript.includes(srv.split(" ")[0])
+        );
 
-          tempBookings[from].phone = normalized;
-
-          // ⏳ Delay then show buttons
-          setTimeout(async () => {
-            try {
-              await sendServiceButtons(from);
-            } catch {
-              await sendTextMessage(
-                from,
-                "💊 الآن اكتب نوع الخدمة المطلوبة (مثل تنظيف الأسنان أو تبييض الأسنان)"
-              );
-            }
-          }, 1000);
-
+        if (mentionedDoctor && !isValidDoctor(mentionedDoctor, lang)) {
           await sendTextMessage(
             from,
-            "💊 يرجى اختيار الخدمة من القائمة أو كتابتها يدويًا:"
+            `عذرًا، هذا الطبيب ليس ضمن فريقنا الطبي. أطباؤنا هم: ${doctors.join(
+              "، "
+            )}.`
           );
-        } else if (tempBookings[from] && !tempBookings[from].service) {
-          tempBookings[from].service = transcript;
-          const booking = tempBookings[from];
-          await saveBooking(booking);
+          return res.sendStatus(200);
+        }
+
+        if (mentionedService && !isValidService(mentionedService, lang)) {
           await sendTextMessage(
             from,
-            `✅ تم حفظ حجزك بنجاح:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
+            `نحن عيادة أسنان متخصصة. الخدمة "${mentionedService}" غير متوفرة. خدماتنا تشمل: ${services.join(
+              "، "
+            )}.`
           );
-          delete tempBookings[from];
+          return res.sendStatus(200);
         }
+
+        await sendAppointmentOptions(from);
+        return res.sendStatus(200);
       }
 
+      const reply = await askAI(transcript);
+      await sendTextMessage(from, reply);
       return res.sendStatus(200);
     }
 
@@ -285,13 +223,10 @@ app.post("/webhook", async (req, res) => {
       const id =
         message?.interactive?.button_reply?.id ||
         message?.interactive?.list_reply?.id;
-      console.log("🔘 DEBUG => Button/List pressed:", id);
 
-      // Appointment slots
       if (id?.startsWith("slot_")) {
         const appointment = id.replace("slot_", "").toUpperCase();
         tempBookings[from] = { appointment };
-        console.log(`🗓️ ${from} selected appointment: ${appointment}`);
         await sendTextMessage(
           from,
           "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
@@ -299,7 +234,6 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // Services
       if (id?.startsWith("service_")) {
         const serviceName = id.replace("service_", "").replace(/_/g, " ");
         if (!tempBookings[from] || !tempBookings[from].phone) {
@@ -329,9 +263,47 @@ app.post("/webhook", async (req, res) => {
     // ✅ Handle text messages
     const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
+
+    // 🆕 Doctor/Service Validation before booking
+    const lang = /[\u0600-\u06FF]/.test(text) ? "ar" : "en";
+    const doctors = getDoctorsList(lang);
+    const services = getServicesList(lang);
+
+    if (text.includes("حجز") || text.toLowerCase().includes("book")) {
+      const mentionedDoctor = doctors.find((doc) =>
+        text.includes(doc.split(" ")[1])
+      );
+      const mentionedService = services.find((srv) =>
+        text.includes(srv.split(" ")[0])
+      );
+
+      if (mentionedDoctor && !isValidDoctor(mentionedDoctor, lang)) {
+        await sendTextMessage(
+          from,
+          `عذرًا، هذا الطبيب ليس ضمن فريقنا الطبي. أطباؤنا هم: ${doctors.join(
+            "، "
+          )}.`
+        );
+        return res.sendStatus(200);
+      }
+
+      if (mentionedService && !isValidService(mentionedService, lang)) {
+        await sendTextMessage(
+          from,
+          `نحن عيادة أسنان متخصصة. الخدمة "${mentionedService}" غير متوفرة. خدماتنا تشمل: ${services.join(
+            "، "
+          )}.`
+        );
+        return res.sendStatus(200);
+      }
+
+      await sendAppointmentOptions(from);
+      return res.sendStatus(200);
+    }
+
+    // باقي الكود كما هو دون تعديل 🔽
     console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-    // Step 1: Appointment shortcut
     if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
       const appointment = `${text} PM`;
       tempBookings[from] = { appointment };
@@ -342,7 +314,6 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // Step 2: Name input
     if (tempBookings[from] && !tempBookings[from].name) {
       const userName = text.trim();
       const isValid = await validateNameWithAI(userName);
@@ -358,7 +329,6 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // Step 3: Phone input
     if (tempBookings[from] && !tempBookings[from].phone) {
       const normalized = text
         .replace(/[^\d٠-٩]/g, "")
@@ -384,7 +354,6 @@ app.post("/webhook", async (req, res) => {
 
       tempBookings[from].phone = normalized;
 
-      // ⏳ Delay then show buttons
       setTimeout(async () => {
         try {
           await sendServiceButtons(from);
@@ -403,7 +372,6 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // Step 4: Service input
     if (tempBookings[from] && !tempBookings[from].service) {
       const booking = tempBookings[from];
       booking.service = text;
@@ -420,14 +388,9 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ✅ Step 5: AI chat fallback
     if (!tempBookings[from]) {
-      if (text.includes("حجز") || text.toLowerCase().includes("book")) {
-        await sendAppointmentOptions(from);
-      } else {
-        const reply = await askAI(text);
-        await sendTextMessage(from, reply);
-      }
+      const reply = await askAI(text);
+      await sendTextMessage(from, reply);
     }
 
     res.sendStatus(200);
