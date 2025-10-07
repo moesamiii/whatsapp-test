@@ -90,7 +90,7 @@ async function sendTextMessage(to, text) {
 }
 
 // ---------------------------------------------
-// 💊 Service buttons (keep this part)
+// 💊 Service buttons
 // ---------------------------------------------
 async function sendServiceButtons(to) {
   console.log(`📤 DEBUG => Sending service buttons to ${to}`);
@@ -260,7 +260,7 @@ async function testGoogleConnection() {
 }
 
 // ---------------------------------------------
-// ✅ Export everything
+// ✅ Export everything (removed sendAppointmentOptions)
 // ---------------------------------------------
 module.exports = {
   askAI,
