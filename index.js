@@ -273,7 +273,7 @@ app.post("/webhook", async (req, res) => {
         ) {
           await sendTextMessage(
             from,
-            "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، سنقوم بحجزك في يوم آخر بإذن الله 🌷"
+            "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
           );
 
           // ✅ Continue booking after Friday message
