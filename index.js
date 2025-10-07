@@ -89,6 +89,39 @@ async function transcribeAudio(mediaId) {
 }
 
 // ---------------------------------------------
+// 😠 Check for rude or angry language
+// ---------------------------------------------
+function isRudeOrAngry(text) {
+  const rudeWords = [
+    "غبي",
+    "تافه",
+    "ما تفهم",
+    "انقلع",
+    "fuck",
+    "shit",
+    "stupid",
+    "idiot",
+    "حرام",
+    "لعنة",
+    "خرا",
+    "زفت",
+    "حقير",
+    "asshole",
+    "bitch",
+    "f***",
+    "لعين",
+    "ابله",
+    "مغفل",
+  ];
+  const angryIndicators = ["😡", "🤬", "غاضب", "معصب", "زعلان", "غضبان"];
+
+  return (
+    rudeWords.some((word) => text.toLowerCase().includes(word)) ||
+    angryIndicators.some((word) => text.includes(word))
+  );
+}
+
+// ---------------------------------------------
 // Routes
 // ---------------------------------------------
 app.get("/", (req, res) => {
@@ -150,6 +183,15 @@ app.post("/webhook", async (req, res) => {
       }
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
+
+      // 😠 check rude/angry
+      if (isRudeOrAngry(transcript)) {
+        await sendTextMessage(
+          from,
+          "🙏 نعتذر منك، يبدو أنك منزعج — خذ نفسًا عميقًا وسنكمل الحديث بكل سرور 🌷"
+        );
+        return res.sendStatus(200);
+      }
 
       // 🛑 check if user mentioned Friday
       if (
@@ -326,6 +368,15 @@ app.post("/webhook", async (req, res) => {
     const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
     console.log(`💬 DEBUG => Message from ${from}:`, text);
+
+    // 😠 rude/angry check
+    if (isRudeOrAngry(text)) {
+      await sendTextMessage(
+        from,
+        "🙏 نعتذر منك، يبدو أنك منزعج — خذ نفسًا عميقًا وسنكمل الحديث بكل سرور 🌷"
+      );
+      return res.sendStatus(200);
+    }
 
     // 🛑 Check if user typed Friday manually
     if (
