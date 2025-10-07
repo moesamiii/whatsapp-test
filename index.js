@@ -121,7 +121,6 @@ async function transcribeAudio(mediaId) {
 // 🧑‍⚕️ Doctor Validation Helper (Enhanced & Fixed)
 // ---------------------------------------------
 
-// ✅ List of real doctors
 const validDoctors = [
   "دكتور أحمد يوسف",
   "دكتور سارة خالد",
@@ -129,15 +128,12 @@ const validDoctors = [
   "دكتور ليلى منصور",
 ];
 
-// Extract doctor first names and create variations
 function getDoctorVariations() {
   const variations = [];
   validDoctors.forEach((fullName) => {
     const parts = fullName.split(" ");
-    // Get the name part (skip "دكتور" and title)
-    const doctorName = parts.slice(1).join(" "); // "أحمد يوسف", "سارة خالد", etc.
-    const firstName = parts[1]; // "أحمد", "سارة", etc.
-
+    const doctorName = parts.slice(1).join(" ");
+    const firstName = parts[1];
     variations.push({
       fullName: fullName,
       firstName: firstName,
@@ -149,7 +145,6 @@ function getDoctorVariations() {
 
 const doctorVariations = getDoctorVariations();
 
-// List of common name keywords to EXCLUDE from doctor detection
 const commonNameKeywords = [
   "محمد",
   "أحمد",
@@ -169,13 +164,10 @@ const commonNameKeywords = [
   "منى",
 ];
 
-// Detect doctor name in text with context awareness
 function detectDoctorName(text, isInBookingFlow = false) {
   const lowerText = text.toLowerCase();
 
-  // If user is in booking flow and just providing their name, don't detect doctor
   if (isInBookingFlow) {
-    // Check if this looks like just a name (no "دكتور", "عند", etc.)
     if (
       !lowerText.includes("دكتور") &&
       !lowerText.includes("عند") &&
@@ -187,7 +179,6 @@ function detectDoctorName(text, isInBookingFlow = false) {
     }
   }
 
-  // Check for "دكتور" keyword + name
   if (lowerText.includes("دكتور")) {
     for (const doctor of doctorVariations) {
       if (doctor.searchTerms.some((term) => lowerText.includes(term))) {
@@ -200,7 +191,6 @@ function detectDoctorName(text, isInBookingFlow = false) {
       }
     }
 
-    // Found "دكتور" but unknown name
     const words = text.split(/\s+/);
     const doctorIndex = words.findIndex((w) => w.includes("دكتور"));
     if (doctorIndex >= 0 && words[doctorIndex + 1]) {
@@ -217,7 +207,6 @@ function detectDoctorName(text, isInBookingFlow = false) {
     }
   }
 
-  // Check for "عند" or "مع" keyword + name
   if (lowerText.includes("عند") || lowerText.includes("مع")) {
     for (const doctor of doctorVariations) {
       if (doctor.searchTerms.some((term) => lowerText.includes(term))) {
@@ -232,7 +221,6 @@ function detectDoctorName(text, isInBookingFlow = false) {
       }
     }
 
-    // Found "عند/مع" but unknown name
     const words = text.split(/\s+/);
     const keywordIndex = words.findIndex(
       (w) => w.includes("عند") || w.includes("مع")
@@ -242,7 +230,6 @@ function detectDoctorName(text, isInBookingFlow = false) {
         /[^\u0600-\u06FFA-Za-z]/g,
         ""
       );
-      // Only flag as doctor selection if it's not a common name used alone
       if (!commonNameKeywords.includes(unknownName)) {
         console.log(`⚠️ Found 'عند/مع' with unknown name: ${unknownName}`);
         return {
@@ -325,7 +312,6 @@ app.post("/webhook", async (req, res) => {
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
 
-      // 🧑‍⚕️ Doctor detection (only if NOT in booking flow)
       const isInBookingFlow = !!tempBookings[from];
       const doctorInfo = detectDoctorName(
         transcript,
@@ -340,14 +326,11 @@ app.post("/webhook", async (req, res) => {
           );
         } else {
           await sendTextMessage(from, `✅ تم اختيار ${doctorInfo.fullName}.`);
-          if (!tempBookings[from]) {
-            tempBookings[from] = {};
-          }
+          if (!tempBookings[from]) tempBookings[from] = {};
           tempBookings[from].doctor = doctorInfo.fullName;
         }
       }
 
-      // Booking flow
       if (!tempBookings[from] || !tempBookings[from].appointment) {
         if (
           transcript.includes("حجز") ||
@@ -374,7 +357,6 @@ app.post("/webhook", async (req, res) => {
       if (id?.startsWith("slot_")) {
         const appointment = id.replace("slot_", "").toUpperCase();
         tempBookings[from] = { appointment, ...(tempBookings[from] || {}) };
-        console.log(`🗓️ ${from} selected appointment: ${appointment}`);
         await sendTextMessage(
           from,
           "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
@@ -400,11 +382,7 @@ app.post("/webhook", async (req, res) => {
 📱 ${booking.phone}
 💊 ${booking.service}
 📅 ${booking.appointment}`;
-
-        if (booking.doctor) {
-          confirmMessage += `\n🩺 ${booking.doctor}`;
-        }
-
+        if (booking.doctor) confirmMessage += `\n🩺 ${booking.doctor}`;
         await sendTextMessage(from, confirmMessage);
         delete tempBookings[from];
         return res.sendStatus(200);
@@ -417,7 +395,6 @@ app.post("/webhook", async (req, res) => {
     if (!text) return res.sendStatus(200);
     console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-    // 🧑‍⚕️ Doctor detection for text (only if NOT providing name in booking flow)
     const isInBookingFlow =
       tempBookings[from] &&
       tempBookings[from].appointment &&
@@ -432,9 +409,7 @@ app.post("/webhook", async (req, res) => {
         );
       } else {
         await sendTextMessage(from, `✅ تم اختيار ${doctorInfo.fullName}.`);
-        if (!tempBookings[from]) {
-          tempBookings[from] = {};
-        }
+        if (!tempBookings[from]) tempBookings[from] = {};
         tempBookings[from].doctor = doctorInfo.fullName;
       }
     }
@@ -536,17 +511,13 @@ app.post("/webhook", async (req, res) => {
 📱 ${booking.phone}
 💊 ${booking.service}
 📅 ${booking.appointment}`;
-
-      if (booking.doctor) {
-        confirmMessage += `\n🩺 ${booking.doctor}`;
-      }
-
+      if (booking.doctor) confirmMessage += `\n🩺 ${booking.doctor}`;
       await sendTextMessage(from, confirmMessage);
       delete tempBookings[from];
       return res.sendStatus(200);
     }
 
-    // ✅ Step 5: AI chat fallback / Start new booking
+    // Step 5: AI chat fallback / Start new booking
     if (!tempBookings[from] || !tempBookings[from].appointment) {
       if (text.includes("حجز") || text.toLowerCase().includes("book")) {
         await sendAppointmentOptions(from);
