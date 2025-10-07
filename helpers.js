@@ -1,4 +1,4 @@
-// helpers.js
+// // helpers.js
 const axios = require("axios");
 const { google } = require("googleapis");
 const { askAI, validateNameWithAI } = require("./aiHelper"); // ✅ Import AI utilities
@@ -130,7 +130,7 @@ async function sendAppointmentButtons(to) {
 }
 
 // ---------------------------------------------
-// 💊 Service buttons
+// 💊 Service buttons (Dental Only + Fixed 4 Doctors)
 // ---------------------------------------------
 async function sendServiceButtons(to) {
   console.log(`📤 DEBUG => Sending service buttons to ${to}`);
@@ -143,30 +143,44 @@ async function sendServiceButtons(to) {
         type: "interactive",
         interactive: {
           type: "list",
-          body: { text: "💊 اختر نوع الخدمة المطلوبة:" },
+          body: { text: "🦷 اختر الخدمة أو الطبيب:" },
           action: {
-            button: "اختر الخدمة",
+            button: "عرض الخيارات",
             sections: [
               {
-                title: "خدمات الأسنان",
+                title: "🦷 خدمات الأسنان",
                 rows: [
                   { id: "service_تنظيف", title: "تنظيف الأسنان" },
                   { id: "service_تبييض", title: "تبييض الأسنان" },
                   { id: "service_حشو", title: "حشو الأسنان" },
-                  { id: "service_خلع", title: "خلع الأسنان" },
                   { id: "service_زراعة", title: "زراعة الأسنان" },
                   { id: "service_تقويم", title: "تقويم الأسنان" },
                   { id: "service_ابتسامة", title: "ابتسامة هوليود" },
-                  { id: "service_علاج_عصب", title: "علاج عصب" },
-                  { id: "service_كشفية", title: "كشفية فحص" },
+                  { id: "service_علاج_عصب", title: "علاج العصب" },
+                  { id: "service_خلع", title: "خلع الأسنان" },
+                  { id: "service_كشفية", title: "كشفية فحص أولي" },
                   { id: "service_تجميل", title: "تجميل الأسنان" },
                 ],
               },
               {
-                title: "خدمات أخرى",
+                title: "👩‍⚕️ الأطباء المتوفرون",
                 rows: [
-                  { id: "service_استشارة", title: "استشارة عامة" },
-                  { id: "service_اشعة", title: "أشعة تشخيصية" },
+                  {
+                    id: "doctor_1",
+                    title: "د. أحمد الخالدي – زراعة وتجميل الأسنان",
+                  },
+                  {
+                    id: "doctor_2",
+                    title: "د. سارة العلي – طب وتقويم الأسنان",
+                  },
+                  {
+                    id: "doctor_3",
+                    title: "د. محمد الراوي – علاج عصب وحشو تجميلي",
+                  },
+                  {
+                    id: "doctor_4",
+                    title: "د. ريم منصور – تنظيف وتبييض الأسنان",
+                  },
                 ],
               },
             ],
@@ -180,7 +194,7 @@ async function sendServiceButtons(to) {
         },
       }
     );
-    console.log("✅ DEBUG => Service buttons sent successfully");
+    console.log("✅ DEBUG => Dental-only service buttons sent successfully");
   } catch (err) {
     console.error(
       "❌ DEBUG => Error sending service buttons:",
