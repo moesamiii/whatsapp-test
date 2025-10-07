@@ -202,6 +202,22 @@ async function sendAppointmentOptions(to) {
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
   try {
+    // ✅ Check if the booking is for Friday
+    const fridayKeywords = ["الجمعة", "Friday", "friday"];
+    if (
+      appointment &&
+      fridayKeywords.some((word) =>
+        appointment.toLowerCase().includes(word.toLowerCase())
+      )
+    ) {
+      console.log("🚫 DEBUG => Attempt to book on Friday detected.");
+      await sendTextMessage(
+        phone,
+        "عذرًا، يوم الجمعة عطلة رسمية والعيادة مغلقة. يُسعدنا خدمتك من السبت إلى الخميس 🌷"
+      );
+      return;
+    }
+
     const values = [
       [name, phone, service, appointment, new Date().toISOString()],
     ];
@@ -231,7 +247,6 @@ async function saveBooking({ name, phone, service, appointment }) {
 
 // ---------------------------------------------
 // 🧾 Update an existing booking
-// (optional future enhancement)
 // ---------------------------------------------
 async function updateBooking(rowIndex, { name, phone, service, appointment }) {
   try {
@@ -273,7 +288,6 @@ async function getAllBookings() {
 
     if (rows.length === 0) return [];
 
-    // Convert rows to structured JSON objects
     const bookings = rows.map(
       ([name, phone, service, appointment, timestamp]) => ({
         name: name || "",
