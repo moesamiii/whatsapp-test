@@ -133,6 +133,8 @@ app.post("/webhook", async (req, res) => {
     const from = message?.from;
     if (!message || !from) return res.sendStatus(200);
 
+    const fridayWords = ["الجمعة", "Friday", "friday"];
+
     // 🎙️ Voice messages
     if (message.type === "audio") {
       const mediaId = message.audio.id;
@@ -150,7 +152,6 @@ app.post("/webhook", async (req, res) => {
       console.log(`🗣️ Transcribed text: "${transcript}"`);
 
       // 🛑 check if user mentioned Friday
-      const fridayWords = ["الجمعة", "Friday", "friday"];
       if (
         fridayWords.some((word) =>
           transcript.toLowerCase().includes(word.toLowerCase())
@@ -161,10 +162,14 @@ app.post("/webhook", async (req, res) => {
           "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، سنقوم بحجزك في يوم آخر بإذن الله 🌷"
         );
 
-        // ✅ بعد المسج، نبدأ عملية الحجز (نرسل له المواعيد)
+        // ✅ Start booking flow after Friday message
         setTimeout(async () => {
+          await sendTextMessage(
+            from,
+            "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇"
+          );
           await sendAppointmentOptions(from);
-        }, 1500);
+        }, 2000);
 
         return res.sendStatus(200);
       }
@@ -258,12 +263,9 @@ app.post("/webhook", async (req, res) => {
         message?.interactive?.list_reply?.id;
       console.log("🔘 DEBUG => Button/List pressed:", id);
 
-      // Appointment slots
       if (id?.startsWith("slot_")) {
         const appointment = id.replace("slot_", "").toUpperCase();
 
-        // 🛑 Check if it's Friday
-        const fridayWords = ["الجمعة", "Friday", "friday"];
         if (
           fridayWords.some((word) =>
             appointment.toLowerCase().includes(word.toLowerCase())
@@ -274,9 +276,14 @@ app.post("/webhook", async (req, res) => {
             "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، سنقوم بحجزك في يوم آخر بإذن الله 🌷"
           );
 
+          // ✅ Continue booking after Friday message
           setTimeout(async () => {
+            await sendTextMessage(
+              from,
+              "📅 لنبدأ الحجز، اختر الوقت المناسب 👇"
+            );
             await sendAppointmentOptions(from);
-          }, 1500);
+          }, 2000);
 
           return res.sendStatus(200);
         }
@@ -289,7 +296,6 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // Services
       if (id?.startsWith("service_")) {
         const serviceName = id.replace("service_", "").replace(/_/g, " ");
         if (!tempBookings[from] || !tempBookings[from].phone) {
@@ -322,7 +328,6 @@ app.post("/webhook", async (req, res) => {
     console.log(`💬 DEBUG => Message from ${from}:`, text);
 
     // 🛑 Check if user typed Friday manually
-    const fridayWords = ["الجمعة", "Friday", "friday"];
     if (
       fridayWords.some((word) =>
         text.toLowerCase().includes(word.toLowerCase())
@@ -333,10 +338,11 @@ app.post("/webhook", async (req, res) => {
         "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، سنقوم بحجزك في يوم آخر بإذن الله 🌷"
       );
 
-      // ✅ نبدأ عملية الحجز بعد الرسالة
+      // ✅ Start booking flow after informing
       setTimeout(async () => {
+        await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
         await sendAppointmentOptions(from);
-      }, 1500);
+      }, 2000);
 
       return res.sendStatus(200);
     }
