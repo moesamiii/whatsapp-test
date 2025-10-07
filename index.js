@@ -118,15 +118,10 @@ async function transcribeAudio(mediaId) {
 }
 
 // ---------------------------------------------
-// 🧑‍⚕️ Doctor Validation Helper
+// 🧑‍⚕️ Doctor Validation Helper (Enhanced)
 // ---------------------------------------------
-function detectDoctorName(text) {
-  const regex = /(دكتور|دكتورة|doctor|dr\.?)\s+[A-Za-z\u0600-\u06FF]+/i;
-  const match = text.match(regex);
-  return match ? match[0] : null;
-}
 
-// ✅ List of 4 real doctors (change anytime)
+// ✅ List of real doctors
 const validDoctors = [
   "دكتور أحمد يوسف",
   "دكتور سارة خالد",
@@ -134,10 +129,39 @@ const validDoctors = [
   "دكتور ليلى منصور",
 ];
 
+// Extract first names for flexible matching
+function extractDoctorFirstName(fullName) {
+  const parts = fullName.split(" ");
+  return parts.find((p) => !p.includes("دكتور")) || "";
+}
+
+// Build list of first names
+const doctorFirstNames = validDoctors.map((d) => extractDoctorFirstName(d));
+
+// Detect doctor by first name or with "دكتور"
+function detectDoctorName(text) {
+  const words = text.split(/\s+/);
+  for (const word of words) {
+    const clean = word.replace(/[^\u0600-\u06FFA-Za-z]/g, "");
+    if (doctorFirstNames.some((n) => clean.includes(n))) {
+      return clean;
+    }
+  }
+  return null;
+}
+
+// Match against valid doctors by first name
 function isValidDoctorName(name) {
-  return validDoctors.some((doc) =>
-    name.toLowerCase().includes(doc.toLowerCase())
+  if (!name) return false;
+  return doctorFirstNames.some((n) =>
+    name.toLowerCase().includes(n.toLowerCase())
   );
+}
+
+// Get full doctor name for response
+function getFullDoctorName(name) {
+  const match = validDoctors.find((doc) => doc.includes(name));
+  return match || name;
 }
 
 // ---------------------------------------------
@@ -191,15 +215,8 @@ app.post("/webhook", async (req, res) => {
     // 🎙️ Handle voice message
     if (message.type === "audio") {
       console.log("🎧 Voice message received from:", from);
-      console.log(
-        "📦 Full audio object:",
-        JSON.stringify(message.audio, null, 2)
-      );
-
       const mediaId = message.audio.id;
-
       if (!mediaId) {
-        console.error("❌ No media ID found in message");
         await sendTextMessage(from, "⚠️ خطأ في استقبال الرسالة الصوتية");
         return res.sendStatus(200);
       }
@@ -215,7 +232,7 @@ app.post("/webhook", async (req, res) => {
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
 
-      // 🧑‍⚕️ Check for doctor name (optional)
+      // 🧑‍⚕️ Doctor detection
       const doctorMention = detectDoctorName(transcript);
       if (doctorMention) {
         if (!isValidDoctorName(doctorMention)) {
@@ -224,7 +241,8 @@ app.post("/webhook", async (req, res) => {
             `⚠️ لم أتعرف على ${doctorMention}، سيتم المتابعة كحجز عام بدون تحديد طبيب.`
           );
         } else {
-          await sendTextMessage(from, `✅ تم اختيار ${doctorMention}.`);
+          const fullName = getFullDoctorName(doctorMention);
+          await sendTextMessage(from, `✅ تم اختيار ${fullName}.`);
         }
       }
 
@@ -241,74 +259,7 @@ app.post("/webhook", async (req, res) => {
           const reply = await askAI(transcript);
           await sendTextMessage(from, reply);
         }
-      } else {
-        if (tempBookings[from] && !tempBookings[from].name) {
-          const isValid = await validateNameWithAI(transcript);
-          if (!isValid) {
-            await sendTextMessage(
-              from,
-              "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
-            );
-            return res.sendStatus(200);
-          }
-          tempBookings[from].name = transcript;
-          await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
-        } else if (tempBookings[from] && !tempBookings[from].phone) {
-          const normalized = transcript
-            .replace(/[^\d٠-٩]/g, "")
-            .replace(/٠/g, "0")
-            .replace(/١/g, "1")
-            .replace(/٢/g, "2")
-            .replace(/٣/g, "3")
-            .replace(/٤/g, "4")
-            .replace(/٥/g, "5")
-            .replace(/٦/g, "6")
-            .replace(/٧/g, "7")
-            .replace(/٨/g, "8")
-            .replace(/٩/g, "9");
-
-          const isValid = /^07\d{8}$/.test(normalized);
-          if (!isValid) {
-            await sendTextMessage(
-              from,
-              "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
-            );
-            return res.sendStatus(200);
-          }
-
-          tempBookings[from].phone = normalized;
-
-          setTimeout(async () => {
-            try {
-              await sendServiceButtons(from);
-            } catch {
-              await sendTextMessage(
-                from,
-                "💊 الآن اكتب نوع الخدمة المطلوبة (مثل تنظيف الأسنان أو تبييض الأسنان)"
-              );
-            }
-          }, 1000);
-
-          await sendTextMessage(
-            from,
-            "💊 يرجى اختيار الخدمة من القائمة أو كتابتها يدويًا:"
-          );
-        } else if (tempBookings[from] && !tempBookings[from].service) {
-          tempBookings[from].service = transcript;
-          const booking = tempBookings[from];
-          await saveBooking(booking);
-          await sendTextMessage(
-            from,
-            `✅ تم حفظ حجزك بنجاح:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
-          );
-          delete tempBookings[from];
-        }
       }
-
       return res.sendStatus(200);
     }
 
@@ -361,7 +312,7 @@ app.post("/webhook", async (req, res) => {
     if (!text) return res.sendStatus(200);
     console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-    // 🧑‍⚕️ Doctor detection for text
+    // 🧑‍⚕️ Doctor detection for text (flexible first name)
     const doctorMention = detectDoctorName(text);
     if (doctorMention) {
       if (!isValidDoctorName(doctorMention)) {
@@ -370,7 +321,8 @@ app.post("/webhook", async (req, res) => {
           `⚠️ لم أتعرف على ${doctorMention}، سيتم المتابعة كحجز عام بدون تحديد طبيب.`
         );
       } else {
-        await sendTextMessage(from, `✅ تم اختيار ${doctorMention}.`);
+        const fullName = getFullDoctorName(doctorMention);
+        await sendTextMessage(from, `✅ تم اختيار ${fullName}.`);
       }
     }
 
