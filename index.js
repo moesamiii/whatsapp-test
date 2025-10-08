@@ -3,6 +3,7 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const axios = require("axios");
 const FormData = require("form-data");
+
 const {
   askAI,
   validateNameWithAI,
@@ -44,9 +45,7 @@ async function transcribeAudio(mediaId) {
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
       {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-        },
+        headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
       }
     );
 
@@ -55,9 +54,7 @@ async function transcribeAudio(mediaId) {
 
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
-      headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-      },
+      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
     });
 
     const form = new FormData();
@@ -88,118 +85,48 @@ async function transcribeAudio(mediaId) {
 }
 
 // ---------------------------------------------
-// 🆕 Helper: Send Service Dropdown List
+// 📋 Helper: Send Service Dropdown (List Message)
 // ---------------------------------------------
-async function sendServiceDropdown(phoneNumber) {
-  try {
-    const payload = {
-      messaging_product: "whatsapp",
-      to: phoneNumber,
-      type: "interactive",
-      interactive: {
-        type: "list",
-        header: {
-          type: "text",
-          text: "💊 اختر الخدمة",
-        },
-        body: {
-          text: "يرجى اختيار نوع الخدمة المطلوبة من القائمة أدناه، أو يمكنك كتابتها يدويًا:",
-        },
-        footer: {
-          text: "عيادة الأسنان",
-        },
-        action: {
-          button: "الخدمات المتاحة",
-          sections: [
-            {
-              title: "الخدمات الأساسية",
-              rows: [
-                {
-                  id: "service_تنظيف_الأسنان",
-                  title: "تنظيف الأسنان",
-                  description: "إزالة الجير والتنظيف العميق",
-                },
-                {
-                  id: "service_تبييض_الأسنان",
-                  title: "تبييض الأسنان",
-                  description: "تبييض احترافي للأسنان",
-                },
-                {
-                  id: "service_حشوات_الأسنان",
-                  title: "حشوات الأسنان",
-                  description: "حشوات تجميلية وعلاجية",
-                },
-                {
-                  id: "service_خلع_الأسنان",
-                  title: "خلع الأسنان",
-                  description: "خلع الأسنان الضروري",
-                },
-              ],
-            },
-            {
-              title: "خدمات متقدمة",
-              rows: [
-                {
-                  id: "service_تقويم_الأسنان",
-                  title: "تقويم الأسنان",
-                  description: "تقويم معدني وشفاف",
-                },
-                {
-                  id: "service_زراعة_الأسنان",
-                  title: "زراعة الأسنان",
-                  description: "زراعة أسنان بتقنية حديثة",
-                },
-                {
-                  id: "service_علاج_اللثة",
-                  title: "علاج اللثة",
-                  description: "علاج أمراض اللثة والتهاباتها",
-                },
-                {
-                  id: "service_تركيبات_الأسنان",
-                  title: "تركيبات الأسنان",
-                  description: "تيجان وجسور ثابتة ومتحركة",
-                },
-              ],
-            },
-            {
-              title: "خدمات التجميل",
-              rows: [
-                {
-                  id: "service_ابتسامة_هوليود",
-                  title: "ابتسامة هوليود",
-                  description: "فينير وابتسامة هوليود",
-                },
-                {
-                  id: "service_فحص_شامل",
-                  title: "فحص شامل",
-                  description: "فحص شامل للفم والأسنان",
-                },
-              ],
-            },
-          ],
-        },
+async function sendServiceDropdown(to) {
+  const services = [
+    { id: "service_cleaning", title: "تنظيف الأسنان", description: "" },
+    { id: "service_whitening", title: "تبييض الأسنان", description: "" },
+    { id: "service_extraction", title: "خلع الأسنان", description: "" },
+    { id: "service_checkup", title: "فحص شامل", description: "" },
+    { id: "service_braces", title: "تقويم الأسنان", description: "" },
+  ];
+
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "list",
+      header: { type: "text", text: "💊 اختر الخدمة المطلوبة" },
+      body: { text: "يرجى اختيار الخدمة من القائمة أدناه 👇" },
+      footer: { text: "عيادة الابتسامة الجميلة 😁" },
+      action: {
+        button: "اختيار الخدمة",
+        sections: [
+          {
+            title: "خدمات العيادة",
+            rows: services.map((s) => ({
+              id: s.id,
+              title: s.title,
+              description: s.description,
+            })),
+          },
+        ],
       },
-    };
+    },
+  };
 
-    await axios.post(
-      "https://graph.facebook.com/v21.0/559125530614296/messages",
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    console.log("✅ Service dropdown sent successfully to:", phoneNumber);
-  } catch (err) {
-    console.error(
-      "❌ Failed to send service dropdown:",
-      err.response?.data || err.message
-    );
-    throw err;
-  }
+  await axios.post("https://graph.facebook.com/v21.0/me/messages", payload, {
+    headers: {
+      Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+  });
 }
 
 // ---------------------------------------------
@@ -217,7 +144,7 @@ app.get("/api/bookings", async (req, res) => {
   try {
     const data = await getAllBookings();
     res.json(data);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to fetch bookings" });
   }
 });
@@ -230,11 +157,8 @@ app.get("/webhook", (req, res) => {
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode && token === VERIFY_TOKEN) {
-    res.status(200).send(challenge);
-  } else {
-    res.sendStatus(403);
-  }
+  if (mode && token === VERIFY_TOKEN) res.status(200).send(challenge);
+  else res.sendStatus(403);
 });
 
 // ---------------------------------------------
@@ -245,7 +169,6 @@ app.post("/webhook", async (req, res) => {
     const body = req.body;
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from;
-
     if (!message || !from) return res.sendStatus(200);
 
     const fridayWords = ["الجمعة", "Friday", "friday"];
@@ -253,21 +176,15 @@ app.post("/webhook", async (req, res) => {
     // 🎙️ Voice messages
     if (message.type === "audio") {
       const mediaId = message.audio.id;
-      if (!mediaId) return res.sendStatus(200);
-
       const transcript = await transcribeAudio(mediaId);
-
-      if (!transcript) {
-        await sendTextMessage(
+      if (!transcript)
+        return await sendTextMessage(
           from,
           "⚠️ لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى 🎙️"
         );
-        return res.sendStatus(200);
-      }
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
 
-      // 🛑 check if user mentioned Friday
       if (
         fridayWords.some((word) =>
           transcript.toLowerCase().includes(word.toLowerCase())
@@ -275,27 +192,19 @@ app.post("/webhook", async (req, res) => {
       ) {
         await sendTextMessage(
           from,
-          "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
+          "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر 🌷"
         );
-
-        // ✅ Start booking flow after Friday message
         setTimeout(async () => {
-          await sendTextMessage(
-            from,
-            "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇"
-          );
+          await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت 👇");
           await sendAppointmentOptions(from);
         }, 2000);
-
         return res.sendStatus(200);
       }
 
       if (!tempBookings[from]) {
         if (
           transcript.includes("حجز") ||
-          transcript.toLowerCase().includes("book") ||
-          transcript.includes("موعد") ||
-          transcript.includes("appointment")
+          transcript.toLowerCase().includes("book")
         ) {
           await sendAppointmentOptions(from);
         } else {
@@ -303,19 +212,16 @@ app.post("/webhook", async (req, res) => {
           await sendTextMessage(from, reply);
         }
       } else {
-        if (tempBookings[from] && !tempBookings[from].name) {
+        if (!tempBookings[from].name) {
           const isValid = await validateNameWithAI(transcript);
-          if (!isValid) {
-            await sendTextMessage(
+          if (!isValid)
+            return await sendTextMessage(
               from,
-              "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
+              "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، سارة..."
             );
-            return res.sendStatus(200);
-          }
-
           tempBookings[from].name = transcript;
           await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
-        } else if (tempBookings[from] && !tempBookings[from].phone) {
+        } else if (!tempBookings[from].phone) {
           const normalized = transcript
             .replace(/[^\d٠-٩]/g, "")
             .replace(/٠/g, "0")
@@ -329,39 +235,24 @@ app.post("/webhook", async (req, res) => {
             .replace(/٨/g, "8")
             .replace(/٩/g, "9");
 
-          const isValid = /^07\d{8}$/.test(normalized);
-
-          if (!isValid) {
-            await sendTextMessage(
+          if (!/^07\d{8}$/.test(normalized))
+            return await sendTextMessage(
               from,
               "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
             );
-            return res.sendStatus(200);
-          }
 
           tempBookings[from].phone = normalized;
-
-          setTimeout(async () => {
-            try {
-              await sendServiceDropdown(from);
-            } catch {
-              await sendTextMessage(
-                from,
-                "💊 الآن اكتب نوع الخدمة المطلوبة (مثل تنظيف الأسنان أو تبييض الأسنان)"
-              );
-            }
-          }, 1000);
-
           await sendTextMessage(
             from,
             "💊 يرجى اختيار الخدمة من القائمة أو كتابتها يدويًا:"
           );
-        } else if (tempBookings[from] && !tempBookings[from].service) {
-          tempBookings[from].service = transcript;
 
+          // ✅ Send dropdown here
+          await sendServiceDropdown(from);
+        } else if (!tempBookings[from].service) {
+          tempBookings[from].service = transcript;
           const booking = tempBookings[from];
           await saveBooking(booking);
-
           await sendTextMessage(
             from,
             `✅ تم حفظ حجزك بنجاح:
@@ -370,25 +261,20 @@ app.post("/webhook", async (req, res) => {
 💊 ${booking.service}
 📅 ${booking.appointment}`
           );
-
           delete tempBookings[from];
         }
       }
-
       return res.sendStatus(200);
     }
 
-    // ✅ Handle interactive messages (buttons / lists)
+    // ✅ Interactive Messages (buttons/lists)
     if (message.type === "interactive") {
       const id =
         message?.interactive?.button_reply?.id ||
         message?.interactive?.list_reply?.id;
 
-      console.log("🔘 DEBUG => Button/List pressed:", id);
-
       if (id?.startsWith("slot_")) {
-        const appointment = id.replace("slot_", "").toUpperCase();
-
+        const appointment = id.replace("slot_", "");
         if (
           fridayWords.some((word) =>
             appointment.toLowerCase().includes(word.toLowerCase())
@@ -396,45 +282,31 @@ app.post("/webhook", async (req, res) => {
         ) {
           await sendTextMessage(
             from,
-            "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
+            "📅 يوم الجمعة عطلة رسمية، اختر يومًا آخر 🌷"
           );
-
-          // ✅ Continue booking after Friday message
           setTimeout(async () => {
-            await sendTextMessage(
-              from,
-              "📅 لنبدأ الحجز، اختر الوقت المناسب 👇"
-            );
+            await sendTextMessage(from, "📅 اختر موعدًا جديدًا 👇");
             await sendAppointmentOptions(from);
           }, 2000);
-
           return res.sendStatus(200);
         }
 
         tempBookings[from] = { appointment };
-        await sendTextMessage(
-          from,
-          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
-        );
+        await sendTextMessage(from, "👍 تم اختيار الموعد! أرسل اسمك:");
         return res.sendStatus(200);
       }
 
       if (id?.startsWith("service_")) {
         const serviceName = id.replace("service_", "").replace(/_/g, " ");
-
-        if (!tempBookings[from] || !tempBookings[from].phone) {
-          await sendTextMessage(
+        if (!tempBookings[from]?.phone)
+          return await sendTextMessage(
             from,
-            "⚠️ يرجى إكمال خطوات الحجز أولاً (الموعد، الاسم، رقم الجوال)"
+            "⚠️ يرجى إكمال خطوات الحجز أولاً."
           );
-          return res.sendStatus(200);
-        }
 
         tempBookings[from].service = serviceName;
-
         const booking = tempBookings[from];
         await saveBooking(booking);
-
         await sendTextMessage(
           from,
           `✅ تم حفظ حجزك:
@@ -443,7 +315,6 @@ app.post("/webhook", async (req, res) => {
 💊 ${booking.service}
 📅 ${booking.appointment}`
         );
-
         delete tempBookings[from];
         return res.sendStatus(200);
       }
@@ -451,62 +322,42 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ✅ Handle text messages
+    // ✅ Text messages
     const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
+    console.log(`💬 Message from ${from}:`, text);
 
-    console.log(`💬 DEBUG => Message from ${from}:`, text);
-
-    // 🛑 Check if user typed Friday manually
-    if (
-      fridayWords.some((word) =>
-        text.toLowerCase().includes(word.toLowerCase())
-      )
-    ) {
+    if (fridayWords.some((word) => text.includes(word))) {
       await sendTextMessage(
         from,
-        "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
+        "📅 يوم الجمعة عطلة رسمية، اختر يومًا آخر 🌷"
       );
-
-      // ✅ Start booking flow after informing
       setTimeout(async () => {
-        await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
+        await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت 👇");
         await sendAppointmentOptions(from);
       }, 2000);
-
       return res.sendStatus(200);
     }
 
-    // Step 1: Appointment shortcut
     if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
       const appointment = `${text} PM`;
       tempBookings[from] = { appointment };
-      await sendTextMessage(
-        from,
-        "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
-      );
+      await sendTextMessage(from, "👍 تم اختيار الموعد! أرسل اسمك:");
       return res.sendStatus(200);
     }
 
-    // Step 2: Name input
     if (tempBookings[from] && !tempBookings[from].name) {
-      const userName = text.trim();
-      const isValid = await validateNameWithAI(userName);
-
-      if (!isValid) {
-        await sendTextMessage(
+      const isValid = await validateNameWithAI(text);
+      if (!isValid)
+        return await sendTextMessage(
           from,
-          "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
+          "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد أو سارة"
         );
-        return res.sendStatus(200);
-      }
-
-      tempBookings[from].name = userName;
+      tempBookings[from].name = text;
       await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
       return res.sendStatus(200);
     }
 
-    // Step 3: Phone input
     if (tempBookings[from] && !tempBookings[from].phone) {
       const normalized = text
         .replace(/[^\d٠-٩]/g, "")
@@ -521,58 +372,37 @@ app.post("/webhook", async (req, res) => {
         .replace(/٨/g, "8")
         .replace(/٩/g, "9");
 
-      const isValid = /^07\d{8}$/.test(normalized);
-
-      if (!isValid) {
-        await sendTextMessage(
+      if (!/^07\d{8}$/.test(normalized))
+        return await sendTextMessage(
           from,
           "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
         );
-        return res.sendStatus(200);
-      }
 
       tempBookings[from].phone = normalized;
-
-      setTimeout(async () => {
-        try {
-          await sendServiceDropdown(from);
-        } catch {
-          await sendTextMessage(
-            from,
-            "💊 الآن اكتب نوع الخدمة المطلوبة (مثل تنظيف الأسنان أو تبييض الأسنان)"
-          );
-        }
-      }, 1000);
-
       await sendTextMessage(
         from,
         "💊 يرجى اختيار الخدمة من القائمة أو كتابتها يدويًا:"
       );
-
+      await sendServiceDropdown(from);
       return res.sendStatus(200);
     }
 
-    // Step 4: Service input
     if (tempBookings[from] && !tempBookings[from].service) {
+      tempBookings[from].service = text;
       const booking = tempBookings[from];
-      booking.service = text;
-
       await saveBooking(booking);
-
       await sendTextMessage(
         from,
-        `✅ تم حفظ حجزك بنجاح:
+        `✅ تم حفظ حجزك:
 👤 ${booking.name}
 📱 ${booking.phone}
 💊 ${booking.service}
 📅 ${booking.appointment}`
       );
-
       delete tempBookings[from];
       return res.sendStatus(200);
     }
 
-    // ✅ Step 5: AI chat fallback
     if (!tempBookings[from]) {
       if (text.includes("حجز") || text.toLowerCase().includes("book")) {
         await sendAppointmentOptions(from);
@@ -584,7 +414,7 @@ app.post("/webhook", async (req, res) => {
 
     res.sendStatus(200);
   } catch (err) {
-    console.error("❌ DEBUG => Webhook Error:", err.message);
+    console.error("❌ Webhook Error:", err.message);
     res.sendStatus(500);
   }
 });
