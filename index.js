@@ -27,6 +27,13 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "my_secret";
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
+// ---------------------------------------------
+// Clinic Information
+// ---------------------------------------------
+const CLINIC_NAME = "Smiles Clinic";
+const CLINIC_LOCATION_LINK =
+  "https://www.google.com/maps?q=32.0290684,35.863774&z=17&hl=en";
+
 // Detect sheet name on startup
 detectSheetName();
 
@@ -35,6 +42,32 @@ detectSheetName();
 // ---------------------------------------------
 global.tempBookings = global.tempBookings || {};
 const tempBookings = global.tempBookings;
+
+// ---------------------------------------------
+// 🗺️ Location Detection Helper
+// ---------------------------------------------
+function isLocationRequest(text) {
+  const locationKeywords = [
+    "موقع",
+    "مكان",
+    "عنوان",
+    "وين",
+    "فين",
+    "أين",
+    "location",
+    "where",
+    "address",
+    "place",
+    "maps",
+    "العيادة",
+    "clinic",
+    "وينكم",
+    "فينكم",
+  ];
+
+  const lowerText = text.toLowerCase();
+  return locationKeywords.some((keyword) => lowerText.includes(keyword));
+}
 
 // ---------------------------------------------
 // 🧠 Voice Transcription Helper (using Groq Whisper)
@@ -151,6 +184,15 @@ app.post("/webhook", async (req, res) => {
       }
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
+
+      // 🗺️ Check if user is asking about location
+      if (isLocationRequest(transcript)) {
+        await sendTextMessage(
+          from,
+          `📍 موقع ${CLINIC_NAME}:\n\n${CLINIC_LOCATION_LINK}\n\nيمكنك الضغط على الرابط لفتح الموقع في خرائط جوجل 🗺️`
+        );
+        return res.sendStatus(200);
+      }
 
       // 🛑 check if user mentioned Friday
       if (
@@ -324,6 +366,15 @@ app.post("/webhook", async (req, res) => {
     const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
     console.log(`💬 DEBUG => Message from ${from}:`, text);
+
+    // 🗺️ Check if user is asking about location (text message)
+    if (isLocationRequest(text)) {
+      await sendTextMessage(
+        from,
+        `📍 موقع ${CLINIC_NAME}:\n\n${CLINIC_LOCATION_LINK}\n\nيمكنك الضغط على الرابط لفتح الموقع في خرائط جوجل 🗺️`
+      );
+      return res.sendStatus(200);
+    }
 
     // 🛑 Check if user typed Friday manually
     if (
