@@ -198,6 +198,58 @@ async function sendImageMessage(to, imageUrl) {
   }
 }
 
+// 👨‍⚕️ Doctors Detection Helper
+function isDoctorsRequest(text) {
+  const doctorKeywords = [
+    "doctors",
+    "doctor",
+    "dentist",
+    "specialist",
+    "physician",
+    "دكتور",
+    "دكاترة",
+    "اطباء",
+    "الأطباء",
+  ];
+  const lowerText = text.toLowerCase();
+  return doctorKeywords.some((keyword) => lowerText.includes(keyword));
+}
+
+// 👨‍⚕️ Send Doctors List
+async function sendDoctorsList(to, language = "ar") {
+  if (language === "en") {
+    await sendTextMessage(
+      to,
+      `👨‍⚕️ We have an elite team of doctors:
+1- Dr. Mohammed Sami
+2- Dr. Abdulrahman Al-Harbi
+3- Dr. Ahmad Mubaideen`
+    );
+  } else {
+    await sendTextMessage(
+      to,
+      `👨‍⚕️ لدينا نخبة من الاطباء:
+1- د.محمد سامي
+2- د.عبدالرحمن الحربي
+3- د.احمد مبيضين`
+    );
+  }
+}
+
+// 👨‍⚕️ Check if user is asking about doctors (voice)
+if (isDoctorsRequest(transcript)) {
+  const language = isEnglish(transcript) ? "en" : "ar";
+  await sendDoctorsList(from, language);
+  return res.sendStatus(200);
+}
+
+// 👨‍⚕️ Check if user is asking about doctors (text)
+if (isDoctorsRequest(text)) {
+  const language = isEnglish(text) ? "en" : "ar";
+  await sendDoctorsList(from, language);
+  return res.sendStatus(200);
+}
+
 // ---------------------------------------------
 // 🧠 Voice Transcription Helper (using Groq Whisper)
 // ---------------------------------------------
@@ -325,6 +377,13 @@ app.post("/webhook", async (req, res) => {
       if (isOffersRequest(transcript)) {
         const language = isEnglish(transcript) ? "en" : "ar";
         await sendOffersImages(from, language);
+        return res.sendStatus(200);
+      }
+
+      // 🧑‍⚕️ Check if user is asking about doctors (voice)
+      if (isDoctorsRequest(transcript)) {
+        const language = isEnglish(transcript) ? "en" : "ar";
+        await sendDoctorsList(from, language);
         return res.sendStatus(200);
       }
 
@@ -513,6 +572,23 @@ app.post("/webhook", async (req, res) => {
       const language = isEnglish(text) ? "en" : "ar";
       await sendOffersImages(from, language);
       return res.sendStatus(200);
+    }
+
+    // 👨‍⚕️ Doctor List Detection Helper
+    function isDoctorsRequest(text) {
+      const doctorKeywords = [
+        "doctors",
+        "doctor",
+        "dentist",
+        "specialist",
+        "physician",
+        "دكتور",
+        "دكاترة",
+        "اطباء",
+        "الأطباء",
+      ];
+      const lowerText = text.toLowerCase();
+      return doctorKeywords.some((keyword) => lowerText.includes(keyword));
     }
 
     // 🛑 Check if user typed Friday manually
