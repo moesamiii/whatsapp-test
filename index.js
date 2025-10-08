@@ -45,7 +45,9 @@ async function transcribeAudio(mediaId) {
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
       {
-        headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        },
       }
     );
 
@@ -54,7 +56,9 @@ async function transcribeAudio(mediaId) {
 
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
-      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+      },
     });
 
     const form = new FormData();
@@ -85,51 +89,6 @@ async function transcribeAudio(mediaId) {
 }
 
 // ---------------------------------------------
-// 📋 Helper: Send Service Dropdown (List Message)
-// ---------------------------------------------
-async function sendServiceDropdown(to) {
-  const services = [
-    { id: "service_cleaning", title: "تنظيف الأسنان", description: "" },
-    { id: "service_whitening", title: "تبييض الأسنان", description: "" },
-    { id: "service_extraction", title: "خلع الأسنان", description: "" },
-    { id: "service_checkup", title: "فحص شامل", description: "" },
-    { id: "service_braces", title: "تقويم الأسنان", description: "" },
-  ];
-
-  const payload = {
-    messaging_product: "whatsapp",
-    to,
-    type: "interactive",
-    interactive: {
-      type: "list",
-      header: { type: "text", text: "💊 اختر الخدمة المطلوبة" },
-      body: { text: "يرجى اختيار الخدمة من القائمة أدناه 👇" },
-      footer: { text: "عيادة الابتسامة الجميلة 😁" },
-      action: {
-        button: "اختيار الخدمة",
-        sections: [
-          {
-            title: "خدمات العيادة",
-            rows: services.map((s) => ({
-              id: s.id,
-              title: s.title,
-              description: s.description,
-            })),
-          },
-        ],
-      },
-    },
-  };
-
-  await axios.post("https://graph.facebook.com/v21.0/me/messages", payload, {
-    headers: {
-      Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-  });
-}
-
-// ---------------------------------------------
 // Routes
 // ---------------------------------------------
 app.get("/", (req, res) => {
@@ -144,7 +103,7 @@ app.get("/api/bookings", async (req, res) => {
   try {
     const data = await getAllBookings();
     res.json(data);
-  } catch {
+  } catch (err) {
     res.status(500).json({ error: "Failed to fetch bookings" });
   }
 });
@@ -157,8 +116,11 @@ app.get("/webhook", (req, res) => {
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode && token === VERIFY_TOKEN) res.status(200).send(challenge);
-  else res.sendStatus(403);
+  if (mode && token === VERIFY_TOKEN) {
+    res.status(200).send(challenge);
+  } else {
+    res.sendStatus(403);
+  }
 });
 
 // ---------------------------------------------
@@ -176,15 +138,20 @@ app.post("/webhook", async (req, res) => {
     // 🎙️ Voice messages
     if (message.type === "audio") {
       const mediaId = message.audio.id;
+      if (!mediaId) return res.sendStatus(200);
+
       const transcript = await transcribeAudio(mediaId);
-      if (!transcript)
-        return await sendTextMessage(
+      if (!transcript) {
+        await sendTextMessage(
           from,
           "⚠️ لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى 🎙️"
         );
+        return res.sendStatus(200);
+      }
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
 
+      // 🛑 check if user mentioned Friday
       if (
         fridayWords.some((word) =>
           transcript.toLowerCase().includes(word.toLowerCase())
@@ -192,19 +159,27 @@ app.post("/webhook", async (req, res) => {
       ) {
         await sendTextMessage(
           from,
-          "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر 🌷"
+          "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
         );
+
+        // ✅ Start booking flow after Friday message
         setTimeout(async () => {
-          await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت 👇");
+          await sendTextMessage(
+            from,
+            "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇"
+          );
           await sendAppointmentOptions(from);
         }, 2000);
+
         return res.sendStatus(200);
       }
 
       if (!tempBookings[from]) {
         if (
           transcript.includes("حجز") ||
-          transcript.toLowerCase().includes("book")
+          transcript.toLowerCase().includes("book") ||
+          transcript.includes("موعد") ||
+          transcript.includes("appointment")
         ) {
           await sendAppointmentOptions(from);
         } else {
@@ -212,16 +187,18 @@ app.post("/webhook", async (req, res) => {
           await sendTextMessage(from, reply);
         }
       } else {
-        if (!tempBookings[from].name) {
+        if (tempBookings[from] && !tempBookings[from].name) {
           const isValid = await validateNameWithAI(transcript);
-          if (!isValid)
-            return await sendTextMessage(
+          if (!isValid) {
+            await sendTextMessage(
               from,
-              "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، سارة..."
+              "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
             );
+            return res.sendStatus(200);
+          }
           tempBookings[from].name = transcript;
           await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
-        } else if (!tempBookings[from].phone) {
+        } else if (tempBookings[from] && !tempBookings[from].phone) {
           const normalized = transcript
             .replace(/[^\d٠-٩]/g, "")
             .replace(/٠/g, "0")
@@ -235,21 +212,29 @@ app.post("/webhook", async (req, res) => {
             .replace(/٨/g, "8")
             .replace(/٩/g, "9");
 
-          if (!/^07\d{8}$/.test(normalized))
-            return await sendTextMessage(
+          const isValid = /^07\d{8}$/.test(normalized);
+          if (!isValid) {
+            await sendTextMessage(
               from,
               "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
             );
+            return res.sendStatus(200);
+          }
 
           tempBookings[from].phone = normalized;
-          await sendTextMessage(
-            from,
-            "💊 يرجى اختيار الخدمة من القائمة أو كتابتها يدويًا:"
-          );
+          setTimeout(async () => {
+            try {
+              await sendServiceButtons(from);
+            } catch {
+              await sendTextMessage(
+                from,
+                "💊 الآن اكتب نوع الخدمة المطلوبة (مثل تنظيف الأسنان أو تبييض الأسنان)"
+              );
+            }
+          }, 1000);
 
-          // ✅ Send dropdown here
-          await sendServiceDropdown(from);
-        } else if (!tempBookings[from].service) {
+          await sendTextMessage(from, "💊 يرجى اختيار الخدمة من القائمة:");
+        } else if (tempBookings[from] && !tempBookings[from].service) {
           tempBookings[from].service = transcript;
           const booking = tempBookings[from];
           await saveBooking(booking);
@@ -264,17 +249,20 @@ app.post("/webhook", async (req, res) => {
           delete tempBookings[from];
         }
       }
+
       return res.sendStatus(200);
     }
 
-    // ✅ Interactive Messages (buttons/lists)
+    // ✅ Handle interactive messages (buttons / lists)
     if (message.type === "interactive") {
       const id =
         message?.interactive?.button_reply?.id ||
         message?.interactive?.list_reply?.id;
+      console.log("🔘 DEBUG => Button/List pressed:", id);
 
       if (id?.startsWith("slot_")) {
-        const appointment = id.replace("slot_", "");
+        const appointment = id.replace("slot_", "").toUpperCase();
+
         if (
           fridayWords.some((word) =>
             appointment.toLowerCase().includes(word.toLowerCase())
@@ -282,28 +270,38 @@ app.post("/webhook", async (req, res) => {
         ) {
           await sendTextMessage(
             from,
-            "📅 يوم الجمعة عطلة رسمية، اختر يومًا آخر 🌷"
+            "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
           );
+
+          // ✅ Continue booking after Friday message
           setTimeout(async () => {
-            await sendTextMessage(from, "📅 اختر موعدًا جديدًا 👇");
+            await sendTextMessage(
+              from,
+              "📅 لنبدأ الحجز، اختر الوقت المناسب 👇"
+            );
             await sendAppointmentOptions(from);
           }, 2000);
+
           return res.sendStatus(200);
         }
 
         tempBookings[from] = { appointment };
-        await sendTextMessage(from, "👍 تم اختيار الموعد! أرسل اسمك:");
+        await sendTextMessage(
+          from,
+          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+        );
         return res.sendStatus(200);
       }
 
       if (id?.startsWith("service_")) {
         const serviceName = id.replace("service_", "").replace(/_/g, " ");
-        if (!tempBookings[from]?.phone)
-          return await sendTextMessage(
+        if (!tempBookings[from] || !tempBookings[from].phone) {
+          await sendTextMessage(
             from,
-            "⚠️ يرجى إكمال خطوات الحجز أولاً."
+            "⚠️ يرجى إكمال خطوات الحجز أولاً (الموعد، الاسم، رقم الجوال)"
           );
-
+          return res.sendStatus(200);
+        }
         tempBookings[from].service = serviceName;
         const booking = tempBookings[from];
         await saveBooking(booking);
@@ -318,46 +316,62 @@ app.post("/webhook", async (req, res) => {
         delete tempBookings[from];
         return res.sendStatus(200);
       }
-
       return res.sendStatus(200);
     }
 
-    // ✅ Text messages
+    // ✅ Handle text messages
     const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
-    console.log(`💬 Message from ${from}:`, text);
+    console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-    if (fridayWords.some((word) => text.includes(word))) {
+    // 🛑 Check if user typed Friday manually
+    if (
+      fridayWords.some((word) =>
+        text.toLowerCase().includes(word.toLowerCase())
+      )
+    ) {
       await sendTextMessage(
         from,
-        "📅 يوم الجمعة عطلة رسمية، اختر يومًا آخر 🌷"
+        "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
       );
+
+      // ✅ Start booking flow after informing
       setTimeout(async () => {
-        await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت 👇");
+        await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
         await sendAppointmentOptions(from);
       }, 2000);
+
       return res.sendStatus(200);
     }
 
+    // Step 1: Appointment shortcut
     if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
       const appointment = `${text} PM`;
       tempBookings[from] = { appointment };
-      await sendTextMessage(from, "👍 تم اختيار الموعد! أرسل اسمك:");
+      await sendTextMessage(
+        from,
+        "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+      );
       return res.sendStatus(200);
     }
 
+    // Step 2: Name input
     if (tempBookings[from] && !tempBookings[from].name) {
-      const isValid = await validateNameWithAI(text);
-      if (!isValid)
-        return await sendTextMessage(
+      const userName = text.trim();
+      const isValid = await validateNameWithAI(userName);
+      if (!isValid) {
+        await sendTextMessage(
           from,
-          "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد أو سارة"
+          "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
         );
-      tempBookings[from].name = text;
+        return res.sendStatus(200);
+      }
+      tempBookings[from].name = userName;
       await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
       return res.sendStatus(200);
     }
 
+    // Step 3: Phone input
     if (tempBookings[from] && !tempBookings[from].phone) {
       const normalized = text
         .replace(/[^\d٠-٩]/g, "")
@@ -372,28 +386,35 @@ app.post("/webhook", async (req, res) => {
         .replace(/٨/g, "8")
         .replace(/٩/g, "9");
 
-      if (!/^07\d{8}$/.test(normalized))
-        return await sendTextMessage(
+      const isValid = /^07\d{8}$/.test(normalized);
+      if (!isValid) {
+        await sendTextMessage(
           from,
           "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
         );
+        return res.sendStatus(200);
+      }
 
       tempBookings[from].phone = normalized;
+
+      // Send service dropdown list
+      await sendServiceButtons(from);
+
       await sendTextMessage(
         from,
-        "💊 يرجى اختيار الخدمة من القائمة أو كتابتها يدويًا:"
+        "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
       );
-      await sendServiceDropdown(from);
       return res.sendStatus(200);
     }
 
+    // Step 4: Service input (manual text input as fallback)
     if (tempBookings[from] && !tempBookings[from].service) {
-      tempBookings[from].service = text;
       const booking = tempBookings[from];
+      booking.service = text;
       await saveBooking(booking);
       await sendTextMessage(
         from,
-        `✅ تم حفظ حجزك:
+        `✅ تم حفظ حجزك بنجاح:
 👤 ${booking.name}
 📱 ${booking.phone}
 💊 ${booking.service}
@@ -403,6 +424,7 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    // ✅ Step 5: AI chat fallback
     if (!tempBookings[from]) {
       if (text.includes("حجز") || text.toLowerCase().includes("book")) {
         await sendAppointmentOptions(from);
@@ -414,7 +436,7 @@ app.post("/webhook", async (req, res) => {
 
     res.sendStatus(200);
   } catch (err) {
-    console.error("❌ Webhook Error:", err.message);
+    console.error("❌ DEBUG => Webhook Error:", err.message);
     res.sendStatus(500);
   }
 });
