@@ -3,7 +3,6 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const axios = require("axios");
 const FormData = require("form-data");
-
 const {
   askAI,
   validateNameWithAI,
@@ -89,6 +88,121 @@ async function transcribeAudio(mediaId) {
 }
 
 // ---------------------------------------------
+// 🆕 Helper: Send Service Dropdown List
+// ---------------------------------------------
+async function sendServiceDropdown(phoneNumber) {
+  try {
+    const payload = {
+      messaging_product: "whatsapp",
+      to: phoneNumber,
+      type: "interactive",
+      interactive: {
+        type: "list",
+        header: {
+          type: "text",
+          text: "💊 اختر الخدمة",
+        },
+        body: {
+          text: "يرجى اختيار نوع الخدمة المطلوبة من القائمة أدناه، أو يمكنك كتابتها يدويًا:",
+        },
+        footer: {
+          text: "عيادة الأسنان",
+        },
+        action: {
+          button: "الخدمات المتاحة",
+          sections: [
+            {
+              title: "الخدمات الأساسية",
+              rows: [
+                {
+                  id: "service_تنظيف_الأسنان",
+                  title: "تنظيف الأسنان",
+                  description: "إزالة الجير والتنظيف العميق",
+                },
+                {
+                  id: "service_تبييض_الأسنان",
+                  title: "تبييض الأسنان",
+                  description: "تبييض احترافي للأسنان",
+                },
+                {
+                  id: "service_حشوات_الأسنان",
+                  title: "حشوات الأسنان",
+                  description: "حشوات تجميلية وعلاجية",
+                },
+                {
+                  id: "service_خلع_الأسنان",
+                  title: "خلع الأسنان",
+                  description: "خلع الأسنان الضروري",
+                },
+              ],
+            },
+            {
+              title: "خدمات متقدمة",
+              rows: [
+                {
+                  id: "service_تقويم_الأسنان",
+                  title: "تقويم الأسنان",
+                  description: "تقويم معدني وشفاف",
+                },
+                {
+                  id: "service_زراعة_الأسنان",
+                  title: "زراعة الأسنان",
+                  description: "زراعة أسنان بتقنية حديثة",
+                },
+                {
+                  id: "service_علاج_اللثة",
+                  title: "علاج اللثة",
+                  description: "علاج أمراض اللثة والتهاباتها",
+                },
+                {
+                  id: "service_تركيبات_الأسنان",
+                  title: "تركيبات الأسنان",
+                  description: "تيجان وجسور ثابتة ومتحركة",
+                },
+              ],
+            },
+            {
+              title: "خدمات التجميل",
+              rows: [
+                {
+                  id: "service_ابتسامة_هوليود",
+                  title: "ابتسامة هوليود",
+                  description: "فينير وابتسامة هوليود",
+                },
+                {
+                  id: "service_فحص_شامل",
+                  title: "فحص شامل",
+                  description: "فحص شامل للفم والأسنان",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+
+    await axios.post(
+      "https://graph.facebook.com/v21.0/559125530614296/messages",
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("✅ Service dropdown sent successfully to:", phoneNumber);
+  } catch (err) {
+    console.error(
+      "❌ Failed to send service dropdown:",
+      err.response?.data || err.message
+    );
+    throw err;
+  }
+}
+
+// ---------------------------------------------
 // Routes
 // ---------------------------------------------
 app.get("/", (req, res) => {
@@ -131,6 +245,7 @@ app.post("/webhook", async (req, res) => {
     const body = req.body;
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from;
+
     if (!message || !from) return res.sendStatus(200);
 
     const fridayWords = ["الجمعة", "Friday", "friday"];
@@ -141,6 +256,7 @@ app.post("/webhook", async (req, res) => {
       if (!mediaId) return res.sendStatus(200);
 
       const transcript = await transcribeAudio(mediaId);
+
       if (!transcript) {
         await sendTextMessage(
           from,
@@ -196,6 +312,7 @@ app.post("/webhook", async (req, res) => {
             );
             return res.sendStatus(200);
           }
+
           tempBookings[from].name = transcript;
           await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
         } else if (tempBookings[from] && !tempBookings[from].phone) {
@@ -213,6 +330,7 @@ app.post("/webhook", async (req, res) => {
             .replace(/٩/g, "9");
 
           const isValid = /^07\d{8}$/.test(normalized);
+
           if (!isValid) {
             await sendTextMessage(
               from,
@@ -222,9 +340,10 @@ app.post("/webhook", async (req, res) => {
           }
 
           tempBookings[from].phone = normalized;
+
           setTimeout(async () => {
             try {
-              await sendServiceButtons(from);
+              await sendServiceDropdown(from);
             } catch {
               await sendTextMessage(
                 from,
@@ -239,8 +358,10 @@ app.post("/webhook", async (req, res) => {
           );
         } else if (tempBookings[from] && !tempBookings[from].service) {
           tempBookings[from].service = transcript;
+
           const booking = tempBookings[from];
           await saveBooking(booking);
+
           await sendTextMessage(
             from,
             `✅ تم حفظ حجزك بنجاح:
@@ -249,6 +370,7 @@ app.post("/webhook", async (req, res) => {
 💊 ${booking.service}
 📅 ${booking.appointment}`
           );
+
           delete tempBookings[from];
         }
       }
@@ -261,6 +383,7 @@ app.post("/webhook", async (req, res) => {
       const id =
         message?.interactive?.button_reply?.id ||
         message?.interactive?.list_reply?.id;
+
       console.log("🔘 DEBUG => Button/List pressed:", id);
 
       if (id?.startsWith("slot_")) {
@@ -298,6 +421,7 @@ app.post("/webhook", async (req, res) => {
 
       if (id?.startsWith("service_")) {
         const serviceName = id.replace("service_", "").replace(/_/g, " ");
+
         if (!tempBookings[from] || !tempBookings[from].phone) {
           await sendTextMessage(
             from,
@@ -305,9 +429,12 @@ app.post("/webhook", async (req, res) => {
           );
           return res.sendStatus(200);
         }
+
         tempBookings[from].service = serviceName;
+
         const booking = tempBookings[from];
         await saveBooking(booking);
+
         await sendTextMessage(
           from,
           `✅ تم حفظ حجزك:
@@ -316,15 +443,18 @@ app.post("/webhook", async (req, res) => {
 💊 ${booking.service}
 📅 ${booking.appointment}`
         );
+
         delete tempBookings[from];
         return res.sendStatus(200);
       }
+
       return res.sendStatus(200);
     }
 
     // ✅ Handle text messages
     const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
+
     console.log(`💬 DEBUG => Message from ${from}:`, text);
 
     // 🛑 Check if user typed Friday manually
@@ -362,6 +492,7 @@ app.post("/webhook", async (req, res) => {
     if (tempBookings[from] && !tempBookings[from].name) {
       const userName = text.trim();
       const isValid = await validateNameWithAI(userName);
+
       if (!isValid) {
         await sendTextMessage(
           from,
@@ -369,6 +500,7 @@ app.post("/webhook", async (req, res) => {
         );
         return res.sendStatus(200);
       }
+
       tempBookings[from].name = userName;
       await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
       return res.sendStatus(200);
@@ -390,6 +522,7 @@ app.post("/webhook", async (req, res) => {
         .replace(/٩/g, "9");
 
       const isValid = /^07\d{8}$/.test(normalized);
+
       if (!isValid) {
         await sendTextMessage(
           from,
@@ -399,9 +532,10 @@ app.post("/webhook", async (req, res) => {
       }
 
       tempBookings[from].phone = normalized;
+
       setTimeout(async () => {
         try {
-          await sendServiceButtons(from);
+          await sendServiceDropdown(from);
         } catch {
           await sendTextMessage(
             from,
@@ -414,6 +548,7 @@ app.post("/webhook", async (req, res) => {
         from,
         "💊 يرجى اختيار الخدمة من القائمة أو كتابتها يدويًا:"
       );
+
       return res.sendStatus(200);
     }
 
@@ -421,7 +556,9 @@ app.post("/webhook", async (req, res) => {
     if (tempBookings[from] && !tempBookings[from].service) {
       const booking = tempBookings[from];
       booking.service = text;
+
       await saveBooking(booking);
+
       await sendTextMessage(
         from,
         `✅ تم حفظ حجزك بنجاح:
@@ -430,6 +567,7 @@ app.post("/webhook", async (req, res) => {
 💊 ${booking.service}
 📅 ${booking.appointment}`
       );
+
       delete tempBookings[from];
       return res.sendStatus(200);
     }
