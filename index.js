@@ -14,6 +14,8 @@ const {
   saveBooking,
   detectSheetName,
   getAllBookings,
+  findClosestService,
+  suggestClosestService,
 } = require("./helpers");
 
 const app = express();
@@ -238,18 +240,27 @@ app.post("/webhook", async (req, res) => {
             "💊 يرجى اختيار الخدمة من القائمة أو كتابتها يدويًا:"
           );
         } else if (tempBookings[from] && !tempBookings[from].service) {
-          tempBookings[from].service = transcript;
-          const booking = tempBookings[from];
-          await saveBooking(booking);
-          await sendTextMessage(
-            from,
-            `✅ تم حفظ حجزك بنجاح:
+          const match = findClosestService(transcript);
+          if (match) {
+            tempBookings[from].service = match;
+            const booking = tempBookings[from];
+            await saveBooking(booking);
+            await sendTextMessage(
+              from,
+              `✅ تم حفظ حجزك بنجاح:
 👤 ${booking.name}
 📱 ${booking.phone}
 💊 ${booking.service}
 📅 ${booking.appointment}`
-          );
-          delete tempBookings[from];
+            );
+            delete tempBookings[from];
+          } else {
+            const suggestion = suggestClosestService(transcript);
+            await sendTextMessage(
+              from,
+              `❌ لم أتعرف على الخدمة المطلوبة.\nهل تقصد: *${suggestion}* ؟`
+            );
+          }
         }
       }
 
@@ -419,18 +430,27 @@ app.post("/webhook", async (req, res) => {
 
     // Step 4: Service input
     if (tempBookings[from] && !tempBookings[from].service) {
-      const booking = tempBookings[from];
-      booking.service = text;
-      await saveBooking(booking);
-      await sendTextMessage(
-        from,
-        `✅ تم حفظ حجزك بنجاح:
+      const match = findClosestService(text);
+      if (match) {
+        const booking = tempBookings[from];
+        booking.service = match;
+        await saveBooking(booking);
+        await sendTextMessage(
+          from,
+          `✅ تم حفظ حجزك بنجاح:
 👤 ${booking.name}
 📱 ${booking.phone}
 💊 ${booking.service}
 📅 ${booking.appointment}`
-      );
-      delete tempBookings[from];
+        );
+        delete tempBookings[from];
+      } else {
+        const suggestion = suggestClosestService(text);
+        await sendTextMessage(
+          from,
+          `❌ لم أتعرف على الخدمة المطلوبة.\nهل تقصد: *${suggestion}* ؟`
+        );
+      }
       return res.sendStatus(200);
     }
 
