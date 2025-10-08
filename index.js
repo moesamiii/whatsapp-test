@@ -70,6 +70,38 @@ function isLocationRequest(text) {
 }
 
 // ---------------------------------------------
+// 🌐 Language Detection Helper
+// ---------------------------------------------
+function isEnglish(text) {
+  const arabicPattern = /[\u0600-\u06FF]/;
+  return !arabicPattern.test(text);
+}
+
+// ---------------------------------------------
+// 📍 Send Location Messages
+// ---------------------------------------------
+async function sendLocationMessages(to, language = "ar") {
+  // First message: Just the link
+  await sendTextMessage(to, CLINIC_LOCATION_LINK);
+
+  // Small delay for better UX
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  // Second message: Explanation
+  if (language === "en") {
+    await sendTextMessage(
+      to,
+      `📍 This is our location at ${CLINIC_NAME}. You can click on the link to open it in Google Maps 🗺️`
+    );
+  } else {
+    await sendTextMessage(
+      to,
+      `📍 هذا هو موقع ${CLINIC_NAME}. يمكنك الضغط على الرابط لفتحه في خرائط جوجل 🗺️`
+    );
+  }
+}
+
+// ---------------------------------------------
 // 🧠 Voice Transcription Helper (using Groq Whisper)
 // ---------------------------------------------
 async function transcribeAudio(mediaId) {
@@ -187,10 +219,8 @@ app.post("/webhook", async (req, res) => {
 
       // 🗺️ Check if user is asking about location
       if (isLocationRequest(transcript)) {
-        await sendTextMessage(
-          from,
-          `📍 موقع ${CLINIC_NAME}:\n\n${CLINIC_LOCATION_LINK}\n\nيمكنك الضغط على الرابط لفتح الموقع في خرائط جوجل 🗺️`
-        );
+        const language = isEnglish(transcript) ? "en" : "ar";
+        await sendLocationMessages(from, language);
         return res.sendStatus(200);
       }
 
@@ -369,10 +399,8 @@ app.post("/webhook", async (req, res) => {
 
     // 🗺️ Check if user is asking about location (text message)
     if (isLocationRequest(text)) {
-      await sendTextMessage(
-        from,
-        `📍 موقع ${CLINIC_NAME}:\n\n${CLINIC_LOCATION_LINK}\n\nيمكنك الضغط على الرابط لفتح الموقع في خرائط جوجل 🗺️`
-      );
+      const language = isEnglish(text) ? "en" : "ar";
+      await sendLocationMessages(from, language);
       return res.sendStatus(200);
     }
 
