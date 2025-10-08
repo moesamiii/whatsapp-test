@@ -1,4 +1,3 @@
-// helpers.js
 const axios = require("axios");
 const { google } = require("googleapis");
 const { askAI, validateNameWithAI } = require("./aiHelper"); // ✅ Import AI utilities
@@ -327,3 +326,53 @@ module.exports = {
   getAllBookings,
   testGoogleConnection,
 };
+
+// ============================================================
+// 🧩 NEW ADDITIONS BELOW — Fuzzy Service Matching Feature
+// ============================================================
+const stringSimilarity = require("string-similarity");
+
+// ✅ Full service list
+const servicesList = [
+  "تنظيف الأسنان",
+  "تبييض الأسنان",
+  "حشو الأسنان",
+  "خلع الأسنان",
+  "زراعة الأسنان",
+  "تقويم الأسنان",
+  "ابتسامة هوليود",
+  "علاج عصب",
+  "كشفية فحص",
+  "تجميل الأسنان",
+  "استشارة عامة",
+  "أشعة تشخيصية",
+];
+
+// ✅ Fuzzy match function
+function findClosestService(userInput) {
+  const matches = stringSimilarity.findBestMatch(userInput, servicesList);
+  const best = matches.bestMatch;
+  if (best.rating > 0.5) {
+    console.log(
+      `🎯 DEBUG => Closest service match: "${best.target}" (Score: ${best.rating})`
+    );
+    return best.target;
+  }
+  console.log(`⚠️ DEBUG => No close match found for "${userInput}"`);
+  return null;
+}
+
+// ✅ Optional: Suggest closest match to user
+function suggestClosestService(userInput) {
+  const matches = stringSimilarity.findBestMatch(userInput, servicesList);
+  const best = matches.bestMatch;
+  if (best.rating > 0.4 && best.rating < 0.7) {
+    return `هل تقصد "${best.target}"؟ 💡`;
+  }
+  return null;
+}
+
+// ✅ Export new helpers
+module.exports.findClosestService = findClosestService;
+module.exports.suggestClosestService = suggestClosestService;
+module.exports.servicesList = servicesList;
