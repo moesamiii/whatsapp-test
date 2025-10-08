@@ -77,6 +77,62 @@ function isLocationRequest(text) {
 }
 
 // ---------------------------------------------
+// 👨‍⚕️ Doctor List Detection Helper
+// ---------------------------------------------
+function isDoctorsRequest(text) {
+  const doctorKeywords = [
+    "doctors",
+    "doctor",
+    "dentist",
+    "specialist",
+    "physician",
+    "دكتور",
+    "دكاترة",
+    "اطباء",
+    "الأطباء",
+  ];
+  const lowerText = text.toLowerCase();
+  return doctorKeywords.some((keyword) => lowerText.includes(keyword));
+}
+
+// ---------------------------------------------
+// 👨‍⚕️ Send Doctors List
+// ---------------------------------------------
+async function sendDoctorsList(to, language = "ar") {
+  if (language === "en") {
+    await sendTextMessage(
+      to,
+      `👨‍⚕️ We have an elite team of doctors:
+1- Dr. Abdalrahman Al-Harbi
+2- Dr. Mohammed Sami
+3- Dr. Ahmad Mubaideen`
+    );
+  } else {
+    await sendTextMessage(
+      to,
+      `👨‍⚕️ لدينا نخبة من الاطباء:
+1- د.عبدالرحمن الحربي
+2- د.محمد سامي
+3- د.احمد مبيضين`
+    );
+  }
+}
+
+// 🧑‍⚕️ Check if user is asking about doctors (voice)
+if (isDoctorsRequest(transcript)) {
+  const language = isEnglish(transcript) ? "en" : "ar";
+  await sendDoctorsList(from, language);
+  return res.sendStatus(200);
+}
+
+// 🧑‍⚕️ Check if user is asking about doctors (text)
+if (isDoctorsRequest(text)) {
+  const language = isEnglish(text) ? "en" : "ar";
+  await sendDoctorsList(from, language);
+  return res.sendStatus(200);
+}
+
+// ---------------------------------------------
 // 🎁 Offers & Services Detection Helper
 // ---------------------------------------------
 function isOffersRequest(text) {
