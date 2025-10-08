@@ -3,7 +3,6 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const axios = require("axios");
 const FormData = require("form-data");
-
 const {
   askAI,
   validateNameWithAI,
@@ -41,6 +40,13 @@ const OFFER_IMAGES = [
   "https://drive.google.com/uc?export=view&id=17jaUTvf_S2nqApqMlRc3r8q97uPulvDx",
 ];
 
+// 👨‍⚕️ Doctors Images (Google Drive Direct Links)
+const DOCTOR_IMAGES = [
+  "https://drive.google.com/uc?export=view&id=YOUR_DOCTOR_IMAGE_ID_1",
+  "https://drive.google.com/uc?export=view&id=YOUR_DOCTOR_IMAGE_ID_2",
+  "https://drive.google.com/uc?export=view&id=YOUR_DOCTOR_IMAGE_ID_3",
+];
+
 // Detect sheet name on startup
 detectSheetName();
 
@@ -71,7 +77,6 @@ function isLocationRequest(text) {
     "وينكم",
     "فينكم",
   ];
-
   const lowerText = text.toLowerCase();
   return locationKeywords.some((keyword) => lowerText.includes(keyword));
 }
@@ -94,9 +99,30 @@ function isOffersRequest(text) {
     "service",
     "price",
   ];
-
   const lowerText = text.toLowerCase();
   return offersKeywords.some((keyword) => lowerText.includes(keyword));
+}
+
+// ---------------------------------------------
+// 👨‍⚕️ Doctors Detection Helper
+// ---------------------------------------------
+function isDoctorsRequest(text) {
+  const doctorsKeywords = [
+    "دكتور",
+    "دكاترة",
+    "طبيب",
+    "أطباء",
+    "الدكتور",
+    "الطبيب",
+    "doctor",
+    "doctors",
+    "physician",
+    "dr",
+    "اطباء",
+    "الاطباء",
+  ];
+  const lowerText = text.toLowerCase();
+  return doctorsKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
 // ---------------------------------------------
@@ -172,6 +198,46 @@ async function sendOffersImages(to, language = "ar") {
 }
 
 // ---------------------------------------------
+// 👨‍⚕️ Send Doctors Images
+// ---------------------------------------------
+async function sendDoctorsImages(to, language = "ar") {
+  try {
+    // Send intro message
+    if (language === "en") {
+      await sendTextMessage(to, "👨‍⚕️ Meet our professional medical team:");
+    } else {
+      await sendTextMessage(to, "👨‍⚕️ تعرف على فريقنا الطبي المتخصص:");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Send all doctor images with small delays
+    for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
+      await sendImageMessage(to, DOCTOR_IMAGES[i]);
+      if (i < DOCTOR_IMAGES.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+    }
+
+    // Send closing message
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "✨ Our experienced doctors are here to provide you with the best care! To book an appointment, just let us know 😊"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "✨ أطباؤنا ذوو الخبرة هنا لتقديم أفضل رعاية لك! لحجز موعد، فقط أخبرنا 😊"
+      );
+    }
+  } catch (err) {
+    console.error("❌ Failed to send doctors images:", err.message);
+  }
+}
+
+// ---------------------------------------------
 // 📸 Send Image Helper
 // ---------------------------------------------
 async function sendImageMessage(to, imageUrl) {
@@ -196,58 +262,6 @@ async function sendImageMessage(to, imageUrl) {
   } catch (err) {
     console.error("❌ Failed to send image:", err.message);
   }
-}
-
-// 👨‍⚕️ Doctors Detection Helper
-function isDoctorsRequest(text) {
-  const doctorKeywords = [
-    "doctors",
-    "doctor",
-    "dentist",
-    "specialist",
-    "physician",
-    "دكتور",
-    "دكاترة",
-    "اطباء",
-    "الأطباء",
-  ];
-  const lowerText = text.toLowerCase();
-  return doctorKeywords.some((keyword) => lowerText.includes(keyword));
-}
-
-// 👨‍⚕️ Send Doctors List
-async function sendDoctorsList(to, language = "ar") {
-  if (language === "en") {
-    await sendTextMessage(
-      to,
-      `👨‍⚕️ We have an elite team of doctors:
-1- Dr. Mohammed Sami
-2- Dr. Abdulrahman Al-Harbi
-3- Dr. Ahmad Mubaideen`
-    );
-  } else {
-    await sendTextMessage(
-      to,
-      `👨‍⚕️ لدينا نخبة من الاطباء:
-1- د.محمد سامي
-2- د.عبدالرحمن الحربي
-3- د.احمد مبيضين`
-    );
-  }
-}
-
-// 👨‍⚕️ Check if user is asking about doctors (voice)
-if (isDoctorsRequest(transcript)) {
-  const language = isEnglish(transcript) ? "en" : "ar";
-  await sendDoctorsList(from, language);
-  return res.sendStatus(200);
-}
-
-// 👨‍⚕️ Check if user is asking about doctors (text)
-if (isDoctorsRequest(text)) {
-  const language = isEnglish(text) ? "en" : "ar";
-  await sendDoctorsList(from, language);
-  return res.sendStatus(200);
 }
 
 // ---------------------------------------------
@@ -346,6 +360,7 @@ app.post("/webhook", async (req, res) => {
     const body = req.body;
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from;
+
     if (!message || !from) return res.sendStatus(200);
 
     const fridayWords = ["الجمعة", "Friday", "friday"];
@@ -356,6 +371,7 @@ app.post("/webhook", async (req, res) => {
       if (!mediaId) return res.sendStatus(200);
 
       const transcript = await transcribeAudio(mediaId);
+
       if (!transcript) {
         await sendTextMessage(
           from,
@@ -380,10 +396,10 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // 🧑‍⚕️ Check if user is asking about doctors (voice)
+      // 👨‍⚕️ Check if user is asking about doctors
       if (isDoctorsRequest(transcript)) {
         const language = isEnglish(transcript) ? "en" : "ar";
-        await sendDoctorsList(from, language);
+        await sendDoctorsImages(from, language);
         return res.sendStatus(200);
       }
 
@@ -432,6 +448,7 @@ app.post("/webhook", async (req, res) => {
             );
             return res.sendStatus(200);
           }
+
           tempBookings[from].name = transcript;
           await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
         } else if (tempBookings[from] && !tempBookings[from].phone) {
@@ -449,6 +466,7 @@ app.post("/webhook", async (req, res) => {
             .replace(/٩/g, "9");
 
           const isValid = /^07\d{8}$/.test(normalized);
+
           if (!isValid) {
             await sendTextMessage(
               from,
@@ -461,7 +479,6 @@ app.post("/webhook", async (req, res) => {
 
           // Send service dropdown list
           await sendServiceList(from);
-
           await sendTextMessage(
             from,
             "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
@@ -470,6 +487,7 @@ app.post("/webhook", async (req, res) => {
           tempBookings[from].service = transcript;
           const booking = tempBookings[from];
           await saveBooking(booking);
+
           await sendTextMessage(
             from,
             `✅ تم حفظ حجزك بنجاح:
@@ -478,6 +496,7 @@ app.post("/webhook", async (req, res) => {
 💊 ${booking.service}
 📅 ${booking.appointment}`
           );
+
           delete tempBookings[from];
         }
       }
@@ -531,6 +550,7 @@ app.post("/webhook", async (req, res) => {
 
       if (id?.startsWith("service_")) {
         const serviceName = id.replace("service_", "").replace(/_/g, " ");
+
         if (!tempBookings[from] || !tempBookings[from].phone) {
           await sendTextMessage(
             from,
@@ -538,9 +558,11 @@ app.post("/webhook", async (req, res) => {
           );
           return res.sendStatus(200);
         }
+
         tempBookings[from].service = serviceName;
         const booking = tempBookings[from];
         await saveBooking(booking);
+
         await sendTextMessage(
           from,
           `✅ تم حفظ حجزك:
@@ -549,15 +571,18 @@ app.post("/webhook", async (req, res) => {
 💊 ${booking.service}
 📅 ${booking.appointment}`
         );
+
         delete tempBookings[from];
         return res.sendStatus(200);
       }
+
       return res.sendStatus(200);
     }
 
     // ✅ Handle text messages
     const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
+
     console.log(`💬 DEBUG => Message from ${from}:`, text);
 
     // 🗺️ Check if user is asking about location (text message)
@@ -574,21 +599,11 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // 👨‍⚕️ Doctor List Detection Helper
-    function isDoctorsRequest(text) {
-      const doctorKeywords = [
-        "doctors",
-        "doctor",
-        "dentist",
-        "specialist",
-        "physician",
-        "دكتور",
-        "دكاترة",
-        "اطباء",
-        "الأطباء",
-      ];
-      const lowerText = text.toLowerCase();
-      return doctorKeywords.some((keyword) => lowerText.includes(keyword));
+    // 👨‍⚕️ Check if user is asking about doctors (text message)
+    if (isDoctorsRequest(text)) {
+      const language = isEnglish(text) ? "en" : "ar";
+      await sendDoctorsImages(from, language);
+      return res.sendStatus(200);
     }
 
     // 🛑 Check if user typed Friday manually
@@ -626,6 +641,7 @@ app.post("/webhook", async (req, res) => {
     if (tempBookings[from] && !tempBookings[from].name) {
       const userName = text.trim();
       const isValid = await validateNameWithAI(userName);
+
       if (!isValid) {
         await sendTextMessage(
           from,
@@ -633,6 +649,7 @@ app.post("/webhook", async (req, res) => {
         );
         return res.sendStatus(200);
       }
+
       tempBookings[from].name = userName;
       await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
       return res.sendStatus(200);
@@ -654,6 +671,7 @@ app.post("/webhook", async (req, res) => {
         .replace(/٩/g, "9");
 
       const isValid = /^07\d{8}$/.test(normalized);
+
       if (!isValid) {
         await sendTextMessage(
           from,
@@ -666,7 +684,6 @@ app.post("/webhook", async (req, res) => {
 
       // Send service dropdown list
       await sendServiceList(from);
-
       await sendTextMessage(
         from,
         "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
@@ -679,6 +696,7 @@ app.post("/webhook", async (req, res) => {
       const booking = tempBookings[from];
       booking.service = text;
       await saveBooking(booking);
+
       await sendTextMessage(
         from,
         `✅ تم حفظ حجزك بنجاح:
@@ -687,6 +705,7 @@ app.post("/webhook", async (req, res) => {
 💊 ${booking.service}
 📅 ${booking.appointment}`
       );
+
       delete tempBookings[from];
       return res.sendStatus(200);
     }
