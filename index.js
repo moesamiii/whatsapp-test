@@ -10,6 +10,7 @@ const {
   sendTextMessage,
   sendAppointmentButtons,
   sendServiceButtons,
+  sendServiceList,
   sendAppointmentOptions,
   saveBooking,
   detectSheetName,
@@ -222,18 +223,14 @@ app.post("/webhook", async (req, res) => {
           }
 
           tempBookings[from].phone = normalized;
-          setTimeout(async () => {
-            try {
-              await sendServiceButtons(from);
-            } catch {
-              await sendTextMessage(
-                from,
-                "💊 الآن اكتب نوع الخدمة المطلوبة (مثل تنظيف الأسنان أو تبييض الأسنان)"
-              );
-            }
-          }, 1000);
 
-          await sendTextMessage(from, "💊 يرجى اختيار الخدمة من القائمة:");
+          // Send service dropdown list
+          await sendServiceList(from);
+
+          await sendTextMessage(
+            from,
+            "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
+          );
         } else if (tempBookings[from] && !tempBookings[from].service) {
           tempBookings[from].service = transcript;
           const booking = tempBookings[from];
@@ -255,9 +252,13 @@ app.post("/webhook", async (req, res) => {
 
     // ✅ Handle interactive messages (buttons / lists)
     if (message.type === "interactive") {
+      const interactiveType = message.interactive.type;
       const id =
-        message?.interactive?.button_reply?.id ||
-        message?.interactive?.list_reply?.id;
+        interactiveType === "list_reply"
+          ? message.interactive.list_reply.id
+          : message.interactive.button_reply?.id;
+
+      console.log("🔘 DEBUG => Interactive type:", interactiveType);
       console.log("🔘 DEBUG => Button/List pressed:", id);
 
       if (id?.startsWith("slot_")) {
@@ -398,7 +399,7 @@ app.post("/webhook", async (req, res) => {
       tempBookings[from].phone = normalized;
 
       // Send service dropdown list
-      await sendServiceButtons(from);
+      await sendServiceList(from);
 
       await sendTextMessage(
         from,

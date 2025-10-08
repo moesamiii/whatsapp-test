@@ -130,7 +130,7 @@ async function sendAppointmentButtons(to) {
 }
 
 // ---------------------------------------------
-// 💊 Service buttons
+// 💊 Service buttons (OLD - keep for compatibility)
 // ---------------------------------------------
 async function sendServiceButtons(to) {
   console.log(`📤 DEBUG => Sending service buttons to ${to}`);
@@ -142,32 +142,21 @@ async function sendServiceButtons(to) {
         to,
         type: "interactive",
         interactive: {
-          type: "list",
+          type: "button",
           body: { text: "💊 اختر نوع الخدمة المطلوبة:" },
           action: {
-            button: "اختر الخدمة",
-            sections: [
+            buttons: [
               {
-                title: "خدمات الأسنان",
-                rows: [
-                  { id: "service_تنظيف", title: "تنظيف الأسنان" },
-                  { id: "service_تبييض", title: "تبييض الأسنان" },
-                  { id: "service_حشو", title: "حشو الأسنان" },
-                  { id: "service_خلع", title: "خلع الأسنان" },
-                  { id: "service_زراعة", title: "زراعة الأسنان" },
-                  { id: "service_تقويم", title: "تقويم الأسنان" },
-                  { id: "service_ابتسامة", title: "ابتسامة هوليود" },
-                  { id: "service_علاج_عصب", title: "علاج عصب" },
-                  { id: "service_كشفية", title: "كشفية فحص" },
-                  { id: "service_تجميل", title: "تجميل الأسنان" },
-                ],
+                type: "reply",
+                reply: { id: "service_تنظيف", title: "تنظيف الأسنان" },
               },
               {
-                title: "خدمات أخرى",
-                rows: [
-                  { id: "service_استشارة", title: "استشارة عامة" },
-                  { id: "service_اشعة", title: "أشعة تشخيصية" },
-                ],
+                type: "reply",
+                reply: { id: "service_تبييض", title: "تبييض الأسنان" },
+              },
+              {
+                type: "reply",
+                reply: { id: "service_حشو", title: "حشو الأسنان" },
               },
             ],
           },
@@ -186,6 +175,127 @@ async function sendServiceButtons(to) {
       "❌ DEBUG => Error sending service buttons:",
       err.response?.data || err.message
     );
+  }
+}
+
+// ---------------------------------------------
+// 💊 Service DROPDOWN LIST (NEW - with dropdown)
+// ---------------------------------------------
+async function sendServiceList(to) {
+  console.log(`📤 DEBUG => Sending service dropdown list to ${to}`);
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "list",
+          header: {
+            type: "text",
+            text: "💊 اختر الخدمة المطلوبة",
+          },
+          body: {
+            text: "يرجى اختيار نوع الخدمة من القائمة:",
+          },
+          action: {
+            button: "عرض الخدمات",
+            sections: [
+              {
+                title: "الخدمات الأساسية",
+                rows: [
+                  {
+                    id: "service_فحص_عام",
+                    title: "فحص عام",
+                    description: "فحص شامل للأسنان والتشخيص",
+                  },
+                  {
+                    id: "service_تنظيف_الأسنان",
+                    title: "تنظيف الأسنان",
+                    description: "تنظيف وإزالة الجير والتصبغات",
+                  },
+                  {
+                    id: "service_تبييض_الأسنان",
+                    title: "تبييض الأسنان",
+                    description: "تبييض الأسنان بالليزر أو المواد المبيضة",
+                  },
+                  {
+                    id: "service_حشو_الأسنان",
+                    title: "حشو الأسنان",
+                    description: "علاج التسوس وحشو الأسنان",
+                  },
+                ],
+              },
+              {
+                title: "الخدمات المتقدمة",
+                rows: [
+                  {
+                    id: "service_علاج_الجذور",
+                    title: "علاج الجذور",
+                    description: "علاج قناة الجذر والعصب",
+                  },
+                  {
+                    id: "service_تركيب_التركيبات",
+                    title: "تركيب التركيبات",
+                    description: "تركيب التيجان والجسور",
+                  },
+                  {
+                    id: "service_تقويم_الأسنان",
+                    title: "تقويم الأسنان",
+                    description: "علاج اعوجاج الأسنان وتنظيمها",
+                  },
+                  {
+                    id: "service_خلع_الأسنان",
+                    title: "خلع الأسنان",
+                    description: "خلع الأسنان البسيط أو الجراحي",
+                  },
+                ],
+              },
+              {
+                title: "خدمات التجميل",
+                rows: [
+                  {
+                    id: "service_الفينير",
+                    title: "الفينير",
+                    description: "قشور خزفية لتجميل الأسنان الأمامية",
+                  },
+                  {
+                    id: "service_زراعة_الأسنان",
+                    title: "زراعة الأسنان",
+                    description: "زراعة الأسنان المفقودة",
+                  },
+                  {
+                    id: "service_ابتسامة_هوليود",
+                    title: "ابتسامة هوليود",
+                    description: "تصميم ابتسامة هوليود تجميلية",
+                  },
+                  {
+                    id: "service_خدمة_أخرى",
+                    title: "خدمة أخرى",
+                    description: "اختر هذه إذا كانت الخدمة غير موجودة",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    console.log("✅ DEBUG => Service dropdown list sent successfully");
+  } catch (err) {
+    console.error(
+      "❌ DEBUG => Error sending service dropdown list:",
+      err.response?.data || err.message
+    );
+    // Fallback to regular buttons if list fails
+    await sendServiceButtons(to);
   }
 }
 
@@ -321,6 +431,7 @@ module.exports = {
   sendTextMessage,
   sendAppointmentButtons,
   sendServiceButtons,
+  sendServiceList, // ✅ Export the new dropdown function
   sendAppointmentOptions,
   saveBooking,
   updateBooking,
