@@ -215,6 +215,48 @@ function isDoctorsRequest(text) {
   return doctorKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
+// ---------------------------------------------
+// Doctors Images (reuse the dummy offer images)
+const DOCTOR_IMAGES = OFFER_IMAGES; // same as OFFER_IMAGES
+
+// ---------------------------------------------
+// 👨‍⚕️ Send Doctors List + Images
+async function sendDoctorsImages(to, language = "ar") {
+  try {
+    // Send intro message
+    if (language === "en") {
+      await sendTextMessage(to, "👨‍⚕️ Here are our doctors and their photos:");
+    } else {
+      await sendTextMessage(to, "👨‍⚕️ هذه صور وأسماء أطبائنا:");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Send all 3 images with small delays
+    for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
+      await sendImageMessage(to, DOCTOR_IMAGES[i]);
+      if (i < DOCTOR_IMAGES.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+    }
+
+    // Send closing message with names
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "👨‍⚕️ Our elite team of doctors:\n1- Dr. Mohammed Sami\n2- Dr. Abdulrahman Al-Harbi\n3- Dr. Ahmad Mubaideen"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "👨‍⚕️ نخبة أطبائنا:\n1- د.محمد سامي\n2- د.عبدالرحمن الحربي\n3- د.احمد مبيضين"
+      );
+    }
+  } catch (err) {
+    console.error("❌ Failed to send doctors images:", err.message);
+  }
+}
+
 // 👨‍⚕️ Send Doctors List
 async function sendDoctorsList(to, language = "ar") {
   if (language === "en") {
