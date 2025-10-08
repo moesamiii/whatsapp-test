@@ -34,6 +34,13 @@ const CLINIC_NAME = "Smiles Clinic";
 const CLINIC_LOCATION_LINK =
   "https://www.google.com/maps?q=32.0290684,35.863774&z=17&hl=en";
 
+// Offers & Services Images (Google Drive Direct Links)
+const OFFER_IMAGES = [
+  "https://drive.google.com/uc?export=view&id=104QzzCy2U5ujhADK_SD0dGldowwlgVU2",
+  "https://drive.google.com/uc?export=view&id=19EsrCSixVa_8trbzFF5lrZJqcue0quDW",
+  "https://drive.google.com/uc?export=view&id=17jaUTvf_S2nqApqMlRc3r8q97uPulvDx",
+];
+
 // Detect sheet name on startup
 detectSheetName();
 
@@ -70,6 +77,29 @@ function isLocationRequest(text) {
 }
 
 // ---------------------------------------------
+// 🎁 Offers & Services Detection Helper
+// ---------------------------------------------
+function isOffersRequest(text) {
+  const offersKeywords = [
+    "عروض",
+    "خدمات",
+    "أسعار",
+    "عرض",
+    "خدمة",
+    "سعر",
+    "offers",
+    "services",
+    "prices",
+    "offer",
+    "service",
+    "price",
+  ];
+
+  const lowerText = text.toLowerCase();
+  return offersKeywords.some((keyword) => lowerText.includes(keyword));
+}
+
+// ---------------------------------------------
 // 🌐 Language Detection Helper
 // ---------------------------------------------
 function isEnglish(text) {
@@ -98,6 +128,73 @@ async function sendLocationMessages(to, language = "ar") {
       to,
       `📍 هذا هو موقع ${CLINIC_NAME}. يمكنك الضغط على الرابط لفتحه في خرائط جوجل 🗺️`
     );
+  }
+}
+
+// ---------------------------------------------
+// 🎁 Send Offers & Services Images
+// ---------------------------------------------
+async function sendOffersImages(to, language = "ar") {
+  try {
+    // Send intro message
+    if (language === "en") {
+      await sendTextMessage(to, "💊 Here are our offers and services:");
+    } else {
+      await sendTextMessage(to, "💊 هذه عروضنا وخدماتنا الحالية:");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Send all 3 images with small delays
+    for (let i = 0; i < OFFER_IMAGES.length; i++) {
+      await sendImageMessage(to, OFFER_IMAGES[i]);
+      if (i < OFFER_IMAGES.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+    }
+
+    // Send closing message
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "✨ For more details or to book an appointment, just let me know!"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "✨ لمزيد من التفاصيل أو لحجز موعد، أخبرني فقط!"
+      );
+    }
+  } catch (err) {
+    console.error("❌ Failed to send offers images:", err.message);
+  }
+}
+
+// ---------------------------------------------
+// 📸 Send Image Helper
+// ---------------------------------------------
+async function sendImageMessage(to, imageUrl) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: to,
+        type: "image",
+        image: {
+          link: imageUrl,
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  } catch (err) {
+    console.error("❌ Failed to send image:", err.message);
   }
 }
 
@@ -221,6 +318,13 @@ app.post("/webhook", async (req, res) => {
       if (isLocationRequest(transcript)) {
         const language = isEnglish(transcript) ? "en" : "ar";
         await sendLocationMessages(from, language);
+        return res.sendStatus(200);
+      }
+
+      // 🎁 Check if user is asking about offers/services
+      if (isOffersRequest(transcript)) {
+        const language = isEnglish(transcript) ? "en" : "ar";
+        await sendOffersImages(from, language);
         return res.sendStatus(200);
       }
 
@@ -401,6 +505,13 @@ app.post("/webhook", async (req, res) => {
     if (isLocationRequest(text)) {
       const language = isEnglish(text) ? "en" : "ar";
       await sendLocationMessages(from, language);
+      return res.sendStatus(200);
+    }
+
+    // 🎁 Check if user is asking about offers/services (text message)
+    if (isOffersRequest(text)) {
+      const language = isEnglish(text) ? "en" : "ar";
+      await sendOffersImages(from, language);
       return res.sendStatus(200);
     }
 
