@@ -37,6 +37,50 @@ global.tempBookings = global.tempBookings || {};
 const tempBookings = global.tempBookings;
 
 // ---------------------------------------------
+// 🧭 Location Helper
+// ---------------------------------------------
+async function sendLocationMessage(to) {
+  try {
+    // Replace with your actual clinic coordinates and address
+    const latitude = 31.963158;
+    const longitude = 35.930359;
+    const address = "عيادة ابتسامتك - عبدون، عمّان، الأردن";
+    const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+
+    // 1️⃣ Send WhatsApp Location Message
+    await axios.post(
+      "https://graph.facebook.com/v21.0/me/messages",
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "location",
+        location: {
+          latitude,
+          longitude,
+          name: "عيادة ابتسامتك",
+          address,
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    // 2️⃣ Follow-up Text Message with link
+    await sendTextMessage(
+      to,
+      `📍 موقعنا على الخريطة:\n${address}\n\nافتح في الخرائط: ${mapsUrl}`
+    );
+  } catch (err) {
+    console.error("❌ Failed to send location:", err.message);
+    await sendTextMessage(to, "⚠️ حدث خطأ أثناء إرسال الموقع، حاول لاحقاً.");
+  }
+}
+
+// ---------------------------------------------
 // 🧠 Voice Transcription Helper (using Groq Whisper)
 // ---------------------------------------------
 async function transcribeAudio(mediaId) {
@@ -46,9 +90,7 @@ async function transcribeAudio(mediaId) {
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
       {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-        },
+        headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
       }
     );
 
@@ -57,9 +99,7 @@ async function transcribeAudio(mediaId) {
 
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
-      headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-      },
+      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
     });
 
     const form = new FormData();
@@ -117,11 +157,8 @@ app.get("/webhook", (req, res) => {
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode && token === VERIFY_TOKEN) {
-    res.status(200).send(challenge);
-  } else {
-    res.sendStatus(403);
-  }
+  if (mode && token === VERIFY_TOKEN) res.status(200).send(challenge);
+  else res.sendStatus(403);
 });
 
 // ---------------------------------------------
@@ -135,8 +172,17 @@ app.post("/webhook", async (req, res) => {
     if (!message || !from) return res.sendStatus(200);
 
     const fridayWords = ["الجمعة", "Friday", "friday"];
+    const locationWords = [
+      "الموقع",
+      "العنوان",
+      "وين العيادة",
+      "وين مكانكم",
+      "location",
+      "where are you",
+      "map",
+    ];
 
-    // 🎙️ Voice messages
+    // 🎙️ Handle voice messages
     if (message.type === "audio") {
       const mediaId = message.audio.id;
       if (!mediaId) return res.sendStatus(200);
@@ -152,18 +198,26 @@ app.post("/webhook", async (req, res) => {
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
 
-      // 🛑 check if user mentioned Friday
+      // 🧭 Detect location request
       if (
-        fridayWords.some((word) =>
-          transcript.toLowerCase().includes(word.toLowerCase())
+        locationWords.some((w) =>
+          transcript.toLowerCase().includes(w.toLowerCase())
+        )
+      ) {
+        await sendLocationMessage(from);
+        return res.sendStatus(200);
+      }
+
+      // 🛑 Check Friday
+      if (
+        fridayWords.some((w) =>
+          transcript.toLowerCase().includes(w.toLowerCase())
         )
       ) {
         await sendTextMessage(
           from,
           "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
         );
-
-        // ✅ Start booking flow after Friday message
         setTimeout(async () => {
           await sendTextMessage(
             from,
@@ -171,10 +225,10 @@ app.post("/webhook", async (req, res) => {
           );
           await sendAppointmentOptions(from);
         }, 2000);
-
         return res.sendStatus(200);
       }
 
+      // Booking flow continues here...
       if (!tempBookings[from]) {
         if (
           transcript.includes("حجز") ||
@@ -188,7 +242,7 @@ app.post("/webhook", async (req, res) => {
           await sendTextMessage(from, reply);
         }
       } else {
-        if (tempBookings[from] && !tempBookings[from].name) {
+        if (!tempBookings[from].name) {
           const isValid = await validateNameWithAI(transcript);
           if (!isValid) {
             await sendTextMessage(
@@ -199,7 +253,7 @@ app.post("/webhook", async (req, res) => {
           }
           tempBookings[from].name = transcript;
           await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
-        } else if (tempBookings[from] && !tempBookings[from].phone) {
+        } else if (!tempBookings[from].phone) {
           const normalized = transcript
             .replace(/[^\d٠-٩]/g, "")
             .replace(/٠/g, "0")
@@ -223,15 +277,12 @@ app.post("/webhook", async (req, res) => {
           }
 
           tempBookings[from].phone = normalized;
-
-          // Send service dropdown list
           await sendServiceList(from);
-
           await sendTextMessage(
             from,
             "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
           );
-        } else if (tempBookings[from] && !tempBookings[from].service) {
+        } else if (!tempBookings[from].service) {
           tempBookings[from].service = transcript;
           const booking = tempBookings[from];
           await saveBooking(booking);
@@ -246,35 +297,33 @@ app.post("/webhook", async (req, res) => {
           delete tempBookings[from];
         }
       }
-
       return res.sendStatus(200);
     }
 
-    // ✅ Handle interactive messages (buttons / lists)
+    // ✅ Handle interactive messages (buttons/lists)
     if (message.type === "interactive") {
-      const interactiveType = message.interactive.type;
+      const type = message.interactive.type;
       const id =
-        interactiveType === "list_reply"
+        type === "list_reply"
           ? message.interactive.list_reply.id
           : message.interactive.button_reply?.id;
 
-      console.log("🔘 DEBUG => Interactive type:", interactiveType);
-      console.log("🔘 DEBUG => Button/List pressed:", id);
+      if (id === "location_btn") {
+        await sendLocationMessage(from);
+        return res.sendStatus(200);
+      }
 
       if (id?.startsWith("slot_")) {
         const appointment = id.replace("slot_", "").toUpperCase();
-
         if (
-          fridayWords.some((word) =>
-            appointment.toLowerCase().includes(word.toLowerCase())
+          fridayWords.some((w) =>
+            appointment.toLowerCase().includes(w.toLowerCase())
           )
         ) {
           await sendTextMessage(
             from,
             "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
           );
-
-          // ✅ Continue booking after Friday message
           setTimeout(async () => {
             await sendTextMessage(
               from,
@@ -282,7 +331,6 @@ app.post("/webhook", async (req, res) => {
             );
             await sendAppointmentOptions(from);
           }, 2000);
-
           return res.sendStatus(200);
         }
 
@@ -325,27 +373,28 @@ app.post("/webhook", async (req, res) => {
     if (!text) return res.sendStatus(200);
     console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-    // 🛑 Check if user typed Friday manually
+    // 🧭 Detect location request
     if (
-      fridayWords.some((word) =>
-        text.toLowerCase().includes(word.toLowerCase())
-      )
+      locationWords.some((w) => text.toLowerCase().includes(w.toLowerCase()))
     ) {
+      await sendLocationMessage(from);
+      return res.sendStatus(200);
+    }
+
+    // 🛑 Friday logic
+    if (fridayWords.some((w) => text.toLowerCase().includes(w.toLowerCase()))) {
       await sendTextMessage(
         from,
         "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
       );
-
-      // ✅ Start booking flow after informing
       setTimeout(async () => {
         await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
         await sendAppointmentOptions(from);
       }, 2000);
-
       return res.sendStatus(200);
     }
 
-    // Step 1: Appointment shortcut
+    // Normal booking flow
     if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
       const appointment = `${text} PM`;
       tempBookings[from] = { appointment };
@@ -356,7 +405,6 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // Step 2: Name input
     if (tempBookings[from] && !tempBookings[from].name) {
       const userName = text.trim();
       const isValid = await validateNameWithAI(userName);
@@ -372,7 +420,6 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // Step 3: Phone input
     if (tempBookings[from] && !tempBookings[from].phone) {
       const normalized = text
         .replace(/[^\d٠-٩]/g, "")
@@ -397,10 +444,7 @@ app.post("/webhook", async (req, res) => {
       }
 
       tempBookings[from].phone = normalized;
-
-      // Send service dropdown list
       await sendServiceList(from);
-
       await sendTextMessage(
         from,
         "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
@@ -408,7 +452,6 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // Step 4: Service input (manual text input as fallback)
     if (tempBookings[from] && !tempBookings[from].service) {
       const booking = tempBookings[from];
       booking.service = text;
@@ -425,7 +468,7 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ✅ Step 5: AI chat fallback
+    // AI Fallback
     if (!tempBookings[from]) {
       if (text.includes("حجز") || text.toLowerCase().includes("book")) {
         await sendAppointmentOptions(from);
