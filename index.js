@@ -37,51 +37,7 @@ global.tempBookings = global.tempBookings || {};
 const tempBookings = global.tempBookings;
 
 // ---------------------------------------------
-// 🧭 Location Helper
-// ---------------------------------------------
-async function sendLocationMessage(to) {
-  try {
-    // Replace with your actual clinic coordinates and address
-    const latitude = 31.963158;
-    const longitude = 35.930359;
-    const address = "عيادة ابتسامتك - عبدون، عمّان، الأردن";
-    const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
-
-    // 1️⃣ Send WhatsApp Location Message
-    await axios.post(
-      "https://graph.facebook.com/v21.0/me/messages",
-      {
-        messaging_product: "whatsapp",
-        to,
-        type: "location",
-        location: {
-          latitude,
-          longitude,
-          name: "عيادة ابتسامتك",
-          address,
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    // 2️⃣ Follow-up Text Message with link
-    await sendTextMessage(
-      to,
-      `📍 موقعنا على الخريطة:\n${address}\n\nافتح في الخرائط: ${mapsUrl}`
-    );
-  } catch (err) {
-    console.error("❌ Failed to send location:", err.message);
-    await sendTextMessage(to, "⚠️ حدث خطأ أثناء إرسال الموقع، حاول لاحقاً.");
-  }
-}
-
-// ---------------------------------------------
-// 🧠 Voice Transcription Helper (using Groq Whisper)
+// 🧠 Voice Transcription Helper (Groq Whisper)
 // ---------------------------------------------
 async function transcribeAudio(mediaId) {
   try {
@@ -90,7 +46,9 @@ async function transcribeAudio(mediaId) {
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
       {
-        headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        },
       }
     );
 
@@ -99,7 +57,9 @@ async function transcribeAudio(mediaId) {
 
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
-      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+      },
     });
 
     const form = new FormData();
@@ -126,6 +86,55 @@ async function transcribeAudio(mediaId) {
   } catch (err) {
     console.error("❌ Voice transcription failed:", err.message);
     return null;
+  }
+}
+
+// ---------------------------------------------
+// 📍 Send Location (Clinic Map Pin)
+// ---------------------------------------------
+async function sendLocation(to) {
+  try {
+    // 📍 Customize this info
+    const latitude = 31.9539;
+    const longitude = 35.9106;
+    const clinicName = "عيادة ابتسامتك";
+    const address = "عبدون، عمّان - خلف بنك الإسكان";
+    const mapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
+
+    // 1️⃣ Send actual map pin
+    await axios.post(
+      "https://graph.facebook.com/v21.0/me/messages",
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "location",
+        location: {
+          latitude,
+          longitude,
+          name: clinicName,
+          address,
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    // 2️⃣ Follow-up message with clickable Google Maps link
+    await sendTextMessage(
+      to,
+      `📍 ${clinicName}\n${address}\n\nافتح في الخرائط:\n${mapsLink}`
+    );
+
+    console.log("✅ Location sent successfully to:", to);
+  } catch (err) {
+    console.error(
+      "❌ Failed to send location:",
+      err.response?.data || err.message
+    );
   }
 }
 
@@ -157,8 +166,11 @@ app.get("/webhook", (req, res) => {
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode && token === VERIFY_TOKEN) res.status(200).send(challenge);
-  else res.sendStatus(403);
+  if (mode && token === VERIFY_TOKEN) {
+    res.status(200).send(challenge);
+  } else {
+    res.sendStatus(403);
+  }
 });
 
 // ---------------------------------------------
@@ -174,12 +186,13 @@ app.post("/webhook", async (req, res) => {
     const fridayWords = ["الجمعة", "Friday", "friday"];
     const locationWords = [
       "الموقع",
-      "العنوان",
       "وين العيادة",
       "وين مكانكم",
+      "العنوان",
       "location",
-      "where are you",
       "map",
+      "where are you",
+      "clinic location",
     ];
 
     // 🎙️ Handle voice messages
@@ -198,20 +211,20 @@ app.post("/webhook", async (req, res) => {
 
       console.log(`🗣️ Transcribed text: "${transcript}"`);
 
-      // 🧭 Detect location request
+      // Detect location intent from voice
       if (
-        locationWords.some((w) =>
-          transcript.toLowerCase().includes(w.toLowerCase())
+        locationWords.some((word) =>
+          transcript.toLowerCase().includes(word.toLowerCase())
         )
       ) {
-        await sendLocationMessage(from);
+        await sendLocation(from);
         return res.sendStatus(200);
       }
 
-      // 🛑 Check Friday
+      // Detect Friday
       if (
-        fridayWords.some((w) =>
-          transcript.toLowerCase().includes(w.toLowerCase())
+        fridayWords.some((word) =>
+          transcript.toLowerCase().includes(word.toLowerCase())
         )
       ) {
         await sendTextMessage(
@@ -228,7 +241,7 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // Booking flow continues here...
+      // Normal logic
       if (!tempBookings[from]) {
         if (
           transcript.includes("حجز") ||
@@ -242,6 +255,7 @@ app.post("/webhook", async (req, res) => {
           await sendTextMessage(from, reply);
         }
       } else {
+        // Handle booking steps
         if (!tempBookings[from].name) {
           const isValid = await validateNameWithAI(transcript);
           if (!isValid) {
@@ -288,63 +302,48 @@ app.post("/webhook", async (req, res) => {
           await saveBooking(booking);
           await sendTextMessage(
             from,
-            `✅ تم حفظ حجزك بنجاح:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
+            `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
           );
           delete tempBookings[from];
         }
       }
+
       return res.sendStatus(200);
     }
 
-    // ✅ Handle interactive messages (buttons/lists)
+    // ✅ Handle interactive (buttons/lists)
     if (message.type === "interactive") {
-      const type = message.interactive.type;
       const id =
-        type === "list_reply"
-          ? message.interactive.list_reply.id
-          : message.interactive.button_reply?.id;
-
-      if (id === "location_btn") {
-        await sendLocationMessage(from);
-        return res.sendStatus(200);
-      }
+        message.interactive.list_reply?.id ||
+        message.interactive.button_reply?.id;
+      console.log("🔘 Interactive:", id);
 
       if (id?.startsWith("slot_")) {
         const appointment = id.replace("slot_", "").toUpperCase();
+
         if (
-          fridayWords.some((w) =>
-            appointment.toLowerCase().includes(w.toLowerCase())
+          fridayWords.some((word) =>
+            appointment.toLowerCase().includes(word.toLowerCase())
           )
         ) {
           await sendTextMessage(
             from,
-            "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
+            "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز 🌷"
           );
           setTimeout(async () => {
-            await sendTextMessage(
-              from,
-              "📅 لنبدأ الحجز، اختر الوقت المناسب 👇"
-            );
             await sendAppointmentOptions(from);
           }, 2000);
           return res.sendStatus(200);
         }
 
         tempBookings[from] = { appointment };
-        await sendTextMessage(
-          from,
-          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
-        );
+        await sendTextMessage(from, "👍 تم اختيار الموعد! الآن أرسل اسمك:");
         return res.sendStatus(200);
       }
 
       if (id?.startsWith("service_")) {
         const serviceName = id.replace("service_", "").replace(/_/g, " ");
-        if (!tempBookings[from] || !tempBookings[from].phone) {
+        if (!tempBookings[from]?.phone) {
           await sendTextMessage(
             from,
             "⚠️ يرجى إكمال خطوات الحجز أولاً (الموعد، الاسم، رقم الجوال)"
@@ -356,58 +355,57 @@ app.post("/webhook", async (req, res) => {
         await saveBooking(booking);
         await sendTextMessage(
           from,
-          `✅ تم حفظ حجزك:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
+          `✅ تم حفظ حجزك:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
         );
         delete tempBookings[from];
         return res.sendStatus(200);
       }
+
       return res.sendStatus(200);
     }
 
     // ✅ Handle text messages
     const text = message?.text?.body?.trim();
     if (!text) return res.sendStatus(200);
-    console.log(`💬 DEBUG => Message from ${from}:`, text);
+    console.log(`💬 Message from ${from}:`, text);
 
-    // 🧭 Detect location request
+    // 📍 Detect location keywords
     if (
-      locationWords.some((w) => text.toLowerCase().includes(w.toLowerCase()))
+      locationWords.some((word) =>
+        text.toLowerCase().includes(word.toLowerCase())
+      )
     ) {
-      await sendLocationMessage(from);
+      await sendLocation(from);
       return res.sendStatus(200);
     }
 
-    // 🛑 Friday logic
-    if (fridayWords.some((w) => text.toLowerCase().includes(w.toLowerCase()))) {
+    // 🛑 Friday check
+    if (
+      fridayWords.some((word) =>
+        text.toLowerCase().includes(word.toLowerCase())
+      )
+    ) {
       await sendTextMessage(
         from,
-        "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
+        "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز 🌷"
       );
       setTimeout(async () => {
-        await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
         await sendAppointmentOptions(from);
       }, 2000);
       return res.sendStatus(200);
     }
 
-    // Normal booking flow
+    // Booking flow logic
     if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
       const appointment = `${text} PM`;
       tempBookings[from] = { appointment };
-      await sendTextMessage(
-        from,
-        "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
-      );
+      await sendTextMessage(from, "👍 تم اختيار الموعد! الآن أرسل اسمك:");
       return res.sendStatus(200);
     }
 
     if (tempBookings[from] && !tempBookings[from].name) {
-      const userName = text.trim();
-      const isValid = await validateNameWithAI(userName);
+      const name = text.trim();
+      const isValid = await validateNameWithAI(name);
       if (!isValid) {
         await sendTextMessage(
           from,
@@ -415,7 +413,7 @@ app.post("/webhook", async (req, res) => {
         );
         return res.sendStatus(200);
       }
-      tempBookings[from].name = userName;
+      tempBookings[from].name = name;
       await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
       return res.sendStatus(200);
     }
@@ -458,17 +456,13 @@ app.post("/webhook", async (req, res) => {
       await saveBooking(booking);
       await sendTextMessage(
         from,
-        `✅ تم حفظ حجزك بنجاح:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
+        `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
       );
       delete tempBookings[from];
       return res.sendStatus(200);
     }
 
-    // AI Fallback
+    // 💬 AI fallback
     if (!tempBookings[from]) {
       if (text.includes("حجز") || text.toLowerCase().includes("book")) {
         await sendAppointmentOptions(from);
@@ -480,7 +474,7 @@ app.post("/webhook", async (req, res) => {
 
     res.sendStatus(200);
   } catch (err) {
-    console.error("❌ DEBUG => Webhook Error:", err.message);
+    console.error("❌ Webhook Error:", err.message);
     res.sendStatus(500);
   }
 });
