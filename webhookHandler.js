@@ -1,6 +1,26 @@
-// webhookHandler.js
-// Put this file next to index.js. It registers the /webhook GET (verification)
-// and POST (message handling) routes. Exports registerWebhookRoutes(app, VERIFY_TOKEN).
+/**
+ * webhookHandler.js
+ *
+ * Responsibilities:
+ * - Register the /webhook verification route (GET) and webhook receiver (POST).
+ * - Handle non-audio messages: interactive (buttons/lists) and plain text messages.
+ * - Manage the booking flow for text & interactive flows (appointment selection, name, phone, service).
+ * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
+ *
+ * Why this file exists:
+ * - Keeps Express route registration and the main conversational flow in one place.
+ * - Keeps audio-heavy logic (transcription + media fetching) separated in webhookProcessor.js.
+ *
+ * Dependencies:
+ * - helpers.js for WhatsApp send utilities, booking persistence and AI validation.
+ * - messageHandlers.js for detection helpers and media sending (location/offers/doctors).
+ * - webhookProcessor.js for audio handling.
+ *
+ * Usage:
+ * - index.js should call: registerWebhookRoutes(app, VERIFY_TOKEN)
+ *
+ * NOTE: This file intentionally does not touch Google Sheets or Twilio etc. All those are in helpers.js.
+ */
 
 const {
   askAI,
@@ -12,7 +32,6 @@ const {
 } = require("./helpers");
 
 const {
-  transcribeAudio,
   sendLocationMessages,
   sendOffersImages,
   sendDoctorsImages,
@@ -22,8 +41,10 @@ const {
   isEnglish,
 } = require("./messageHandlers");
 
+const { handleAudioMessage } = require("./webhookProcessor");
+
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
-  // Webhook verification (GET)
+  // Webhook verification
   app.get("/webhook", (req, res) => {
     const mode = req.query["hub.mode"];
     const token = req.query["hub.verify_token"];
@@ -45,154 +66,23 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       if (!message || !from) return res.sendStatus(200);
 
-      // Ensure tempBookings exists on global
-      const tempBookings = global.tempBookings || (global.tempBookings = {});
+      // Ensure global tempBookings object exists
+      const tempBookings = (global.tempBookings = global.tempBookings || {});
 
-      const fridayWords = ["الجمعة", "Friday", "friday"];
-
-      // --------- Voice messages ----------
+      // When message is audio -> delegate to webhookProcessor
       if (message.type === "audio") {
-        const mediaId = message.audio.id;
-        if (!mediaId) return res.sendStatus(200);
-
-        const transcript = await transcribeAudio(mediaId);
-
-        if (!transcript) {
-          await sendTextMessage(
-            from,
-            "⚠️ لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى 🎙️"
-          );
-          return res.sendStatus(200);
-        }
-
-        console.log(`🗣️ Transcribed text: "${transcript}"`);
-
-        if (isLocationRequest(transcript)) {
-          const language = isEnglish(transcript) ? "en" : "ar";
-          await sendLocationMessages(from, language);
-          return res.sendStatus(200);
-        }
-
-        if (isOffersRequest(transcript)) {
-          const language = isEnglish(transcript) ? "en" : "ar";
-          await sendOffersImages(from, language);
-          return res.sendStatus(200);
-        }
-
-        if (isDoctorsRequest(transcript)) {
-          const language = isEnglish(transcript) ? "en" : "ar";
-          await sendDoctorsImages(from, language);
-          return res.sendStatus(200);
-        }
-
-        if (
-          fridayWords.some((word) =>
-            transcript.toLowerCase().includes(word.toLowerCase())
-          )
-        ) {
-          await sendTextMessage(
-            from,
-            "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
-          );
-
-          // Start booking flow after Friday message
-          setTimeout(async () => {
-            await sendTextMessage(
-              from,
-              "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇"
-            );
-            await sendAppointmentOptions(from);
-          }, 2000);
-
-          return res.sendStatus(200);
-        }
-
-        // Booking flow vs AI response
-        if (!tempBookings[from]) {
-          if (
-            transcript.includes("حجز") ||
-            transcript.toLowerCase().includes("book") ||
-            transcript.includes("موعد") ||
-            transcript.includes("appointment")
-          ) {
-            await sendAppointmentOptions(from);
-          } else {
-            const reply = await askAI(transcript);
-            await sendTextMessage(from, reply);
-          }
-        } else {
-          if (tempBookings[from] && !tempBookings[from].name) {
-            const isValid = await validateNameWithAI(transcript);
-            if (!isValid) {
-              await sendTextMessage(
-                from,
-                "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
-              );
-              return res.sendStatus(200);
-            }
-
-            tempBookings[from].name = transcript;
-            await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
-          } else if (tempBookings[from] && !tempBookings[from].phone) {
-            const normalized = transcript
-              .replace(/[^\d٠-٩]/g, "")
-              .replace(/٠/g, "0")
-              .replace(/١/g, "1")
-              .replace(/٢/g, "2")
-              .replace(/٣/g, "3")
-              .replace(/٤/g, "4")
-              .replace(/٥/g, "5")
-              .replace(/٦/g, "6")
-              .replace(/٧/g, "7")
-              .replace(/٨/g, "8")
-              .replace(/٩/g, "9");
-
-            const isValid = /^07\d{8}$/.test(normalized);
-
-            if (!isValid) {
-              await sendTextMessage(
-                from,
-                "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
-              );
-              return res.sendStatus(200);
-            }
-
-            tempBookings[from].phone = normalized;
-
-            // Send service dropdown list
-            await sendServiceList(from);
-            await sendTextMessage(
-              from,
-              "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
-            );
-          } else if (tempBookings[from] && !tempBookings[from].service) {
-            tempBookings[from].service = transcript;
-            const booking = tempBookings[from];
-            await saveBooking(booking);
-
-            await sendTextMessage(
-              from,
-              `✅ تم حفظ حجزك بنجاح:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
-            );
-
-            delete tempBookings[from];
-          }
-        }
-
+        // audio branch is intentionally delegated to keep this file smaller
+        await handleAudioMessage(message, from);
         return res.sendStatus(200);
       }
 
-      // --------- Interactive (buttons / lists) ----------
+      // interactive (buttons / lists)
       if (message.type === "interactive") {
-        const interactiveType = message.interactive.type;
+        const interactiveType = message.interactive?.type;
         const id =
           interactiveType === "list_reply"
-            ? message.interactive.list_reply.id
-            : message.interactive.button_reply?.id;
+            ? message.interactive?.list_reply?.id
+            : message.interactive?.button_reply?.id;
 
         console.log("🔘 DEBUG => Interactive type:", interactiveType);
         console.log("🔘 DEBUG => Button/List pressed:", id);
@@ -200,6 +90,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         if (id?.startsWith("slot_")) {
           const appointment = id.replace("slot_", "").toUpperCase();
 
+          const fridayWords = ["الجمعة", "Friday", "friday"];
           if (
             fridayWords.some((word) =>
               appointment.toLowerCase().includes(word.toLowerCase())
@@ -210,7 +101,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
               "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
             );
 
-            // Continue booking after Friday message
+            // Re-start booking after a short delay
             setTimeout(async () => {
               await sendTextMessage(
                 from,
@@ -261,12 +152,13 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // --------- Text messages ----------
+      // Text messages
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
 
       console.log(`💬 DEBUG => Message from ${from}:`, text);
 
+      // simple detection shortcuts
       if (isLocationRequest(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendLocationMessages(from, language);
@@ -285,6 +177,8 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
+      // Friday check
+      const fridayWords = ["الجمعة", "Friday", "friday"];
       if (
         fridayWords.some((word) =>
           text.toLowerCase().includes(word.toLowerCase())
@@ -295,7 +189,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
         );
 
-        // Start booking flow after informing
         setTimeout(async () => {
           await sendTextMessage(
             from,
@@ -307,7 +200,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 1: Appointment shortcut
+      // Step 1: Appointment shortcut (text 3 / 6 / 9)
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         const appointment = `${text} PM`;
         tempBookings[from] = { appointment };
@@ -318,7 +211,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 2: Name input
+      // Step 2: Name input (text)
       if (tempBookings[from] && !tempBookings[from].name) {
         const userName = text.trim();
         const isValid = await validateNameWithAI(userName);
@@ -336,7 +229,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 3: Phone input
+      // Step 3: Phone input (text)
       if (tempBookings[from] && !tempBookings[from].phone) {
         const normalized = text
           .replace(/[^\d٠-٩]/g, "")
@@ -401,10 +294,10 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         }
       }
 
-      res.sendStatus(200);
+      return res.sendStatus(200);
     } catch (err) {
       console.error("❌ DEBUG => Webhook Error:", err.message || err);
-      res.sendStatus(500);
+      return res.sendStatus(500);
     }
   });
 }
