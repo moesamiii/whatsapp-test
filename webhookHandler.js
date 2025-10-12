@@ -7,7 +7,6 @@
  * - Manage the booking flow for text & interactive flows (appointment selection, name, phone, service).
  * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
  * - Filter inappropriate content using ban words detection.
- * - Validate service requests using AI.
  *
  * Why this file exists:
  * - Keeps Express route registration and the main conversational flow in one place.
@@ -27,7 +26,6 @@
 const {
   askAI,
   validateNameWithAI,
-  validateServiceWithAI,
   sendTextMessage,
   sendServiceList,
   sendAppointmentOptions,
@@ -278,51 +276,10 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 4: Service input (manual text fallback with AI validation)
+      // Step 4: Service input (manual text fallback)
       if (tempBookings[from] && !tempBookings[from].service) {
-        const serviceName = text.trim();
-
-        // 🤖 AI SERVICE VALIDATION
-        const isValidService = await validateServiceWithAI(serviceName);
-
-        if (!isValidService) {
-          const language = isEnglish(text) ? "en" : "ar";
-
-          if (language === "en") {
-            await sendTextMessage(
-              from,
-              "⚠️ I'm sorry, but that doesn't appear to be a valid dental service.\n\n" +
-                "Please choose from the dropdown list above, or enter a real dental service like:\n" +
-                "• Teeth Cleaning\n" +
-                "• Teeth Whitening\n" +
-                "• Dental Fillings\n" +
-                "• Root Canal\n" +
-                "• Dental Implants\n" +
-                "• Braces/Orthodontics"
-            );
-          } else {
-            await sendTextMessage(
-              from,
-              "⚠️ عذراً، لكن هذه الخدمة غير متوفرة أو غير صحيحة.\n\n" +
-                "الرجاء الاختيار من القائمة المنسدلة أعلاه، أو إدخال خدمة أسنان حقيقية مثل:\n" +
-                "• تنظيف الأسنان\n" +
-                "• تبييض الأسنان\n" +
-                "• حشوات الأسنان\n" +
-                "• علاج العصب\n" +
-                "• زراعة الأسنان\n" +
-                "• تقويم الأسنان"
-            );
-          }
-
-          console.log(
-            `❌ Invalid service rejected: "${serviceName}" from ${from}`
-          );
-          return res.sendStatus(200);
-        }
-
-        // Service is valid, proceed with booking
         const booking = tempBookings[from];
-        booking.service = serviceName;
+        booking.service = text;
         await saveBooking(booking);
 
         await sendTextMessage(
@@ -334,7 +291,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 📅 ${booking.appointment}`
         );
 
-        console.log(`✅ Valid service accepted: "${serviceName}" from ${from}`);
         delete tempBookings[from];
         return res.sendStatus(200);
       }
