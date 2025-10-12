@@ -7,6 +7,20 @@
  * - Manage the booking flow for text & interactive flows (appointment selection, name, phone, service).
  * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
  * - Filter inappropriate content using ban words detection.
+ *
+ * Why this file exists:
+ * - Keeps Express route registration and the main conversational flow in one place.
+ * - Keeps audio-heavy logic (transcription + media fetching) separated in webhookProcessor.js.
+ *
+ * Dependencies:
+ * - helpers.js for WhatsApp send utilities, booking persistence and AI validation.
+ * - messageHandlers.js for detection helpers and media sending (location/offers/doctors).
+ * - webhookProcessor.js for audio handling.
+ *
+ * Usage:
+ * - index.js should call: registerWebhookRoutes(app, VERIFY_TOKEN)
+ *
+ * NOTE: This file intentionally does not touch Google Sheets or Twilio etc. All those are in helpers.js.
  */
 
 const {
@@ -52,17 +66,19 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       const body = req.body;
       const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
       const from = message?.from;
+
       if (!message || !from) return res.sendStatus(200);
 
+      // Ensure global tempBookings object exists
       const tempBookings = (global.tempBookings = global.tempBookings || {});
 
-      // Delegate audio messages
+      // When message is audio -> delegate to webhookProcessor
       if (message.type === "audio") {
         await handleAudioMessage(message, from);
         return res.sendStatus(200);
       }
 
-      // Interactive messages
+      // Interactive messages (buttons / lists)
       if (message.type === "interactive") {
         const interactiveType = message.interactive?.type;
         const id =
@@ -70,7 +86,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
             ? message.interactive?.list_reply?.id
             : message.interactive?.button_reply?.id;
 
-        // Appointment selection
         if (id?.startsWith("slot_")) {
           const appointment = id.replace("slot_", "").toUpperCase();
           const fridayWords = ["الجمعة", "Friday", "friday"];
@@ -104,7 +119,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           return res.sendStatus(200);
         }
 
-        // Service selection
         if (id?.startsWith("service_")) {
           const serviceName = id.replace("service_", "").replace(/_/g, " ");
           if (!tempBookings[from] || !tempBookings[from].phone) {
@@ -139,14 +153,14 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
 
-      // 🚫 Ban word filter
+      // 🚫 Check for ban words
       if (containsBanWords(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendBanWordsResponse(from, language);
         return res.sendStatus(200);
       }
 
-      // Shortcuts
+      // Shortcut detection
       if (isLocationRequest(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendLocationMessages(from, language);
@@ -199,7 +213,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 2: Name
+      // Step 2: Name input
       if (tempBookings[from] && !tempBookings[from].name) {
         const userName = text.trim();
         const isValid = await validateNameWithAI(userName);
@@ -217,20 +231,32 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 3: Phone
+      // Step 3: Phone input
       if (tempBookings[from] && !tempBookings[from].phone) {
-        const userPhone = text.trim();
-        const isValid = /^(07|٠٧)[0-9٠-٩]{8}$/.test(userPhone);
+        const normalized = text
+          .replace(/[^\d٠-٩]/g, "")
+          .replace(/٠/g, "0")
+          .replace(/١/g, "1")
+          .replace(/٢/g, "2")
+          .replace(/٣/g, "3")
+          .replace(/٤/g, "4")
+          .replace(/٥/g, "5")
+          .replace(/٦/g, "6")
+          .replace(/٧/g, "7")
+          .replace(/٨/g, "8")
+          .replace(/٩/g, "9");
+
+        const isValid = /^07\d{8}$/.test(normalized);
 
         if (!isValid) {
           await sendTextMessage(
             from,
-            "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875 أو ٠٧٨٥٠٥٠٨٧٥"
+            "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
           );
           return res.sendStatus(200);
         }
 
-        tempBookings[from].phone = userPhone;
+        tempBookings[from].phone = normalized;
         await sendServiceList(from);
         await sendTextMessage(
           from,
@@ -239,7 +265,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 4: Service
+      // Step 4: Service input (manual text fallback) with AI validation
       if (tempBookings[from] && !tempBookings[from].service) {
         const booking = tempBookings[from];
         const userService = text.trim();
@@ -277,7 +303,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 5: Fallback
+      // Step 5: AI chat fallback
       if (!tempBookings[from]) {
         if (text.includes("حجز") || text.toLowerCase().includes("book")) {
           await sendAppointmentOptions(from);
