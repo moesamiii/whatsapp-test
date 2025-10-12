@@ -186,6 +186,8 @@ const BAN_WORDS = {
     "متناكة",
     "يلعن",
     "كسختك",
+    "امشم",
+    "مشم",
 
     // Racist/Discriminatory
     "عبد",
