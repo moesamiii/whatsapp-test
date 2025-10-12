@@ -192,8 +192,13 @@ async function sendServiceList(to) {
         type: "interactive",
         interactive: {
           type: "list",
-          header: { type: "text", text: "💊 اختر الخدمة المطلوبة" },
-          body: { text: "يرجى اختيار نوع الخدمة من القائمة:" },
+          header: {
+            type: "text",
+            text: "💊 اختر الخدمة المطلوبة",
+          },
+          body: {
+            text: "يرجى اختيار نوع الخدمة من القائمة:",
+          },
           action: {
             button: "عرض الخدمات",
             sections: [
@@ -289,57 +294,112 @@ async function sendServiceList(to) {
       "❌ DEBUG => Error sending service dropdown list:",
       err.response?.data || err.message
     );
+    // Fallback to regular buttons if list fails
     await sendServiceButtons(to);
   }
 }
 
 // ---------------------------------------------
-// ✅ Service validation logic
+// ✅ STRICT SERVICE VALIDATION (only from list/buttons)
 // ---------------------------------------------
-const VALID_SERVICES = [
-  "فحص عام",
-  "تنظيف الأسنان",
-  "تبييض الأسنان",
-  "حشو الأسنان",
-  "علاج الجذور",
-  "تركيب التركيبات",
-  "تقويم الأسنان",
-  "خلع الأسنان",
-  "الفينير",
-  "زراعة الأسنان",
-  "ابتسامة هوليود",
-  "خدمة أخرى",
-];
+// Map of allowed interactive reply IDs => canonical titles
+const VALID_SERVICE_MAP = {
+  service_فحص_عام: "فحص عام",
+  service_تنظيف_الأسنان: "تنظيف الأسنان",
+  service_تبييض_الأسنان: "تبييض الأسنان",
+  service_حشو_الأسنان: "حشو الأسنان",
+  service_علاج_الجذور: "علاج الجذور",
+  service_تركيب_التركيبات: "تركيب التركيبات",
+  service_تقويم_الأسنان: "تقويم الأسنان",
+  service_خلع_الأسنان: "خلع الأسنان",
+  service_الفينير: "الفينير",
+  service_زراعة_الأسنان: "زراعة الأسنان",
+  service_ابتسامة_هوليود: "ابتسامة هوليود",
+  service_خدمة_أخرى: "خدمة أخرى",
+};
 
-function isValidService(serviceText) {
-  if (!serviceText || typeof serviceText !== "string") return false;
-  return VALID_SERVICES.some((s) => serviceText.trim().includes(s));
+// Titles array (for exact title checks when needed)
+const VALID_SERVICES = Object.values(VALID_SERVICE_MAP);
+
+// Normalize Arabic text slightly (remove tatweel, unify alef/yaa)
+function normalizeArabic(str = "") {
+  return String(str)
+    .replace(/[ـ]/g, "") // tatweel
+    .replace(/[إأآا]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .trim();
+}
+
+// If serviceId is valid interactive reply -> return canonical title.
+// If only text is provided, we REJECT (force selection from list).
+function getCanonicalServiceOrNull({ serviceId, serviceText }) {
+  // Prefer interactive reply id from WhatsApp
+  if (serviceId && VALID_SERVICE_MAP[serviceId]) {
+    return VALID_SERVICE_MAP[serviceId];
+  }
+
+  // If no valid interactive id, only allow EXACT title (not partial/fuzzy)
+  // This still protects against nonsense like "خلع اللثة".
+  if (serviceText) {
+    const textN = normalizeArabic(serviceText);
+    const exact = VALID_SERVICES.find((t) => normalizeArabic(t) === textN);
+    if (exact) return exact;
+  }
+
+  // Otherwise, invalid
+  return null;
+}
+
+// Helper to re-open selection step with a clear message
+async function repromptInvalidService(phone, rawText) {
+  const msg =
+    rawText && rawText.trim()
+      ? `❌ لا توجد خدمة بهذا الاسم: "${rawText}".\nالرجاء اختيار خدمة صحيحة من القائمة فقط.`
+      : "❌ الرجاء اختيار خدمة صحيحة من القائمة فقط.";
+  await sendTextMessage(
+    phone,
+    msg + "\n\n✅ ملاحظة: اللثة لا تُخلع، لذلك لن نقوم بحجز لأي إجراء غير طبي."
+  );
+  await sendServiceList(phone);
 }
 
 // ---------------------------------------------
-// 🧾 Save booking (with validation & prevention)
+// 🗓️ Send appointment options (shortcut)
 // ---------------------------------------------
-async function saveBooking({ name, phone, service, appointment }) {
+async function sendAppointmentOptions(to) {
+  console.log(`📤 DEBUG => Sending appointment options to ${to}`);
+  await sendAppointmentButtons(to);
+}
+
+// ---------------------------------------------
+// 🧾 Save booking to Google Sheets
+//  - NOW ONLY saves when service is canonical/valid
+//  - Accepts optional serviceId from interactive reply
+// ---------------------------------------------
+async function saveBooking({ name, phone, service, appointment, serviceId }) {
   try {
-    // Reject if user typed manually or nonsense
-    if (!isValidService(service)) {
-      console.warn(`⚠️ Invalid or manual service detected: "${service}"`);
+    // Determine canonical valid service (force list selection / exact title)
+    const canonicalService = getCanonicalServiceOrNull({
+      serviceId,
+      serviceText: service,
+    });
 
-      await sendTextMessage(
-        phone,
-        "⚠️ لم يتم حفظ الحجز.\nالرجاء اختيار خدمة صحيحة من القائمة المتاحة أدناه 👇"
+    if (!canonicalService) {
+      console.warn(
+        `⚠️ Invalid service input. serviceId="${serviceId}" serviceText="${service}"`
       );
-
-      // Resend dropdown list
-      await sendServiceList(phone);
-      return;
+      await repromptInvalidService(phone, service);
+      return; // 🚫 Do NOT save
     }
 
-    // If valid, save normally
     const values = [
-      [name, phone, service, appointment, new Date().toISOString()],
+      [name, phone, canonicalService, appointment, new Date().toISOString()],
     ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
+    console.log(
+      `🔍 DEBUG => Appending to sheet "${DEFAULT_SHEET_NAME}" in spreadsheet "${SPREADSHEET_ID}"`
+    );
 
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -349,24 +409,41 @@ async function saveBooking({ name, phone, service, appointment }) {
     });
 
     console.log(
-      "✅ Booking saved successfully:",
+      "✅ DEBUG => Google Sheets API append response:",
       result.statusText || result.status
     );
   } catch (err) {
     console.error(
-      "❌ DEBUG => Error saving booking:",
+      "❌ DEBUG => Google Sheets append error:",
       err.response?.data || err.message
     );
   }
 }
 
 // ---------------------------------------------
-// Other existing functions remain unchanged
+// 🧾 Update an existing booking
+// (optional future enhancement)
 // ---------------------------------------------
-async function updateBooking(rowIndex, { name, phone, service, appointment }) {
+async function updateBooking(
+  rowIndex,
+  { name, phone, service, appointment, serviceId }
+) {
   try {
+    const canonicalService = getCanonicalServiceOrNull({
+      serviceId,
+      serviceText: service,
+    });
+
+    if (!canonicalService) {
+      console.warn(
+        `⚠️ Invalid service for update. serviceId="${serviceId}" serviceText="${service}"`
+      );
+      await repromptInvalidService(phone, service);
+      return;
+    }
+
     const values = [
-      [name, phone, service, appointment, new Date().toISOString()],
+      [name, phone, canonicalService, appointment, new Date().toISOString()],
     ];
     const range = `${DEFAULT_SHEET_NAME}!A${rowIndex}:E${rowIndex}`;
     console.log(`✏️ DEBUG => Updating booking at row ${rowIndex}:`, values);
@@ -384,6 +461,9 @@ async function updateBooking(rowIndex, { name, phone, service, appointment }) {
   }
 }
 
+// ---------------------------------------------
+// 📖 Get all bookings from Google Sheets (for dashboard)
+// ---------------------------------------------
 async function getAllBookings() {
   try {
     console.log(
@@ -396,16 +476,22 @@ async function getAllBookings() {
     });
 
     const rows = response.data.values || [];
-    console.log(`📊 DEBUG => Retrieved ${rows.length} rows`);
+    console.log(`📊 DEBUG => Retrieved ${rows.length} rows from Google Sheets`);
+
     if (rows.length === 0) return [];
 
-    return rows.map(([name, phone, service, appointment, timestamp]) => ({
-      name: name || "",
-      phone: phone || "",
-      service: service || "",
-      appointment: appointment || "",
-      time: timestamp || "",
-    }));
+    // Convert rows to structured JSON objects
+    const bookings = rows.map(
+      ([name, phone, service, appointment, timestamp]) => ({
+        name: name || "",
+        phone: phone || "",
+        service: service || "",
+        appointment: appointment || "",
+        time: timestamp || "",
+      })
+    );
+
+    return bookings;
   } catch (err) {
     console.error(
       "❌ DEBUG => Error fetching bookings:",
@@ -415,17 +501,20 @@ async function getAllBookings() {
   }
 }
 
+// ---------------------------------------------
+// 🧠 Validate if Google Sheet connection works
+// ---------------------------------------------
 async function testGoogleConnection() {
   try {
     const meta = await sheets.spreadsheets.get({
       spreadsheetId: SPREADSHEET_ID,
     });
     console.log(
-      "✅ Google Sheets connected. Sheets:",
+      "✅ Google Sheets connected. Found sheets:",
       meta.data.sheets.map((s) => s.properties.title)
     );
   } catch (err) {
-    console.error("❌ Failed to connect:", err.message);
+    console.error("❌ Failed to connect to Google Sheets:", err.message);
   }
 }
 
@@ -439,10 +528,10 @@ module.exports = {
   sendTextMessage,
   sendAppointmentButtons,
   sendServiceButtons,
-  sendServiceList,
-  sendAppointmentOptions: sendAppointmentButtons,
-  saveBooking,
-  updateBooking,
+  sendServiceList, // ✅ Export the new dropdown function
+  sendAppointmentOptions,
+  saveBooking, // now accepts optional { serviceId }
+  updateBooking, // now accepts optional { serviceId }
   getAllBookings,
   testGoogleConnection,
 };
