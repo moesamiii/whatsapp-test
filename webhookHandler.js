@@ -169,6 +169,20 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200); // STOP processing immediately
       }
 
+      // NEW: Prevent manual service input when in service selection step
+      if (tempBookings[from] && !tempBookings[from].service) {
+        const interactiveType = message.interactive?.type;
+        if (!interactiveType) {
+          // Not an interactive message (user typed text)
+          await sendTextMessage(
+            from,
+            "🔽 يرجى استخدام القائمة المنسدلة أعلاه لاختيار الخدمة. لا يمكن إدخال الخدمة يدوياً."
+          );
+          await sendServiceList(from);
+          return res.sendStatus(200);
+        }
+      }
+
       // simple detection shortcuts
       if (isLocationRequest(text)) {
         const language = isEnglish(text) ? "en" : "ar";
@@ -276,22 +290,13 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 4: Service input (manual text fallback)
+      // Step 4: Force service selection from list only (REPLACED manual text fallback)
       if (tempBookings[from] && !tempBookings[from].service) {
-        const booking = tempBookings[from];
-        booking.service = text;
-        await saveBooking(booking);
-
         await sendTextMessage(
           from,
-          `✅ تم حفظ حجزك بنجاح:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
+          "⚠️ يرجى اختيار الخدمة من القائمة المنسدلة فقط. لا يمكن إدخال الخدمة يدوياً."
         );
-
-        delete tempBookings[from];
+        await sendServiceList(from);
         return res.sendStatus(200);
       }
 
