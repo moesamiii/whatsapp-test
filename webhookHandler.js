@@ -6,6 +6,7 @@
  * - Handle non-audio messages: interactive (buttons/lists) and plain text messages.
  * - Manage the booking flow for text & interactive flows (appointment selection, name, phone, service).
  * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
+ * - Filter inappropriate content using ban words detection.
  *
  * Why this file exists:
  * - Keeps Express route registration and the main conversational flow in one place.
@@ -39,6 +40,8 @@ const {
   isOffersRequest,
   isDoctorsRequest,
   isEnglish,
+  containsBanWords,
+  sendBanWordsResponse,
 } = require("./messageHandlers");
 
 const { handleAudioMessage } = require("./webhookProcessor");
@@ -157,6 +160,14 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       if (!text) return res.sendStatus(200);
 
       console.log(`💬 DEBUG => Message from ${from}:`, text);
+
+      // 🚫 CRITICAL: CHECK FOR BAN WORDS FIRST - BEFORE ANY OTHER PROCESSING
+      if (containsBanWords(text)) {
+        const language = isEnglish(text) ? "en" : "ar";
+        await sendBanWordsResponse(from, language);
+        console.log(`🚫 Ban words detected from ${from}. Response sent.`);
+        return res.sendStatus(200); // STOP processing immediately
+      }
 
       // simple detection shortcuts
       if (isLocationRequest(text)) {

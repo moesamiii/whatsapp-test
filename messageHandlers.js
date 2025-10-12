@@ -1,6 +1,41 @@
+/**
+ * messageHandlers.js
+ *
+ * Purpose:
+ * - Detect user intent from text/voice (location/offers/doctors).
+ * - Detect inappropriate content (ban words).
+ * - Provide message-sending flows that use media assets (location link, offer images, doctor images).
+ * - Perform transcription of audio using Groq Whisper integration.
+ *
+ * Responsibilities kept here:
+ * - Detection helpers: isLocationRequest, isOffersRequest, isDoctorsRequest, isEnglish, containsBanWords
+ * - sendLocationMessages: uses CLINIC_LOCATION_LINK from mediaAssets
+ * - sendOffersImages & sendDoctorsImages: orchestrate sending multiple images and follow-up text
+ * - sendBanWordsResponse: handles inappropriate content gracefully
+ * - sendImageMessage: performs the network request to WhatsApp API (requires WHATSAPP_TOKEN)
+ * - transcribeAudio: fetches media from WhatsApp and posts to Groq Whisper
+ *
+ * Moved to mediaAssets.js:
+ * - CLINIC_NAME
+ * - CLINIC_LOCATION_LINK
+ * - OFFER_IMAGES
+ * - DOCTOR_IMAGES
+ *
+ * Usage:
+ * - const { sendOffersImages, isLocationRequest, transcribeAudio, containsBanWords } = require('./messageHandlers');
+ */
+
 const axios = require("axios");
 const FormData = require("form-data");
 const { sendTextMessage } = require("./helpers");
+
+// Import static media assets from mediaAssets.js
+const {
+  CLINIC_NAME,
+  CLINIC_LOCATION_LINK,
+  OFFER_IMAGES,
+  DOCTOR_IMAGES,
+} = require("./mediaAssets");
 
 // ---------------------------------------------
 // Environment Variables
@@ -9,30 +44,267 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
 // ---------------------------------------------
-// Clinic Information
+// 🚫 Ban Words List
 // ---------------------------------------------
-const CLINIC_NAME = "Smiles Clinic";
-const CLINIC_LOCATION_LINK =
-  "https://www.google.com/maps?q=32.0290684,35.863774&z=17&hl=en";
+const BAN_WORDS = {
+  // English inappropriate words
+  english: [
+    // Sexual/Inappropriate
+    "fuck",
+    "fck",
+    "fuk",
+    "shit",
+    "sht",
+    "bitch",
+    "btch",
+    "ass",
+    "dick",
+    "cock",
+    "pussy",
+    "cunt",
+    "whore",
+    "slut",
+    "bastard",
+    "damn",
+    "hell",
+    "sex",
+    "porn",
+    "nude",
+    "naked",
+    "boobs",
+    "breast",
+    "penis",
+    "vagina",
+    "anal",
+    "orgasm",
+    "masturbate",
+    "rape",
+    "molest",
+    "abuse",
+    "sexual",
+    "erotic",
+    "xxx",
+    "nsfw",
+    "horny",
+    "sexy",
+    "hentai",
+    "cumming",
 
-// Offers & Services Images (Google Drive Direct Links)
-const OFFER_IMAGES = [
-  "https://drive.google.com/uc?export=view&id=104QzzCy2U5ujhADK_SD0dGldowwlgVU2",
-  "https://drive.google.com/uc?export=view&id=19EsrCSixVa_8trbzFF5lrZJqcue0quDW",
-  "https://drive.google.com/uc?export=view&id=17jaUTvf_S2nqApqMlRc3r8q97uPulvDx",
-];
+    // Racist slurs
+    "nigger",
+    "nigga",
+    "negro",
+    "coon",
+    "kike",
+    "spic",
+    "chink",
+    "gook",
+    "wetback",
+    "towelhead",
+    "raghead",
+    "camel jockey",
+    "beaner",
+    "paki",
+    "curry",
+    "cracker",
+    "whitey",
+    "honky",
+    "redskin",
+    "savage",
+    "colored",
+    "oriental",
+    "muzzie",
 
-// 👨‍⚕️ Doctors Images (Google Drive Direct Links) - Using same as offers
-const DOCTOR_IMAGES = [
-  "https://drive.google.com/uc?export=view&id=1aHoA2ks39qeuMk9WMZOdotOod-agEonm",
-  "https://drive.google.com/uc?export=view&id=1Oe2UG2Gas6UY0ORxXtUYvTJeJZ8Br2_R",
-  "https://drive.google.com/uc?export=view&id=1_4eDWRuVme3YaLLoeFP_10LYHZyHyjUT",
-];
+    // Terrorist/Violence related
+    "terrorist",
+    "terrorism",
+    "jihad",
+    "isis",
+    "bomb",
+    "explosion",
+    "kill",
+    "murder",
+    "suicide bomber",
+    "attack",
+    "massacre",
+    "extremist",
+    "radical",
+    "militant",
+    "weapon",
+    "shoot",
+    "knife",
+    "stab",
+    "violence",
+    "threat",
+    "hostage",
+    "kidnap",
+    "al qaeda",
+    "alqaeda",
+    "taliban",
+    "execute",
+    "behead",
+  ],
+
+  // Arabic inappropriate words
+  arabic: [
+    // Sexual/Inappropriate
+    "كس",
+    "عرص",
+    "شرموط",
+    "قحبة",
+    "خول",
+    "زب",
+    "طيز",
+    "نيك",
+    "متناك",
+    "لعنة",
+    "جنس",
+    "سكس",
+    "عاهرة",
+    "زانية",
+    "حقير",
+    "وسخ",
+    "قذر",
+    "منيوك",
+    "ابن كلب",
+    "ابن حرام",
+    "كلب",
+    "حمار",
+    "يا حيوان",
+    "يا كلب",
+    "خرا",
+    "تفو",
+    "يخرب بيتك",
+    "وقح",
+    "قليل ادب",
+    "سافل",
+    "منيك",
+    "كسمك",
+    "عرصة",
+    "شرموطة",
+    "زبي",
+    "متناكة",
+    "يلعن",
+    "كسختك",
+
+    // Racist/Discriminatory
+    "عبد",
+    "زنجي",
+    "يهودي نجس",
+    "صهيوني",
+    "كافر نجس",
+    "نصراني قذر",
+    "رافضي",
+    "مجوسي",
+    "وثني",
+    "ملحد قذر",
+    "عنصري",
+    "دونية",
+    "عرق حقير",
+    "حقير",
+    "سلالة حقيرة",
+
+    // Terrorist/Violence related
+    "إرهاب",
+    "إرهابي",
+    "داعش",
+    "القاعدة",
+    "قنبلة",
+    "انفجار",
+    "اقتل",
+    "ذبح",
+    "سلاح",
+    "مسدس",
+    "رصاص",
+    "سكين",
+    "طعن",
+    "تفجير",
+    "انتحاري",
+    "هجوم",
+    "مذبحة",
+    "متطرف",
+    "راديكالي",
+    "مسلح",
+    "عنف",
+    "تهديد",
+    "رهينة",
+    "اختطاف",
+    "خطف",
+    "تدمير",
+    "اعدام",
+    "طالبان",
+    "فجر",
+  ],
+};
+
+// ---------------------------------------------
+// 🚫 Ban Words Detection Helper
+// ---------------------------------------------
+function containsBanWords(text = "") {
+  if (!text || typeof text !== "string") return false;
+
+  const lowerText = text.toLowerCase();
+  const originalText = text;
+
+  // Check English ban words (case-insensitive)
+  for (const word of BAN_WORDS.english) {
+    // Use word boundaries to avoid false positives
+    const regex = new RegExp(`\\b${word}\\b`, "i");
+    if (regex.test(lowerText)) {
+      console.log(`🚫 Detected banned English word: ${word}`);
+      return true;
+    }
+  }
+
+  // Check Arabic ban words (exact match, Arabic is case-sensitive in nature)
+  for (const word of BAN_WORDS.arabic) {
+    if (originalText.includes(word)) {
+      console.log(`🚫 Detected banned Arabic word: ${word}`);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// ---------------------------------------------
+// 🚫 Send Ban Words Response
+// ---------------------------------------------
+async function sendBanWordsResponse(to, language = "ar") {
+  try {
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "I apologize if you're feeling frustrated. I understand that emotions can run high sometimes. 😊\n\n" +
+          "However, I'm here to assist you with information about Smiles Clinic, including:\n" +
+          "📍 Our location\n" +
+          "💊 Services and offers\n" +
+          "👨‍⚕️ Our medical team\n" +
+          "📅 Booking appointments\n\n" +
+          "Please let me know how I can help you with your dental care needs. 🦷✨"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "أعتذر إذا كنت تشعر بالإحباط. أتفهم أن المشاعر قد تكون قوية أحياناً. 😊\n\n" +
+          "ومع ذلك، أنا هنا لمساعدتك بمعلومات حول Smiles Clinic، بما في ذلك:\n" +
+          "📍 موقعنا\n" +
+          "💊 الخدمات والعروض\n" +
+          "👨‍⚕️ فريقنا الطبي\n" +
+          "📅 حجز المواعيد\n\n" +
+          "من فضلك دعني أعرف كيف يمكنني مساعدتك في احتياجات العناية بأسنانك. 🦷✨"
+      );
+    }
+    console.log("✅ Sent ban words response to user");
+  } catch (err) {
+    console.error("❌ Failed to send ban words response:", err.message);
+  }
+}
 
 // ---------------------------------------------
 // 🗺️ Location Detection Helper
 // ---------------------------------------------
-function isLocationRequest(text) {
+function isLocationRequest(text = "") {
   const locationKeywords = [
     "موقع",
     "مكان",
@@ -50,14 +322,14 @@ function isLocationRequest(text) {
     "وينكم",
     "فينكم",
   ];
-  const lowerText = text.toLowerCase();
+  const lowerText = String(text).toLowerCase();
   return locationKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
 // ---------------------------------------------
 // 🎁 Offers & Services Detection Helper
 // ---------------------------------------------
-function isOffersRequest(text) {
+function isOffersRequest(text = "") {
   const offersKeywords = [
     "عروض",
     "خدمات",
@@ -72,14 +344,14 @@ function isOffersRequest(text) {
     "service",
     "price",
   ];
-  const lowerText = text.toLowerCase();
+  const lowerText = String(text).toLowerCase();
   return offersKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
 // ---------------------------------------------
 // 👨‍⚕️ Doctors Detection Helper
 // ---------------------------------------------
-function isDoctorsRequest(text) {
+function isDoctorsRequest(text = "") {
   const doctorsKeywords = [
     "دكتور",
     "دكاترة",
@@ -94,16 +366,16 @@ function isDoctorsRequest(text) {
     "اطباء",
     "الاطباء",
   ];
-  const lowerText = text.toLowerCase();
+  const lowerText = String(text).toLowerCase();
   return doctorsKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
 // ---------------------------------------------
 // 🌐 Language Detection Helper
 // ---------------------------------------------
-function isEnglish(text) {
+function isEnglish(text = "") {
   const arabicPattern = /[\u0600-\u06FF]/;
-  return !arabicPattern.test(text);
+  return !arabicPattern.test(String(text));
 }
 
 // ---------------------------------------------
@@ -131,87 +403,7 @@ async function sendLocationMessages(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 🎁 Send Offers & Services Images
-// ---------------------------------------------
-async function sendOffersImages(to, language = "ar") {
-  try {
-    // Send intro message
-    if (language === "en") {
-      await sendTextMessage(to, "💊 Here are our offers and services:");
-    } else {
-      await sendTextMessage(to, "💊 هذه عروضنا وخدماتنا الحالية:");
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Send all 3 images with small delays
-    for (let i = 0; i < OFFER_IMAGES.length; i++) {
-      await sendImageMessage(to, OFFER_IMAGES[i]);
-      if (i < OFFER_IMAGES.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-      }
-    }
-
-    // Send closing message
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    if (language === "en") {
-      await sendTextMessage(
-        to,
-        "✨ For more details or to book an appointment, just let me know!"
-      );
-    } else {
-      await sendTextMessage(
-        to,
-        "✨ لمزيد من التفاصيل أو لحجز موعد، أخبرني فقط!"
-      );
-    }
-  } catch (err) {
-    console.error("❌ Failed to send offers images:", err.message);
-  }
-}
-
-// ---------------------------------------------
-// 👨‍⚕️ Send Doctors Images (Same as Offers)
-// ---------------------------------------------
-async function sendDoctorsImages(to, language = "ar") {
-  try {
-    // Send intro message
-    if (language === "en") {
-      await sendTextMessage(to, "👨‍⚕️ Meet our professional medical team:");
-    } else {
-      await sendTextMessage(to, "👨‍⚕️ تعرف على فريقنا الطبي المتخصص:");
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Send all doctor images (same as offers) with small delays
-    for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
-      await sendImageMessage(to, DOCTOR_IMAGES[i]);
-      if (i < DOCTOR_IMAGES.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-      }
-    }
-
-    // Send closing message
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    if (language === "en") {
-      await sendTextMessage(
-        to,
-        "✨ Our experienced doctors are here to provide you with the best care! To book an appointment, just let us know 😊"
-      );
-    } else {
-      await sendTextMessage(
-        to,
-        "✨ أطباؤنا ذوو الخبرة هنا لتقديم أفضل رعاية لك! لحجز موعد، فقط أخبرنا 😊"
-      );
-    }
-  } catch (err) {
-    console.error("❌ Failed to send doctors images:", err.message);
-  }
-}
-
-// ---------------------------------------------
-// 📸 Send Image Helper
+// 📸 Send Image Helper (performs network call to WhatsApp)
 // ---------------------------------------------
 async function sendImageMessage(to, imageUrl) {
   try {
@@ -233,7 +425,84 @@ async function sendImageMessage(to, imageUrl) {
       }
     );
   } catch (err) {
-    console.error("❌ Failed to send image:", err.message);
+    console.error(
+      "❌ Failed to send image:",
+      err.response?.data || err.message
+    );
+  }
+}
+
+// ---------------------------------------------
+// 🎁 Send Offers & Services Images (uses OFFER_IMAGES from mediaAssets)
+// ---------------------------------------------
+async function sendOffersImages(to, language = "ar") {
+  try {
+    if (language === "en") {
+      await sendTextMessage(to, "💊 Here are our offers and services:");
+    } else {
+      await sendTextMessage(to, "💊 هذه عروضنا وخدماتنا الحالية:");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    for (let i = 0; i < OFFER_IMAGES.length; i++) {
+      await sendImageMessage(to, OFFER_IMAGES[i]);
+      if (i < OFFER_IMAGES.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "✨ For more details or to book an appointment, just let me know!"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "✨ لمزيد من التفاصيل أو لحجز موعد، أخبرني فقط!"
+      );
+    }
+  } catch (err) {
+    console.error("❌ Failed to send offers images:", err.message || err);
+  }
+}
+
+// ---------------------------------------------
+// 👨‍⚕️ Send Doctors Images (uses DOCTOR_IMAGES from mediaAssets)
+// ---------------------------------------------
+async function sendDoctorsImages(to, language = "ar") {
+  try {
+    if (language === "en") {
+      await sendTextMessage(to, "👨‍⚕️ Meet our professional medical team:");
+    } else {
+      await sendTextMessage(to, "👨‍⚕️ تعرف على فريقنا الطبي المتخصص:");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
+      await sendImageMessage(to, DOCTOR_IMAGES[i]);
+      if (i < DOCTOR_IMAGES.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "✨ Our experienced doctors are here to provide you with the best care! To book an appointment, just let us know 😊"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "✨ أطباؤنا ذوو الخبرة هنا لتقديم أفضل رعاية لك! لحجز موعد، فقط أخبرنا 😊"
+      );
+    }
+  } catch (err) {
+    console.error("❌ Failed to send doctors images:", err.message || err);
   }
 }
 
@@ -285,7 +554,10 @@ async function transcribeAudio(mediaId) {
 
     return result.data.text;
   } catch (err) {
-    console.error("❌ Voice transcription failed:", err.message);
+    console.error(
+      "❌ Voice transcription failed:",
+      err.response?.data || err.message
+    );
     return null;
   }
 }
@@ -298,6 +570,8 @@ module.exports = {
   isOffersRequest,
   isDoctorsRequest,
   isEnglish,
+  containsBanWords,
+  sendBanWordsResponse,
   sendLocationMessages,
   sendOffersImages,
   sendDoctorsImages,
