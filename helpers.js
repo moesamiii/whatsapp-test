@@ -294,7 +294,6 @@ async function sendServiceList(to) {
       "❌ DEBUG => Error sending service dropdown list:",
       err.response?.data || err.message
     );
-    // Fallback to regular buttons if list fails
     await sendServiceButtons(to);
   }
 }
@@ -308,10 +307,47 @@ async function sendAppointmentOptions(to) {
 }
 
 // ---------------------------------------------
-// 🧾 Save booking to Google Sheets
+// ✅ VALID SERVICES LIST
+// ---------------------------------------------
+const VALID_SERVICES = [
+  "فحص عام",
+  "تنظيف الأسنان",
+  "تبييض الأسنان",
+  "حشو الأسنان",
+  "علاج الجذور",
+  "تركيب التركيبات",
+  "تقويم الأسنان",
+  "خلع الأسنان",
+  "الفينير",
+  "زراعة الأسنان",
+  "ابتسامة هوليود",
+  "خدمة أخرى",
+];
+
+// ---------------------------------------------
+// ✅ Validate service name
+// ---------------------------------------------
+function validateServiceName(service) {
+  if (!service) return false;
+  return VALID_SERVICES.some((s) => s === service.trim());
+}
+
+// ---------------------------------------------
+// 🧾 Save booking to Google Sheets (with validation)
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
   try {
+    // ✅ Check if the service is valid
+    if (!validateServiceName(service)) {
+      console.warn(`⚠️ Invalid service entered: "${service}"`);
+      await sendTextMessage(
+        phone,
+        `❌ عذرًا، الخدمة "${service}" غير موجودة في قائمتنا.\n\nالرجاء اختيار الخدمة الصحيحة من القائمة أدناه 👇`
+      );
+      await sendServiceList(phone);
+      return;
+    }
+
     const values = [
       [name, phone, service, appointment, new Date().toISOString()],
     ];
@@ -341,7 +377,6 @@ async function saveBooking({ name, phone, service, appointment }) {
 
 // ---------------------------------------------
 // 🧾 Update an existing booking
-// (optional future enhancement)
 // ---------------------------------------------
 async function updateBooking(rowIndex, { name, phone, service, appointment }) {
   try {
@@ -383,7 +418,6 @@ async function getAllBookings() {
 
     if (rows.length === 0) return [];
 
-    // Convert rows to structured JSON objects
     const bookings = rows.map(
       ([name, phone, service, appointment, timestamp]) => ({
         name: name || "",
@@ -431,7 +465,7 @@ module.exports = {
   sendTextMessage,
   sendAppointmentButtons,
   sendServiceButtons,
-  sendServiceList, // ✅ Export the new dropdown function
+  sendServiceList,
   sendAppointmentOptions,
   saveBooking,
   updateBooking,
