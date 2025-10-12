@@ -1,75 +1,6 @@
 const Groq = require("groq-sdk");
 const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// ---------------------------------------------
-// 🚫 Bad Words Lists
-// ---------------------------------------------
-const BAD_WORDS_ARABIC = [
-  "كلب",
-  "حمار",
-  "غبي",
-  "أحمق",
-  "خرا",
-  "تفو",
-  "لعنة",
-  "يلعن",
-  "منيك",
-  "كس",
-  "زبي",
-  "عرص",
-  "شرموط",
-  "قحبة",
-  "ابن الكلب",
-  "يا كلب",
-  "حقير",
-  "وسخ",
-];
-
-const BAD_WORDS_ENGLISH = [
-  "fuck",
-  "shit",
-  "bitch",
-  "ass",
-  "damn",
-  "hell",
-  "bastard",
-  "idiot",
-  "stupid",
-  "moron",
-  "dick",
-  "piss",
-  "crap",
-  "asshole",
-  "motherfucker",
-  "whore",
-  "slut",
-];
-
-// ---------------------------------------------
-// 🚫 Bad Words Detection Helper
-// ---------------------------------------------
-function containsBadWords(text) {
-  if (!text) return false;
-
-  const lowerText = text.toLowerCase();
-
-  // Check English bad words
-  for (const word of BAD_WORDS_ENGLISH) {
-    if (lowerText.includes(word)) {
-      return true;
-    }
-  }
-
-  // Check Arabic bad words
-  for (const word of BAD_WORDS_ARABIC) {
-    if (text.includes(word)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 // 🔹 كشف لغة المستخدم (عربي أو إنجليزي)
 function detectLanguage(text) {
   const arabic = /[\u0600-\u06FF]/;
@@ -80,17 +11,6 @@ function detectLanguage(text) {
 async function askAI(userMessage) {
   try {
     console.log("🤖 DEBUG => Sending message to AI:", userMessage);
-
-    // 🚫 Check for bad words FIRST before processing
-    if (containsBadWords(userMessage)) {
-      const lang = detectLanguage(userMessage);
-      console.log("⚠️ Bad word detected in message");
-      if (lang === "ar") {
-        return "❌ عذراً، لا نستطيع الرد على الكلمات غير اللائقة. يرجى التواصل باحترام. نحن هنا لمساعدتك في احتياجات العناية بأسنانك. 😊";
-      } else {
-        return "❌ Sorry, we cannot respond to inappropriate language. Please communicate respectfully. We're here to help you with your dental care needs. 😊";
-      }
-    }
 
     const lang = detectLanguage(userMessage);
     console.log("🌐 Detected language:", lang);
@@ -159,7 +79,7 @@ Your job is to help clients with:
       completion.choices[0]?.message?.content ||
       (lang === "ar"
         ? "عذرًا، لم أفهم سؤالك تمامًا."
-        : "Sorry, I didn't quite understand that.");
+        : "Sorry, I didn’t quite understand that.");
     console.log("🤖 DEBUG => AI Reply:", reply);
 
     return reply;
@@ -193,10 +113,4 @@ async function validateNameWithAI(name) {
   }
 }
 
-module.exports = {
-  askAI,
-  validateNameWithAI,
-  containsBadWords,
-  detectLanguage,
-};
-g;
+module.exports = { askAI, validateNameWithAI };
