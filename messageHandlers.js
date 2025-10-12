@@ -30,90 +30,6 @@ const DOCTOR_IMAGES = [
 ];
 
 // ---------------------------------------------
-// 🚫 Bad Words Lists
-// ---------------------------------------------
-const BAD_WORDS_ARABIC = [
-  "كلب",
-  "حمار",
-  "غبي",
-  "أحمق",
-  "خرا",
-  "تفو",
-  "لعنة",
-  "يلعن",
-  "منيك",
-  "كس",
-  "زبي",
-  "عرص",
-  "شرموط",
-  "قحبة",
-  "ابن الكلب",
-  "يا كلب",
-  "حقير",
-  "وسخ",
-];
-
-const BAD_WORDS_ENGLISH = [
-  "fuck",
-  "shit",
-  "bitch",
-  "ass",
-  "damn",
-  "hell",
-  "bastard",
-  "idiot",
-  "stupid",
-  "moron",
-  "dick",
-  "piss",
-  "crap",
-  "asshole",
-  "motherfucker",
-  "whore",
-  "slut",
-];
-
-// ---------------------------------------------
-// 🚫 Bad Words Detection Helper
-// ---------------------------------------------
-function containsBadWords(text) {
-  const lowerText = text.toLowerCase();
-
-  // Check English bad words
-  for (const word of BAD_WORDS_ENGLISH) {
-    if (lowerText.includes(word)) {
-      return true;
-    }
-  }
-
-  // Check Arabic bad words
-  for (const word of BAD_WORDS_ARABIC) {
-    if (text.includes(word)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-// ---------------------------------------------
-// 🚫 Send Apology for Bad Words
-// ---------------------------------------------
-async function sendBadWordApology(to, language = "ar") {
-  if (language === "en") {
-    await sendTextMessage(
-      to,
-      "❌ Sorry, we cannot respond to inappropriate language. Please communicate respectfully. We're here to help you with your dental care needs. 😊"
-    );
-  } else {
-    await sendTextMessage(
-      to,
-      "❌ عذراً، لا نستطيع الرد على الكلمات غير اللائقة. يرجى التواصل باحترام. نحن هنا لمساعدتك في احتياجات العناية بأسنانك. 😊"
-    );
-  }
-}
-
-// ---------------------------------------------
 // 🗺️ Location Detection Helper
 // ---------------------------------------------
 function isLocationRequest(text) {
@@ -378,8 +294,6 @@ async function transcribeAudio(mediaId) {
 // Exports
 // ---------------------------------------------
 module.exports = {
-  containsBadWords,
-  sendBadWordApology,
   isLocationRequest,
   isOffersRequest,
   isDoctorsRequest,
