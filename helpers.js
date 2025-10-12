@@ -294,13 +294,12 @@ async function sendServiceList(to) {
       "❌ DEBUG => Error sending service dropdown list:",
       err.response?.data || err.message
     );
-    // Fallback to regular buttons if list fails
     await sendServiceButtons(to);
   }
 }
 
 // ---------------------------------------------
-// ✅ NEW: Service validation
+// ✅ Service validation setup
 // ---------------------------------------------
 const VALID_SERVICES = [
   "فحص عام",
@@ -319,7 +318,7 @@ const VALID_SERVICES = [
 
 function isValidService(serviceText) {
   if (!serviceText || typeof serviceText !== "string") return false;
-  return VALID_SERVICES.some((s) => serviceText.includes(s));
+  return VALID_SERVICES.some((s) => serviceText.trim().includes(s));
 }
 
 // ---------------------------------------------
@@ -331,16 +330,16 @@ async function sendAppointmentOptions(to) {
 }
 
 // ---------------------------------------------
-// 🧾 Save booking to Google Sheets (UPDATED WITH VALIDATION)
+// 🧾 Save booking to Google Sheets (UPDATED)
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
   try {
-    // ✅ Validate service before saving
+    // ✅ If user typed instead of selecting, validate text
     if (!isValidService(service)) {
-      console.warn(`⚠️ Invalid service detected: "${service}"`);
+      console.warn(`⚠️ Invalid or manual service text detected: "${service}"`);
       await sendTextMessage(
         phone,
-        "❌ الخدمة غير موجودة في القائمة. يرجى اختيار خدمة صحيحة من القائمة أدناه 👇"
+        "❌ يبدو أنك كتبت اسم الخدمة يدويًا أو بشكل غير صحيح.\nيرجى اختيار الخدمة الصحيحة من القائمة أدناه 👇"
       );
       await sendServiceList(phone);
       return;
@@ -362,7 +361,7 @@ async function saveBooking({ name, phone, service, appointment }) {
     });
 
     console.log(
-      "✅ DEBUG => Google Sheets API append response:",
+      "✅ DEBUG => Booking saved successfully:",
       result.statusText || result.status
     );
   } catch (err) {
@@ -375,7 +374,6 @@ async function saveBooking({ name, phone, service, appointment }) {
 
 // ---------------------------------------------
 // 🧾 Update an existing booking
-// (optional future enhancement)
 // ---------------------------------------------
 async function updateBooking(rowIndex, { name, phone, service, appointment }) {
   try {
@@ -399,7 +397,7 @@ async function updateBooking(rowIndex, { name, phone, service, appointment }) {
 }
 
 // ---------------------------------------------
-// 📖 Get all bookings from Google Sheets (for dashboard)
+// 📖 Get all bookings from Google Sheets
 // ---------------------------------------------
 async function getAllBookings() {
   try {
@@ -414,21 +412,15 @@ async function getAllBookings() {
 
     const rows = response.data.values || [];
     console.log(`📊 DEBUG => Retrieved ${rows.length} rows from Google Sheets`);
-
     if (rows.length === 0) return [];
 
-    // Convert rows to structured JSON objects
-    const bookings = rows.map(
-      ([name, phone, service, appointment, timestamp]) => ({
-        name: name || "",
-        phone: phone || "",
-        service: service || "",
-        appointment: appointment || "",
-        time: timestamp || "",
-      })
-    );
-
-    return bookings;
+    return rows.map(([name, phone, service, appointment, timestamp]) => ({
+      name: name || "",
+      phone: phone || "",
+      service: service || "",
+      appointment: appointment || "",
+      time: timestamp || "",
+    }));
   } catch (err) {
     console.error(
       "❌ DEBUG => Error fetching bookings:",
