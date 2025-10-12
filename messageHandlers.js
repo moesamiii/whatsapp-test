@@ -22,7 +22,7 @@ const OFFER_IMAGES = [
   "https://drive.google.com/uc?export=view&id=17jaUTvf_S2nqApqMlRc3r8q97uPulvDx",
 ];
 
-// 👨‍⚕️ Doctors Images (Google Drive Direct Links) - Using same as offers
+// 👨‍⚕️ Doctors Images (Google Drive Direct Links)
 const DOCTOR_IMAGES = [
   "https://drive.google.com/uc?export=view&id=1aHoA2ks39qeuMk9WMZOdotOod-agEonm",
   "https://drive.google.com/uc?export=view&id=1Oe2UG2Gas6UY0ORxXtUYvTJeJZ8Br2_R",
@@ -30,24 +30,38 @@ const DOCTOR_IMAGES = [
 ];
 
 // ---------------------------------------------
-// 🚫 Ban Words List
+// 🚫 Ban Words List - ENHANCED
 // ---------------------------------------------
 const BAN_WORDS = {
   // English inappropriate words
   english: [
     // Sexual/Inappropriate
     "fuck",
+    "fuk",
+    "fck",
+    "f*ck",
+    "f**k",
     "shit",
+    "sh*t",
+    "shyt",
     "bitch",
+    "b*tch",
     "ass",
+    "a$$",
+    "asshole",
     "dick",
+    "d*ck",
     "cock",
+    "c*ck",
     "pussy",
+    "p*ssy",
     "cunt",
+    "c*nt",
     "whore",
     "slut",
     "bastard",
     "damn",
+    "damm",
     "hell",
     "sex",
     "porn",
@@ -69,10 +83,16 @@ const BAN_WORDS = {
     "nsfw",
     "horny",
     "sexy",
+    "motherfucker",
+    "mofo",
+    "wtf",
+    "stfu",
 
     // Racist slurs
     "nigger",
     "nigga",
+    "n*gger",
+    "n*gga",
     "negro",
     "coon",
     "kike",
@@ -123,40 +143,52 @@ const BAN_WORDS = {
   arabic: [
     // Sexual/Inappropriate
     "كس",
+    "كــس",
+    "ك س",
     "عرص",
     "شرموط",
+    "شرموطة",
     "قحبة",
+    "قحبه",
     "خول",
     "زب",
+    "زبي",
     "طيز",
     "نيك",
+    "ناك",
+    "منيوك",
     "متناك",
     "لعنة",
     "جنس",
     "سكس",
     "عاهرة",
+    "عاهره",
     "زانية",
     "حقير",
     "وسخ",
     "قذر",
-    "منيوك",
     "ابن كلب",
     "ابن حرام",
+    "ابن الكلب",
     "كلب",
     "حمار",
-    "عرص",
     "يا حيوان",
     "يا كلب",
     "خرا",
+    "خرة",
     "تفو",
     "يخرب بيتك",
     "عيب",
     "حرام عليك",
     "وقح",
     "قليل ادب",
+    "قليل أدب",
     "سافل",
     "مشم",
     "امشم",
+    "منيك",
+    "متناكة",
+    "شرموطه",
 
     // Racist/Discriminatory
     "عبد",
@@ -171,7 +203,6 @@ const BAN_WORDS = {
     "وثني",
     "ملحد قذر",
     "عنصري",
-    "حقير",
     "دونية",
     "عرق حقير",
     "سلالة",
@@ -179,6 +210,8 @@ const BAN_WORDS = {
     // Terrorist/Violence related
     "إرهاب",
     "إرهابي",
+    "ارهابي",
+    "ارهاب",
     "جهاد",
     "داعش",
     "القاعدة",
@@ -211,21 +244,48 @@ const BAN_WORDS = {
 };
 
 // ---------------------------------------------
-// 🚫 Ban Words Detection Helper
+// 🚫 Ban Words Detection Helper - IMPROVED
 // ---------------------------------------------
 function containsBanWords(text) {
-  const lowerText = text.toLowerCase();
+  if (!text || typeof text !== "string") {
+    return false;
+  }
+
+  // Normalize text: remove extra spaces, trim
+  const normalizedText = text.trim().replace(/\s+/g, " ");
+  const lowerText = normalizedText.toLowerCase();
 
   // Check English ban words
   for (const word of BAN_WORDS.english) {
-    if (lowerText.includes(word.toLowerCase())) {
+    const lowerWord = word.toLowerCase();
+
+    // Check for exact word match (with word boundaries)
+    const wordRegex = new RegExp(`\\b${lowerWord}\\b`, "i");
+    if (wordRegex.test(lowerText)) {
+      console.log(`🚫 Detected banned English word: "${word}"`);
+      return true;
+    }
+
+    // Also check for substring match (catches variations)
+    if (lowerText.includes(lowerWord)) {
+      console.log(`🚫 Detected banned English word (substring): "${word}"`);
       return true;
     }
   }
 
   // Check Arabic ban words
   for (const word of BAN_WORDS.arabic) {
-    if (text.includes(word)) {
+    // For Arabic, check if the word appears in the text
+    if (normalizedText.includes(word)) {
+      console.log(`🚫 Detected banned Arabic word: "${word}"`);
+      return true;
+    }
+
+    // Also check with spaces removed (catches variations like "ك س" instead of "كس")
+    const textNoSpaces = normalizedText.replace(/\s/g, "");
+    const wordNoSpaces = word.replace(/\s/g, "");
+    if (textNoSpaces.includes(wordNoSpaces)) {
+      console.log(`🚫 Detected banned Arabic word (no spaces): "${word}"`);
       return true;
     }
   }
@@ -237,28 +297,33 @@ function containsBanWords(text) {
 // 🚫 Send Ban Words Response
 // ---------------------------------------------
 async function sendBanWordsResponse(to, language = "ar") {
-  if (language === "en") {
-    await sendTextMessage(
-      to,
-      "I apologize if you're feeling frustrated. I understand that emotions can run high sometimes. 😊\n\n" +
-        "However, I'm here to assist you with information about Smiles Clinic, including:\n" +
-        "📍 Our location\n" +
-        "💊 Services and offers\n" +
-        "👨‍⚕️ Our medical team\n" +
-        "📅 Booking appointments\n\n" +
-        "Please let me know how I can help you with your dental care needs. 🦷✨"
-    );
-  } else {
-    await sendTextMessage(
-      to,
-      "أعتذر إذا كنت تشعر بالإحباط. أتفهم أن المشاعر قد تكون قوية أحياناً. 😊\n\n" +
-        "ومع ذلك، أنا هنا لمساعدتك بمعلومات حول Smiles Clinic، بما في ذلك:\n" +
-        "📍 موقعنا\n" +
-        "💊 الخدمات والعروض\n" +
-        "👨‍⚕️ فريقنا الطبي\n" +
-        "📅 حجز المواعيد\n\n" +
-        "من فضلك دعني أعرف كيف يمكنني مساعدتك في احتياجات العناية بأسنانك. 🦷✨"
-    );
+  try {
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "I apologize if you're feeling frustrated. I understand that emotions can run high sometimes. 😊\n\n" +
+          "However, I'm here to assist you with information about Smiles Clinic, including:\n" +
+          "📍 Our location\n" +
+          "💊 Services and offers\n" +
+          "👨‍⚕️ Our medical team\n" +
+          "📅 Booking appointments\n\n" +
+          "Please let me know how I can help you with your dental care needs. 🦷✨"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "أعتذر إذا كنت تشعر بالإحباط. أتفهم أن المشاعر قد تكون قوية أحياناً. 😊\n\n" +
+          "ومع ذلك، أنا هنا لمساعدتك بمعلومات حول Smiles Clinic، بما في ذلك:\n" +
+          "📍 موقعنا\n" +
+          "💊 الخدمات والعروض\n" +
+          "👨‍⚕️ فريقنا الطبي\n" +
+          "📅 حجز المواعيد\n\n" +
+          "من فضلك دعني أعرف كيف يمكنني مساعدتك في احتياجات العناية بأسنانك. 🦷✨"
+      );
+    }
+    console.log("✅ Ban words response sent successfully");
+  } catch (err) {
+    console.error("❌ Failed to send ban words response:", err.message);
   }
 }
 
@@ -343,23 +408,27 @@ function isEnglish(text) {
 // 📍 Send Location Messages
 // ---------------------------------------------
 async function sendLocationMessages(to, language = "ar") {
-  // First message: Just the link
-  await sendTextMessage(to, CLINIC_LOCATION_LINK);
+  try {
+    // First message: Just the link
+    await sendTextMessage(to, CLINIC_LOCATION_LINK);
 
-  // Small delay for better UX
-  await new Promise((resolve) => setTimeout(resolve, 500));
+    // Small delay for better UX
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
-  // Second message: Explanation
-  if (language === "en") {
-    await sendTextMessage(
-      to,
-      `📍 This is our location at ${CLINIC_NAME}. You can click on the link to open it in Google Maps 🗺️`
-    );
-  } else {
-    await sendTextMessage(
-      to,
-      `📍 هذا هو موقع ${CLINIC_NAME}. يمكنك الضغط على الرابط لفتحه في خرائط جوجل 🗺️`
-    );
+    // Second message: Explanation
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        `📍 This is our location at ${CLINIC_NAME}. You can click on the link to open it in Google Maps 🗺️`
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        `📍 هذا هو موقع ${CLINIC_NAME}. يمكنك الضغط على الرابط لفتحه في خرائط جوجل 🗺️`
+      );
+    }
+  } catch (err) {
+    console.error("❌ Failed to send location:", err.message);
   }
 }
 
@@ -404,7 +473,7 @@ async function sendOffersImages(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Send Doctors Images (Same as Offers)
+// 👨‍⚕️ Send Doctors Images
 // ---------------------------------------------
 async function sendDoctorsImages(to, language = "ar") {
   try {
@@ -417,7 +486,7 @@ async function sendDoctorsImages(to, language = "ar") {
 
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Send all doctor images (same as offers) with small delays
+    // Send all doctor images with small delays
     for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
       await sendImageMessage(to, DOCTOR_IMAGES[i]);
       if (i < DOCTOR_IMAGES.length - 1) {
@@ -538,4 +607,6 @@ module.exports = {
   sendDoctorsImages,
   sendImageMessage,
   transcribeAudio,
+  CLINIC_NAME,
+  CLINIC_LOCATION_LINK,
 };
