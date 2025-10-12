@@ -300,6 +300,29 @@ async function sendServiceList(to) {
 }
 
 // ---------------------------------------------
+// ✅ NEW: Service validation
+// ---------------------------------------------
+const VALID_SERVICES = [
+  "فحص عام",
+  "تنظيف الأسنان",
+  "تبييض الأسنان",
+  "حشو الأسنان",
+  "علاج الجذور",
+  "تركيب التركيبات",
+  "تقويم الأسنان",
+  "خلع الأسنان",
+  "الفينير",
+  "زراعة الأسنان",
+  "ابتسامة هوليود",
+  "خدمة أخرى",
+];
+
+function isValidService(serviceText) {
+  if (!serviceText || typeof serviceText !== "string") return false;
+  return VALID_SERVICES.some((s) => serviceText.includes(s));
+}
+
+// ---------------------------------------------
 // 🗓️ Send appointment options (shortcut)
 // ---------------------------------------------
 async function sendAppointmentOptions(to) {
@@ -308,10 +331,21 @@ async function sendAppointmentOptions(to) {
 }
 
 // ---------------------------------------------
-// 🧾 Save booking to Google Sheets
+// 🧾 Save booking to Google Sheets (UPDATED WITH VALIDATION)
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
   try {
+    // ✅ Validate service before saving
+    if (!isValidService(service)) {
+      console.warn(`⚠️ Invalid service detected: "${service}"`);
+      await sendTextMessage(
+        phone,
+        "❌ الخدمة غير موجودة في القائمة. يرجى اختيار خدمة صحيحة من القائمة أدناه 👇"
+      );
+      await sendServiceList(phone);
+      return;
+    }
+
     const values = [
       [name, phone, service, appointment, new Date().toISOString()],
     ];
@@ -431,7 +465,7 @@ module.exports = {
   sendTextMessage,
   sendAppointmentButtons,
   sendServiceButtons,
-  sendServiceList, // ✅ Export the new dropdown function
+  sendServiceList,
   sendAppointmentOptions,
   saveBooking,
   updateBooking,
