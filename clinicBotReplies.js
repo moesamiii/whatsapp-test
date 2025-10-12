@@ -27,6 +27,27 @@ const keywords = {
   offers: ["خصم", "عرض", "offer", "discount", "promo"],
 };
 
+// 🔹 كلمات مسيئة (Bad Words)
+const badWords = [
+  "غبي",
+  "تافه",
+  "قليل الادب",
+  "وسخ",
+  "حمار",
+  "fuck",
+  "stupid",
+  "idiot",
+  "dumb",
+  "bitch",
+  "shit",
+  "asshole",
+  "jerk",
+  "fool",
+  "loser",
+  "suck",
+  "trash",
+];
+
 // 🔹 أسئلة متكرّرة
 const faqs = [
   {
@@ -63,6 +84,13 @@ function getReply(text) {
 
   // ✅ كشف اللغة
   const isEnglish = /[a-z]/i.test(text);
+
+  // ✅ التحقق من الكلمات المسيئة
+  if (includesAny(badWords)) {
+    return isEnglish
+      ? "😔 We're sorry for your frustration. Please let us know how we can assist you better."
+      : "😔 نعتذر إن شعرت بالإحباط، نحن هنا لمساعدتك بأفضل طريقة ممكنة.";
+  }
 
   // ✅ تحية
   if (includesAny(keywords.greeting)) {
