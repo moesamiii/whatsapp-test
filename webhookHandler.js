@@ -321,4 +321,3 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 }
 
 module.exports = { registerWebhookRoutes };
-ل;
