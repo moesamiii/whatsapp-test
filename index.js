@@ -55,35 +55,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
   console.log(`✅ Server running on http://localhost:${PORT}`)
 );
-
-//Ban Words Logic
-const {
-  containsBanWords,
-  sendBanWordsResponse,
-  isEnglish,
-  isLocationRequest,
-  isOffersRequest,
-  isDoctorsRequest,
-} = require("./messageHandlers");
-
-// In your message handler function:
-async function handleIncomingMessage(from, messageText) {
-  // CHECK FOR BAN WORDS FIRST - HIGHEST PRIORITY
-  if (containsBanWords(messageText)) {
-    const language = isEnglish(messageText) ? "en" : "ar";
-    await sendBanWordsResponse(from, language);
-    return; // STOP - don't process anything else
-  }
-
-  // Then continue with normal processing
-  const language = isEnglish(messageText) ? "en" : "ar";
-
-  if (isLocationRequest(messageText)) {
-    await sendLocationMessages(from, language);
-  } else if (isOffersRequest(messageText)) {
-    await sendOffersImages(from, language);
-  } else if (isDoctorsRequest(messageText)) {
-    await sendDoctorsImages(from, language);
-  }
-  // ... rest of your logic
-}
