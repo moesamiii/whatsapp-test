@@ -74,12 +74,11 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // When message is audio -> delegate to webhookProcessor
       if (message.type === "audio") {
-        // audio branch is intentionally delegated to keep this file smaller
         await handleAudioMessage(message, from);
         return res.sendStatus(200);
       }
 
-      // interactive (buttons / lists)
+      // Interactive messages (buttons / lists)
       if (message.type === "interactive") {
         const interactiveType = message.interactive?.type;
         const id =
@@ -87,13 +86,10 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
             ? message.interactive?.list_reply?.id
             : message.interactive?.button_reply?.id;
 
-        console.log("🔘 DEBUG => Interactive type:", interactiveType);
-        console.log("🔘 DEBUG => Button/List pressed:", id);
-
         if (id?.startsWith("slot_")) {
           const appointment = id.replace("slot_", "").toUpperCase();
-
           const fridayWords = ["الجمعة", "Friday", "friday"];
+
           if (
             fridayWords.some((word) =>
               appointment.toLowerCase().includes(word.toLowerCase())
@@ -104,7 +100,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
               "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
             );
 
-            // Re-start booking after a short delay
             setTimeout(async () => {
               await sendTextMessage(
                 from,
@@ -126,7 +121,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
         if (id?.startsWith("service_")) {
           const serviceName = id.replace("service_", "").replace(/_/g, " ");
-
           if (!tempBookings[from] || !tempBookings[from].phone) {
             await sendTextMessage(
               from,
@@ -159,31 +153,14 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
 
-      console.log(`💬 DEBUG => Message from ${from}:`, text);
-
-      // 🚫 CRITICAL: CHECK FOR BAN WORDS FIRST - BEFORE ANY OTHER PROCESSING
+      // 🚫 Check for ban words
       if (containsBanWords(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendBanWordsResponse(from, language);
-        console.log(`🚫 Ban words detected from ${from}. Response sent.`);
-        return res.sendStatus(200); // STOP processing immediately
+        return res.sendStatus(200);
       }
 
-      // NEW: Prevent manual service input when in service selection step
-      if (tempBookings[from] && !tempBookings[from].service) {
-        const interactiveType = message.interactive?.type;
-        if (!interactiveType) {
-          // Not an interactive message (user typed text)
-          await sendTextMessage(
-            from,
-            "🔽 يرجى استخدام القائمة المنسدلة أعلاه لاختيار الخدمة. لا يمكن إدخال الخدمة يدوياً."
-          );
-          await sendServiceList(from);
-          return res.sendStatus(200);
-        }
-      }
-
-      // simple detection shortcuts
+      // Shortcut detection
       if (isLocationRequest(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendLocationMessages(from, language);
@@ -225,7 +202,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 1: Appointment shortcut (text 3 / 6 / 9)
+      // Step 1: Appointment shortcut
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         const appointment = `${text} PM`;
         tempBookings[from] = { appointment };
@@ -236,7 +213,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 2: Name input (text)
+      // Step 2: Name input
       if (tempBookings[from] && !tempBookings[from].name) {
         const userName = text.trim();
         const isValid = await validateNameWithAI(userName);
@@ -254,7 +231,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 3: Phone input (text)
+      // Step 3: Phone input
       if (tempBookings[from] && !tempBookings[from].phone) {
         const normalized = text
           .replace(/[^\d٠-٩]/g, "")
@@ -280,8 +257,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         }
 
         tempBookings[from].phone = normalized;
-
-        // Send service dropdown list
         await sendServiceList(from);
         await sendTextMessage(
           from,
@@ -290,13 +265,41 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 4: Force service selection from list only (REPLACED manual text fallback)
+      // Step 4: Service input (manual text fallback) with AI validation
       if (tempBookings[from] && !tempBookings[from].service) {
+        const booking = tempBookings[from];
+        const userService = text.trim();
+
+        const aiReply = await askAI(
+          `هل نقدم هذه الخدمة في عيادتنا: "${userService}"؟ أجب فقط بـ نعم أو لا. إذا لا، اقترح الخدمات المتاحة.`
+        );
+
+        const isValidService =
+          aiReply.toLowerCase().includes("نعم") ||
+          aiReply.toLowerCase().includes("yes");
+
+        if (!isValidService) {
+          await sendTextMessage(
+            from,
+            `⚠️ لا نقدم "${userService}" كخدمة. يرجى اختيار خدمة صحيحة من القائمة.`
+          );
+          await sendServiceList(from);
+          return res.sendStatus(200);
+        }
+
+        booking.service = userService;
+        await saveBooking(booking);
+
         await sendTextMessage(
           from,
-          "⚠️ يرجى اختيار الخدمة من القائمة المنسدلة فقط. لا يمكن إدخال الخدمة يدوياً."
+          `✅ تم حفظ حجزك بنجاح:
+👤 ${booking.name}
+📱 ${booking.phone}
+💊 ${booking.service}
+📅 ${booking.appointment}`
         );
-        await sendServiceList(from);
+
+        delete tempBookings[from];
         return res.sendStatus(200);
       }
 
@@ -312,10 +315,10 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       return res.sendStatus(200);
     } catch (err) {
-      console.error("❌ DEBUG => Webhook Error:", err.message || err);
       return res.sendStatus(500);
     }
   });
 }
 
 module.exports = { registerWebhookRoutes };
+ل;
