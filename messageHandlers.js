@@ -1,6 +1,39 @@
+/**
+ * messageHandlers.js
+ *
+ * Purpose:
+ * - Detect user intent from text/voice (location/offers/doctors).
+ * - Provide message-sending flows that use media assets (location link, offer images, doctor images).
+ * - Perform transcription of audio using Groq Whisper integration.
+ *
+ * Responsibilities kept here:
+ * - Detection helpers: isLocationRequest, isOffersRequest, isDoctorsRequest, isEnglish
+ * - sendLocationMessages: uses CLINIC_LOCATION_LINK from mediaAssets
+ * - sendOffersImages & sendDoctorsImages: orchestrate sending multiple images and follow-up text
+ * - sendImageMessage: performs the network request to WhatsApp API (requires WHATSAPP_TOKEN)
+ * - transcribeAudio: fetches media from WhatsApp and posts to Groq Whisper
+ *
+ * Moved to mediaAssets.js:
+ * - CLINIC_NAME
+ * - CLINIC_LOCATION_LINK
+ * - OFFER_IMAGES
+ * - DOCTOR_IMAGES
+ *
+ * Usage:
+ * - const { sendOffersImages, isLocationRequest, transcribeAudio } = require('./messageHandlers');
+ */
+
 const axios = require("axios");
 const FormData = require("form-data");
 const { sendTextMessage } = require("./helpers");
+
+// Import static media assets from mediaAssets.js
+const {
+  CLINIC_NAME,
+  CLINIC_LOCATION_LINK,
+  OFFER_IMAGES,
+  DOCTOR_IMAGES,
+} = require("./mediaAssets");
 
 // ---------------------------------------------
 // Environment Variables
@@ -9,78 +42,9 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
 // ---------------------------------------------
-// Clinic Information
-// ---------------------------------------------
-const CLINIC_NAME = "Smiles Clinic";
-const CLINIC_LOCATION_LINK =
-  "https://www.google.com/maps?q=32.0290684,35.863774&z=17&hl=en";
-
-// Offers & Services Images (Google Drive Direct Links)
-const OFFER_IMAGES = [
-  "https://drive.google.com/uc?export=view&id=104QzzCy2U5ujhADK_SD0dGldowwlgVU2",
-  "https://drive.google.com/uc?export=view&id=19EsrCSixVa_8trbzFF5lrZJqcue0quDW",
-  "https://drive.google.com/uc?export=view&id=17jaUTvf_S2nqApqMlRc3r8q97uPulvDx",
-];
-
-// 👨‍⚕️ Doctors Images (Google Drive Direct Links)
-const DOCTOR_IMAGES = [
-  "https://drive.google.com/uc?export=view&id=1aHoA2ks39qeuMk9WMZOdotOod-agEonm",
-  "https://drive.google.com/uc?export=view&id=1Oe2UG2Gas6UY0ORxXtUYvTJeJZ8Br2_R",
-  "https://drive.google.com/uc?export=view&id=1_4eDWRuVme3YaLLoeFP_10LYHZyHyjUT",
-];
-
-// ---------------------------------------------
-// 🧹 Bad Words Filter
-// ---------------------------------------------
-function containsBadWords(text) {
-  const badWords = [
-    // English
-    "fuck",
-    "fuk",
-    "f u c k",
-    "shit",
-    "bitch",
-    "asshole",
-    "dick",
-    "piss",
-    "bastard",
-    "slut",
-    "whore",
-    "crap",
-    "motherfucker",
-    "nigger",
-    "nigga",
-    "cunt",
-    "faggot",
-    "suck my",
-    // Arabic
-    "خرا",
-    "زب",
-    "طيز",
-    "كس",
-    "لعن",
-    "قحبة",
-    "شرموطة",
-    "يلعن",
-    "وسخ",
-    "حيوان",
-    "تفوو",
-  ];
-  const lowerText = text.toLowerCase();
-  return badWords.some((word) => lowerText.includes(word));
-}
-
-async function handleBadWords(to) {
-  await sendTextMessage(
-    to,
-    "😔 Sorry for your frustration, but let’s keep our chat respectful, please."
-  );
-}
-
-// ---------------------------------------------
 // 🗺️ Location Detection Helper
 // ---------------------------------------------
-function isLocationRequest(text) {
+function isLocationRequest(text = "") {
   const locationKeywords = [
     "موقع",
     "مكان",
@@ -98,14 +62,14 @@ function isLocationRequest(text) {
     "وينكم",
     "فينكم",
   ];
-  const lowerText = text.toLowerCase();
+  const lowerText = String(text).toLowerCase();
   return locationKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
 // ---------------------------------------------
 // 🎁 Offers & Services Detection Helper
 // ---------------------------------------------
-function isOffersRequest(text) {
+function isOffersRequest(text = "") {
   const offersKeywords = [
     "عروض",
     "خدمات",
@@ -120,14 +84,14 @@ function isOffersRequest(text) {
     "service",
     "price",
   ];
-  const lowerText = text.toLowerCase();
+  const lowerText = String(text).toLowerCase();
   return offersKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
 // ---------------------------------------------
 // 👨‍⚕️ Doctors Detection Helper
 // ---------------------------------------------
-function isDoctorsRequest(text) {
+function isDoctorsRequest(text = "") {
   const doctorsKeywords = [
     "دكتور",
     "دكاترة",
@@ -142,25 +106,29 @@ function isDoctorsRequest(text) {
     "اطباء",
     "الاطباء",
   ];
-  const lowerText = text.toLowerCase();
+  const lowerText = String(text).toLowerCase();
   return doctorsKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
 // ---------------------------------------------
 // 🌐 Language Detection Helper
 // ---------------------------------------------
-function isEnglish(text) {
+function isEnglish(text = "") {
   const arabicPattern = /[\u0600-\u06FF]/;
-  return !arabicPattern.test(text);
+  return !arabicPattern.test(String(text));
 }
 
 // ---------------------------------------------
 // 📍 Send Location Messages
 // ---------------------------------------------
 async function sendLocationMessages(to, language = "ar") {
+  // First message: Just the link
   await sendTextMessage(to, CLINIC_LOCATION_LINK);
+
+  // Small delay for better UX
   await new Promise((resolve) => setTimeout(resolve, 500));
 
+  // Second message: Explanation
   if (language === "en") {
     await sendTextMessage(
       to,
@@ -175,7 +143,37 @@ async function sendLocationMessages(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 🎁 Send Offers & Services Images
+// 📸 Send Image Helper (performs network call to WhatsApp)
+// ---------------------------------------------
+async function sendImageMessage(to, imageUrl) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: to,
+        type: "image",
+        image: {
+          link: imageUrl,
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  } catch (err) {
+    console.error(
+      "❌ Failed to send image:",
+      err.response?.data || err.message
+    );
+  }
+}
+
+// ---------------------------------------------
+// 🎁 Send Offers & Services Images (uses OFFER_IMAGES from mediaAssets)
 // ---------------------------------------------
 async function sendOffersImages(to, language = "ar") {
   try {
@@ -207,12 +205,12 @@ async function sendOffersImages(to, language = "ar") {
       );
     }
   } catch (err) {
-    console.error("❌ Failed to send offers images:", err.message);
+    console.error("❌ Failed to send offers images:", err.message || err);
   }
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Send Doctors Images
+// 👨‍⚕️ Send Doctors Images (uses DOCTOR_IMAGES from mediaAssets)
 // ---------------------------------------------
 async function sendDoctorsImages(to, language = "ar") {
   try {
@@ -244,37 +242,12 @@ async function sendDoctorsImages(to, language = "ar") {
       );
     }
   } catch (err) {
-    console.error("❌ Failed to send doctors images:", err.message);
+    console.error("❌ Failed to send doctors images:", err.message || err);
   }
 }
 
 // ---------------------------------------------
-// 📸 Send Image Helper
-// ---------------------------------------------
-async function sendImageMessage(to, imageUrl) {
-  try {
-    await axios.post(
-      `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: to,
-        type: "image",
-        image: { link: imageUrl },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-  } catch (err) {
-    console.error("❌ Failed to send image:", err.message);
-  }
-}
-
-// ---------------------------------------------
-// 🧠 Voice Transcription Helper (Groq Whisper)
+// 🧠 Voice Transcription Helper (using Groq Whisper)
 // ---------------------------------------------
 async function transcribeAudio(mediaId) {
   try {
@@ -283,7 +256,9 @@ async function transcribeAudio(mediaId) {
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
       {
-        headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        },
       }
     );
 
@@ -292,7 +267,9 @@ async function transcribeAudio(mediaId) {
 
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
-      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+      },
     });
 
     const form = new FormData();
@@ -317,7 +294,10 @@ async function transcribeAudio(mediaId) {
 
     return result.data.text;
   } catch (err) {
-    console.error("❌ Voice transcription failed:", err.message);
+    console.error(
+      "❌ Voice transcription failed:",
+      err.response?.data || err.message
+    );
     return null;
   }
 }
@@ -335,6 +315,4 @@ module.exports = {
   sendDoctorsImages,
   sendImageMessage,
   transcribeAudio,
-  containsBadWords,
-  handleBadWords,
 };
