@@ -30,6 +30,239 @@ const DOCTOR_IMAGES = [
 ];
 
 // ---------------------------------------------
+// 🚫 Ban Words List
+// ---------------------------------------------
+const BAN_WORDS = {
+  // English inappropriate words
+  english: [
+    // Sexual/Inappropriate
+    "fuck",
+    "shit",
+    "bitch",
+    "ass",
+    "dick",
+    "cock",
+    "pussy",
+    "cunt",
+    "whore",
+    "slut",
+    "bastard",
+    "damn",
+    "hell",
+    "sex",
+    "porn",
+    "nude",
+    "naked",
+    "boobs",
+    "breast",
+    "penis",
+    "vagina",
+    "anal",
+    "orgasm",
+    "masturbate",
+    "rape",
+    "molest",
+    "abuse",
+    "sexual",
+    "erotic",
+    "xxx",
+    "nsfw",
+    "horny",
+    "sexy",
+
+    // Racist slurs
+    "nigger",
+    "nigga",
+    "negro",
+    "coon",
+    "kike",
+    "spic",
+    "chink",
+    "gook",
+    "wetback",
+    "towelhead",
+    "raghead",
+    "camel jockey",
+    "beaner",
+    "paki",
+    "curry",
+    "cracker",
+    "whitey",
+    "honky",
+    "redskin",
+    "savage",
+    "colored",
+    "oriental",
+    "muzzie",
+
+    // Terrorist/Violence related
+    "terrorist",
+    "terrorism",
+    "jihad",
+    "isis",
+    "bomb",
+    "explosion",
+    "kill",
+    "murder",
+    "suicide bomber",
+    "massacre",
+    "extremist",
+    "radical",
+    "militant",
+    "weapons",
+    "shoot",
+    "knife",
+    "stab",
+    "violence",
+    "threat",
+    "hostage",
+    "kidnap",
+  ],
+
+  // Arabic inappropriate words
+  arabic: [
+    // Sexual/Inappropriate
+    "كس",
+    "عرص",
+    "شرموط",
+    "قحبة",
+    "خول",
+    "زب",
+    "طيز",
+    "نيك",
+    "متناك",
+    "لعنة",
+    "جنس",
+    "سكس",
+    "عاهرة",
+    "زانية",
+    "حقير",
+    "وسخ",
+    "قذر",
+    "منيوك",
+    "ابن كلب",
+    "ابن حرام",
+    "كلب",
+    "حمار",
+    "عرص",
+    "يا حيوان",
+    "يا كلب",
+    "خرا",
+    "تفو",
+    "يخرب بيتك",
+    "عيب",
+    "حرام عليك",
+    "وقح",
+    "قليل ادب",
+    "سافل",
+    "مشم",
+    "امشم",
+
+    // Racist/Discriminatory
+    "عبد",
+    "زنجي",
+    "أسود",
+    "يهودي نجس",
+    "صهيوني",
+    "كافر",
+    "نصراني قذر",
+    "رافضي",
+    "مجوسي",
+    "وثني",
+    "ملحد قذر",
+    "عنصري",
+    "حقير",
+    "دونية",
+    "عرق حقير",
+    "سلالة",
+
+    // Terrorist/Violence related
+    "إرهاب",
+    "إرهابي",
+    "جهاد",
+    "داعش",
+    "القاعدة",
+    "قنبلة",
+    "انفجار",
+    "قتل",
+    "ذبح",
+    "اقتل",
+    "سلاح",
+    "رصاص",
+    "سكين",
+    "طعن",
+    "تفجير",
+    "انتحاري",
+    "هجوم",
+    "مذبحة",
+    "متطرف",
+    "راديكالي",
+    "مسلح",
+    "عنف",
+    "تهديد",
+    "رهينة",
+    "اختطاف",
+    "خطف",
+    "تدمير",
+    "حرب",
+    "معركة",
+    "غزو",
+  ],
+};
+
+// ---------------------------------------------
+// 🚫 Ban Words Detection Helper
+// ---------------------------------------------
+function containsBanWords(text) {
+  const lowerText = text.toLowerCase();
+
+  // Check English ban words
+  for (const word of BAN_WORDS.english) {
+    if (lowerText.includes(word.toLowerCase())) {
+      return true;
+    }
+  }
+
+  // Check Arabic ban words
+  for (const word of BAN_WORDS.arabic) {
+    if (text.includes(word)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// ---------------------------------------------
+// 🚫 Send Ban Words Response
+// ---------------------------------------------
+async function sendBanWordsResponse(to, language = "ar") {
+  if (language === "en") {
+    await sendTextMessage(
+      to,
+      "I apologize if you're feeling frustrated. I understand that emotions can run high sometimes. 😊\n\n" +
+        "However, I'm here to assist you with information about Smiles Clinic, including:\n" +
+        "📍 Our location\n" +
+        "💊 Services and offers\n" +
+        "👨‍⚕️ Our medical team\n" +
+        "📅 Booking appointments\n\n" +
+        "Please let me know how I can help you with your dental care needs. 🦷✨"
+    );
+  } else {
+    await sendTextMessage(
+      to,
+      "أعتذر إذا كنت تشعر بالإحباط. أتفهم أن المشاعر قد تكون قوية أحياناً. 😊\n\n" +
+        "ومع ذلك، أنا هنا لمساعدتك بمعلومات حول Smiles Clinic، بما في ذلك:\n" +
+        "📍 موقعنا\n" +
+        "💊 الخدمات والعروض\n" +
+        "👨‍⚕️ فريقنا الطبي\n" +
+        "📅 حجز المواعيد\n\n" +
+        "من فضلك دعني أعرف كيف يمكنني مساعدتك في احتياجات العناية بأسنانك. 🦷✨"
+    );
+  }
+}
+
+// ---------------------------------------------
 // 🗺️ Location Detection Helper
 // ---------------------------------------------
 function isLocationRequest(text) {
@@ -298,6 +531,8 @@ module.exports = {
   isOffersRequest,
   isDoctorsRequest,
   isEnglish,
+  containsBanWords,
+  sendBanWordsResponse,
   sendLocationMessages,
   sendOffersImages,
   sendDoctorsImages,
