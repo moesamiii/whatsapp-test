@@ -192,13 +192,8 @@ async function sendServiceList(to) {
         type: "interactive",
         interactive: {
           type: "list",
-          header: {
-            type: "text",
-            text: "💊 اختر الخدمة المطلوبة",
-          },
-          body: {
-            text: "يرجى اختيار نوع الخدمة من القائمة:",
-          },
+          header: { type: "text", text: "💊 اختر الخدمة المطلوبة" },
+          body: { text: "يرجى اختيار نوع الخدمة من القائمة:" },
           action: {
             button: "عرض الخدمات",
             sections: [
@@ -299,7 +294,7 @@ async function sendServiceList(to) {
 }
 
 // ---------------------------------------------
-// ✅ Service validation setup
+// ✅ Service validation logic
 // ---------------------------------------------
 const VALID_SERVICES = [
   "فحص عام",
@@ -322,36 +317,29 @@ function isValidService(serviceText) {
 }
 
 // ---------------------------------------------
-// 🗓️ Send appointment options (shortcut)
-// ---------------------------------------------
-async function sendAppointmentOptions(to) {
-  console.log(`📤 DEBUG => Sending appointment options to ${to}`);
-  await sendAppointmentButtons(to);
-}
-
-// ---------------------------------------------
-// 🧾 Save booking to Google Sheets (UPDATED)
+// 🧾 Save booking (with validation & prevention)
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
   try {
-    // ✅ If user typed instead of selecting, validate text
+    // Reject if user typed manually or nonsense
     if (!isValidService(service)) {
-      console.warn(`⚠️ Invalid or manual service text detected: "${service}"`);
+      console.warn(`⚠️ Invalid or manual service detected: "${service}"`);
+
       await sendTextMessage(
         phone,
-        "❌ يبدو أنك كتبت اسم الخدمة يدويًا أو بشكل غير صحيح.\nيرجى اختيار الخدمة الصحيحة من القائمة أدناه 👇"
+        "⚠️ لم يتم حفظ الحجز.\nالرجاء اختيار خدمة صحيحة من القائمة المتاحة أدناه 👇"
       );
+
+      // Resend dropdown list
       await sendServiceList(phone);
       return;
     }
 
+    // If valid, save normally
     const values = [
       [name, phone, service, appointment, new Date().toISOString()],
     ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
-    console.log(
-      `🔍 DEBUG => Appending to sheet "${DEFAULT_SHEET_NAME}" in spreadsheet "${SPREADSHEET_ID}"`
-    );
 
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -361,19 +349,19 @@ async function saveBooking({ name, phone, service, appointment }) {
     });
 
     console.log(
-      "✅ DEBUG => Booking saved successfully:",
+      "✅ Booking saved successfully:",
       result.statusText || result.status
     );
   } catch (err) {
     console.error(
-      "❌ DEBUG => Google Sheets append error:",
+      "❌ DEBUG => Error saving booking:",
       err.response?.data || err.message
     );
   }
 }
 
 // ---------------------------------------------
-// 🧾 Update an existing booking
+// Other existing functions remain unchanged
 // ---------------------------------------------
 async function updateBooking(rowIndex, { name, phone, service, appointment }) {
   try {
@@ -396,9 +384,6 @@ async function updateBooking(rowIndex, { name, phone, service, appointment }) {
   }
 }
 
-// ---------------------------------------------
-// 📖 Get all bookings from Google Sheets
-// ---------------------------------------------
 async function getAllBookings() {
   try {
     console.log(
@@ -411,7 +396,7 @@ async function getAllBookings() {
     });
 
     const rows = response.data.values || [];
-    console.log(`📊 DEBUG => Retrieved ${rows.length} rows from Google Sheets`);
+    console.log(`📊 DEBUG => Retrieved ${rows.length} rows`);
     if (rows.length === 0) return [];
 
     return rows.map(([name, phone, service, appointment, timestamp]) => ({
@@ -430,20 +415,17 @@ async function getAllBookings() {
   }
 }
 
-// ---------------------------------------------
-// 🧠 Validate if Google Sheet connection works
-// ---------------------------------------------
 async function testGoogleConnection() {
   try {
     const meta = await sheets.spreadsheets.get({
       spreadsheetId: SPREADSHEET_ID,
     });
     console.log(
-      "✅ Google Sheets connected. Found sheets:",
+      "✅ Google Sheets connected. Sheets:",
       meta.data.sheets.map((s) => s.properties.title)
     );
   } catch (err) {
-    console.error("❌ Failed to connect to Google Sheets:", err.message);
+    console.error("❌ Failed to connect:", err.message);
   }
 }
 
@@ -458,7 +440,7 @@ module.exports = {
   sendAppointmentButtons,
   sendServiceButtons,
   sendServiceList,
-  sendAppointmentOptions,
+  sendAppointmentOptions: sendAppointmentButtons,
   saveBooking,
   updateBooking,
   getAllBookings,
