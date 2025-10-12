@@ -3,13 +3,15 @@
  *
  * Purpose:
  * - Detect user intent from text/voice (location/offers/doctors).
+ * - Detect inappropriate content (ban words).
  * - Provide message-sending flows that use media assets (location link, offer images, doctor images).
  * - Perform transcription of audio using Groq Whisper integration.
  *
  * Responsibilities kept here:
- * - Detection helpers: isLocationRequest, isOffersRequest, isDoctorsRequest, isEnglish
+ * - Detection helpers: isLocationRequest, isOffersRequest, isDoctorsRequest, isEnglish, containsBanWords
  * - sendLocationMessages: uses CLINIC_LOCATION_LINK from mediaAssets
  * - sendOffersImages & sendDoctorsImages: orchestrate sending multiple images and follow-up text
+ * - sendBanWordsResponse: handles inappropriate content gracefully
  * - sendImageMessage: performs the network request to WhatsApp API (requires WHATSAPP_TOKEN)
  * - transcribeAudio: fetches media from WhatsApp and posts to Groq Whisper
  *
@@ -20,7 +22,7 @@
  * - DOCTOR_IMAGES
  *
  * Usage:
- * - const { sendOffersImages, isLocationRequest, transcribeAudio } = require('./messageHandlers');
+ * - const { sendOffersImages, isLocationRequest, transcribeAudio, containsBanWords } = require('./messageHandlers');
  */
 
 const axios = require("axios");
@@ -40,6 +42,264 @@ const {
 // ---------------------------------------------
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+
+// ---------------------------------------------
+// 🚫 Ban Words List
+// ---------------------------------------------
+const BAN_WORDS = {
+  // English inappropriate words
+  english: [
+    // Sexual/Inappropriate
+    "fuck",
+    "fck",
+    "fuk",
+    "shit",
+    "sht",
+    "bitch",
+    "btch",
+    "ass",
+    "dick",
+    "cock",
+    "pussy",
+    "cunt",
+    "whore",
+    "slut",
+    "bastard",
+    "damn",
+    "hell",
+    "sex",
+    "porn",
+    "nude",
+    "naked",
+    "boobs",
+    "breast",
+    "penis",
+    "vagina",
+    "anal",
+    "orgasm",
+    "masturbate",
+    "rape",
+    "molest",
+    "abuse",
+    "sexual",
+    "erotic",
+    "xxx",
+    "nsfw",
+    "horny",
+    "sexy",
+    "hentai",
+    "cumming",
+
+    // Racist slurs
+    "nigger",
+    "nigga",
+    "negro",
+    "coon",
+    "kike",
+    "spic",
+    "chink",
+    "gook",
+    "wetback",
+    "towelhead",
+    "raghead",
+    "camel jockey",
+    "beaner",
+    "paki",
+    "curry",
+    "cracker",
+    "whitey",
+    "honky",
+    "redskin",
+    "savage",
+    "colored",
+    "oriental",
+    "muzzie",
+
+    // Terrorist/Violence related
+    "terrorist",
+    "terrorism",
+    "jihad",
+    "isis",
+    "bomb",
+    "explosion",
+    "kill",
+    "murder",
+    "suicide bomber",
+    "attack",
+    "massacre",
+    "extremist",
+    "radical",
+    "militant",
+    "weapon",
+    "shoot",
+    "knife",
+    "stab",
+    "violence",
+    "threat",
+    "hostage",
+    "kidnap",
+    "al qaeda",
+    "alqaeda",
+    "taliban",
+    "execute",
+    "behead",
+  ],
+
+  // Arabic inappropriate words
+  arabic: [
+    // Sexual/Inappropriate
+    "كس",
+    "عرص",
+    "شرموط",
+    "قحبة",
+    "خول",
+    "زب",
+    "طيز",
+    "نيك",
+    "متناك",
+    "لعنة",
+    "جنس",
+    "سكس",
+    "عاهرة",
+    "زانية",
+    "حقير",
+    "وسخ",
+    "قذر",
+    "منيوك",
+    "ابن كلب",
+    "ابن حرام",
+    "كلب",
+    "حمار",
+    "يا حيوان",
+    "يا كلب",
+    "خرا",
+    "تفو",
+    "يخرب بيتك",
+    "وقح",
+    "قليل ادب",
+    "سافل",
+    "منيك",
+    "كسمك",
+    "عرصة",
+    "شرموطة",
+    "زبي",
+    "متناكة",
+    "يلعن",
+    "كسختك",
+
+    // Racist/Discriminatory
+    "عبد",
+    "زنجي",
+    "يهودي نجس",
+    "صهيوني",
+    "كافر نجس",
+    "نصراني قذر",
+    "رافضي",
+    "مجوسي",
+    "وثني",
+    "ملحد قذر",
+    "عنصري",
+    "دونية",
+    "عرق حقير",
+    "حقير",
+    "سلالة حقيرة",
+
+    // Terrorist/Violence related
+    "إرهاب",
+    "إرهابي",
+    "داعش",
+    "القاعدة",
+    "قنبلة",
+    "انفجار",
+    "اقتل",
+    "ذبح",
+    "سلاح",
+    "مسدس",
+    "رصاص",
+    "سكين",
+    "طعن",
+    "تفجير",
+    "انتحاري",
+    "هجوم",
+    "مذبحة",
+    "متطرف",
+    "راديكالي",
+    "مسلح",
+    "عنف",
+    "تهديد",
+    "رهينة",
+    "اختطاف",
+    "خطف",
+    "تدمير",
+    "اعدام",
+    "طالبان",
+    "فجر",
+  ],
+};
+
+// ---------------------------------------------
+// 🚫 Ban Words Detection Helper
+// ---------------------------------------------
+function containsBanWords(text = "") {
+  if (!text || typeof text !== "string") return false;
+
+  const lowerText = text.toLowerCase();
+  const originalText = text;
+
+  // Check English ban words (case-insensitive)
+  for (const word of BAN_WORDS.english) {
+    // Use word boundaries to avoid false positives
+    const regex = new RegExp(`\\b${word}\\b`, "i");
+    if (regex.test(lowerText)) {
+      console.log(`🚫 Detected banned English word: ${word}`);
+      return true;
+    }
+  }
+
+  // Check Arabic ban words (exact match, Arabic is case-sensitive in nature)
+  for (const word of BAN_WORDS.arabic) {
+    if (originalText.includes(word)) {
+      console.log(`🚫 Detected banned Arabic word: ${word}`);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// ---------------------------------------------
+// 🚫 Send Ban Words Response
+// ---------------------------------------------
+async function sendBanWordsResponse(to, language = "ar") {
+  try {
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "I apologize if you're feeling frustrated. I understand that emotions can run high sometimes. 😊\n\n" +
+          "However, I'm here to assist you with information about Smiles Clinic, including:\n" +
+          "📍 Our location\n" +
+          "💊 Services and offers\n" +
+          "👨‍⚕️ Our medical team\n" +
+          "📅 Booking appointments\n\n" +
+          "Please let me know how I can help you with your dental care needs. 🦷✨"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "أعتذر إذا كنت تشعر بالإحباط. أتفهم أن المشاعر قد تكون قوية أحياناً. 😊\n\n" +
+          "ومع ذلك، أنا هنا لمساعدتك بمعلومات حول Smiles Clinic، بما في ذلك:\n" +
+          "📍 موقعنا\n" +
+          "💊 الخدمات والعروض\n" +
+          "👨‍⚕️ فريقنا الطبي\n" +
+          "📅 حجز المواعيد\n\n" +
+          "من فضلك دعني أعرف كيف يمكنني مساعدتك في احتياجات العناية بأسنانك. 🦷✨"
+      );
+    }
+    console.log("✅ Sent ban words response to user");
+  } catch (err) {
+    console.error("❌ Failed to send ban words response:", err.message);
+  }
+}
 
 // ---------------------------------------------
 // 🗺️ Location Detection Helper
@@ -310,6 +570,8 @@ module.exports = {
   isOffersRequest,
   isDoctorsRequest,
   isEnglish,
+  containsBanWords,
+  sendBanWordsResponse,
   sendLocationMessages,
   sendOffersImages,
   sendDoctorsImages,
