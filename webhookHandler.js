@@ -1,26 +1,12 @@
 /**
  * webhookHandler.js
  *
- * Responsibilities:
- * - Register the /webhook verification route (GET) and webhook receiver (POST).
- * - Handle non-audio messages: interactive (buttons/lists) and plain text messages.
- * - Manage the booking flow for text & interactive flows (appointment selection, name, phone, service).
- * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
- * - Filter inappropriate content using ban words detection.
+ * Fixes applied:
+ * - Strong phone-number exception: preserve booking language when phone-like input arrives.
+ * - Prefer tempBookings[from].language (if present) over newly-detected language.
+ * - Ensure all outgoing calls pass the resolved `language`.
  *
- * Why this file exists:
- * - Keeps Express route registration and the main conversational flow in one place.
- * - Keeps audio-heavy logic (transcription + media fetching) separated in webhookProcessor.js.
- *
- * Dependencies:
- * - helpers.js for WhatsApp send utilities, booking persistence and AI validation.
- * - messageHandlers.js for detection helpers and media sending (location/offers/doctors).
- * - webhookProcessor.js for audio handling.
- *
- * Usage:
- * - index.js should call: registerWebhookRoutes(app, VERIFY_TOKEN)
- *
- * NOTE: This file intentionally does not touch Google Sheets or Twilio etc. All those are in helpers.js.
+ * NOTE: helpers.js must accept language on the calls used here.
  */
 
 const {
@@ -30,6 +16,7 @@ const {
   sendServiceList,
   sendAppointmentOptions,
   saveBooking,
+  sendBanWordsResponse,
 } = require("./helpers");
 
 const {
@@ -41,13 +28,64 @@ const {
   isDoctorsRequest,
   isEnglish,
   containsBanWords,
-  sendBanWordsResponse,
 } = require("./messageHandlers");
 
 const { handleAudioMessage } = require("./webhookProcessor");
 
+// Normalize Arabic digits to ascii digits for phone detection
+function normalizeArabicDigitsForCheck(input = "") {
+  return input
+    .replace(/[^\d٠-٩]/g, "")
+    .replace(/٠/g, "0")
+    .replace(/١/g, "1")
+    .replace(/٢/g, "2")
+    .replace(/٣/g, "3")
+    .replace(/٤/g, "4")
+    .replace(/٥/g, "5")
+    .replace(/٦/g, "6")
+    .replace(/٧/g, "7")
+    .replace(/٨/g, "8")
+    .replace(/٩/g, "9");
+}
+
+// Loose phone-like check
+function looksLikePhoneNumber(text = "") {
+  const digits = normalizeArabicDigitsForCheck(text);
+  if (/^07\d{8}$/.test(digits)) return true;
+  return digits.length >= 7 && digits.length <= 15;
+}
+
+/**
+ * Decide language for an incoming text message.
+ * Priority:
+ * 1) If there is an active booking with language -> that language (and preserve on phone-like inputs)
+ * 2) Else if global.userLanguage exists -> use it (and preserve on phone-like inputs)
+ * 3) Else fallback to detection via isEnglish(text)
+ *
+ * Special rule: if message looks like a phone and booking language or previous language exists, preserve it.
+ */
+function decideLanguage(from, text, tempBookings = {}) {
+  global.userLanguage = global.userLanguage || {};
+
+  const bookingLang = tempBookings[from]?.language;
+  const prevLang = global.userLanguage[from];
+
+  // If booking language exists -> strong preference (and preserve for phone)
+  if (bookingLang) {
+    // If message is phone-like, return bookingLang
+    if (looksLikePhoneNumber(text)) return bookingLang;
+    // Otherwise allow detection to update bookingLang if different (but still prefer bookingLang for continuity)
+    return bookingLang;
+  }
+
+  // If previous language exists and message looks like phone -> keep previous
+  if (prevLang && looksLikePhoneNumber(text)) return prevLang;
+
+  // Otherwise detect from text
+  return isEnglish(text) ? "en" : "ar";
+}
+
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
-  // Webhook verification
   app.get("/webhook", (req, res) => {
     const mode = req.query["hub.mode"];
     const token = req.query["hub.verify_token"];
@@ -60,7 +98,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
     }
   });
 
-  // Webhook message handling (POST)
   app.post("/webhook", async (req, res) => {
     try {
       const body = req.body;
@@ -69,22 +106,26 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       if (!message || !from) return res.sendStatus(200);
 
-      // Ensure global tempBookings object exists
       const tempBookings = (global.tempBookings = global.tempBookings || {});
+      global.userLanguage = global.userLanguage || {};
 
-      // When message is audio -> delegate to webhookProcessor
+      // AUDIO -> delegate
       if (message.type === "audio") {
         await handleAudioMessage(message, from);
         return res.sendStatus(200);
       }
 
-      // Interactive messages (buttons / lists)
+      // INTERACTIVE messages
       if (message.type === "interactive") {
         const interactiveType = message.interactive?.type;
         const id =
           interactiveType === "list_reply"
             ? message.interactive?.list_reply?.id
             : message.interactive?.button_reply?.id;
+
+        // Use booking language if available, otherwise stored language, else default 'ar'
+        const language =
+          tempBookings[from]?.language || global.userLanguage[from] || "ar";
 
         if (id?.startsWith("slot_")) {
           const appointment = id.replace("slot_", "").toUpperCase();
@@ -97,24 +138,38 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           ) {
             await sendTextMessage(
               from,
-              "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
+              language === "en"
+                ? "📅 Friday is a holiday and the clinic is closed. Please choose another day."
+                : "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷",
+              language
             );
 
             setTimeout(async () => {
               await sendTextMessage(
                 from,
-                "📅 لنبدأ الحجز، اختر الوقت المناسب 👇"
+                language === "en"
+                  ? "📅 Let's start booking — choose a time below 👇"
+                  : "📅 لنبدأ الحجز، اختر الوقت المناسب 👇",
+                language
               );
-              await sendAppointmentOptions(from);
-            }, 2000);
+              await sendAppointmentOptions(from, language);
+            }, 1200);
 
             return res.sendStatus(200);
           }
 
-          tempBookings[from] = { appointment };
+          tempBookings[from] = tempBookings[from] || {};
+          tempBookings[from].appointment = appointment;
+          // store language preference if not existing
+          tempBookings[from].language = tempBookings[from].language || language;
+          global.userLanguage[from] = global.userLanguage[from] || language;
+
           await sendTextMessage(
             from,
-            "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+            language === "en"
+              ? "👍 Appointment selected! Please send your name now:"
+              : "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:",
+            language
           );
           return res.sendStatus(200);
         }
@@ -124,7 +179,10 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           if (!tempBookings[from] || !tempBookings[from].phone) {
             await sendTextMessage(
               from,
-              "⚠️ يرجى إكمال خطوات الحجز أولاً (الموعد، الاسم، رقم الجوال)"
+              language === "en"
+                ? "⚠️ Please complete booking steps first (appointment, name, phone)"
+                : "⚠️ يرجى إكمال خطوات الحجز أولاً (الموعد، الاسم، رقم الجوال)",
+              language
             );
             return res.sendStatus(200);
           }
@@ -135,11 +193,10 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
           await sendTextMessage(
             from,
-            `✅ تم حفظ حجزك:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
+            language === "en"
+              ? `✅ Booking saved:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
+              : `✅ تم حفظ حجزك:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
+            language
           );
 
           delete tempBookings[from];
@@ -149,32 +206,36 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Text messages
+      // TEXT messages
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
 
-      // 🚫 Check for ban words
+      // Decide language using booking preference and global userLanguage
+      const language = decideLanguage(from, text, tempBookings);
+      // persist language globally (for future non-booking messages)
+      global.userLanguage[from] = language;
+      // also persist in booking if present
+      if (tempBookings[from])
+        tempBookings[from].language = tempBookings[from].language || language;
+
+      // Ban words
       if (containsBanWords(text)) {
-        const language = isEnglish(text) ? "en" : "ar";
         await sendBanWordsResponse(from, language);
         return res.sendStatus(200);
       }
 
-      // Shortcut detection
+      // Shortcuts
       if (isLocationRequest(text)) {
-        const language = isEnglish(text) ? "en" : "ar";
         await sendLocationMessages(from, language);
         return res.sendStatus(200);
       }
 
       if (isOffersRequest(text)) {
-        const language = isEnglish(text) ? "en" : "ar";
         await sendOffersImages(from, language);
         return res.sendStatus(200);
       }
 
       if (isDoctorsRequest(text)) {
-        const language = isEnglish(text) ? "en" : "ar";
         await sendDoctorsImages(from, language);
         return res.sendStatus(200);
       }
@@ -182,108 +243,143 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       // Friday check
       const fridayWords = ["الجمعة", "Friday", "friday"];
       if (
-        fridayWords.some((word) =>
-          text.toLowerCase().includes(word.toLowerCase())
-        )
+        fridayWords.some((w) => text.toLowerCase().includes(w.toLowerCase()))
       ) {
         await sendTextMessage(
           from,
-          "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
+          language === "en"
+            ? "📅 Friday is a holiday and the clinic is closed — please choose another day."
+            : "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷",
+          language
         );
 
         setTimeout(async () => {
           await sendTextMessage(
             from,
-            "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇"
+            language === "en"
+              ? "📅 Let's start booking — choose a time below 👇"
+              : "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇",
+            language
           );
-          await sendAppointmentOptions(from);
-        }, 2000);
+          await sendAppointmentOptions(from, language);
+        }, 1200);
 
         return res.sendStatus(200);
       }
 
-      // Step 1: Appointment shortcut
+      // Booking flow
+      // Step 1: appointment shortcut
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         const appointment = `${text} PM`;
-        tempBookings[from] = { appointment };
+        tempBookings[from] = tempBookings[from] || {};
+        tempBookings[from].appointment = appointment;
+        tempBookings[from].language = tempBookings[from].language || language;
+        global.userLanguage[from] = global.userLanguage[from] || language;
+
         await sendTextMessage(
           from,
-          "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:"
+          language === "en"
+            ? "👍 Appointment chosen! Now please send your name:"
+            : "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:",
+          language
         );
         return res.sendStatus(200);
       }
 
-      // Step 2: Name input
+      // Step 2: name input
       if (tempBookings[from] && !tempBookings[from].name) {
         const userName = text.trim();
-        const isValid = await validateNameWithAI(userName);
+        const isValid = await validateNameWithAI(userName, language);
 
         if (!isValid) {
           await sendTextMessage(
             from,
-            "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
+            language === "en"
+              ? "⚠️ Please send a valid name like: John, Mary Smith..."
+              : "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة...",
+            language
           );
           return res.sendStatus(200);
         }
 
         tempBookings[from].name = userName;
-        await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
+        tempBookings[from].language = language;
+        global.userLanguage[from] = language;
+
+        await sendTextMessage(
+          from,
+          language === "en"
+            ? "📱 Great! Now send your phone number:"
+            : "📱 ممتاز! الآن أرسل رقم جوالك:",
+          language
+        );
         return res.sendStatus(200);
       }
 
-      // Step 3: Phone input
+      // Step 3: phone input
       if (tempBookings[from] && !tempBookings[from].phone) {
-        const normalized = text
-          .replace(/[^\d٠-٩]/g, "")
-          .replace(/٠/g, "0")
-          .replace(/١/g, "1")
-          .replace(/٢/g, "2")
-          .replace(/٣/g, "3")
-          .replace(/٤/g, "4")
-          .replace(/٥/g, "5")
-          .replace(/٦/g, "6")
-          .replace(/٧/g, "7")
-          .replace(/٨/g, "8")
-          .replace(/٩/g, "9");
+        // IMPORTANT: Do NOT let the phone content change language.
+        // Use stored booking language first; if not present, fallback to global.userLanguage or detect.
+        const bookingLang = tempBookings[from].language;
+        const storedLang = global.userLanguage[from];
+        const resolvedLanguage = bookingLang || storedLang || language;
 
-        const isValid = /^07\d{8}$/.test(normalized);
+        // Normalize digits
+        const normalized = normalizeArabicDigitsForCheck(text);
+        const isValidPhone = /^07\d{8}$/.test(normalized);
 
-        if (!isValid) {
+        if (!isValidPhone) {
           await sendTextMessage(
             from,
-            "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
+            resolvedLanguage === "en"
+              ? "⚠️ Please send a valid Jordanian phone like: 0785050875"
+              : "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875",
+            resolvedLanguage
           );
           return res.sendStatus(200);
         }
 
+        // Save phone and keep booking language (do NOT flip to English even if digits are ASCII)
         tempBookings[from].phone = normalized;
-        await sendServiceList(from);
+        tempBookings[from].language = resolvedLanguage;
+        global.userLanguage[from] = resolvedLanguage;
+
+        // Send service list using resolved language
+        await sendServiceList(from, resolvedLanguage);
         await sendTextMessage(
           from,
-          "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
+          resolvedLanguage === "en"
+            ? "💊 Please choose a service from the dropdown above:"
+            : "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:",
+          resolvedLanguage
         );
         return res.sendStatus(200);
       }
 
-      // Step 4: Service input (manual text fallback) with AI validation
+      // Step 4: service input (manual)
       if (tempBookings[from] && !tempBookings[from].service) {
         const booking = tempBookings[from];
         const userService = text.trim();
+        const lang = booking.language || global.userLanguage[from] || language;
 
-        const aiReply = await askAI(
-          `هل نقدم هذه الخدمة في عيادتنا: "${userService}"؟ أجب فقط بـ نعم أو لا. إذا لا، اقترح الخدمات المتاحة.`
-        );
+        const prompt =
+          lang === "en"
+            ? `Do we offer this service in our clinic: "${userService}"? Answer only "yes" or "no". If no, suggest available services.`
+            : `هل نقدم هذه الخدمة في عيادتنا: "${userService}"؟ أجب فقط بـ نعم أو لا. إذا لا، اقترح الخدمات المتاحة.`;
 
-        const isValidService =
-          aiReply.toLowerCase().includes("نعم") ||
-          aiReply.toLowerCase().includes("yes");
+        const aiReply = await askAI(prompt, lang);
+        const lower = (aiReply || "").toLowerCase();
+        const isValidService = lower.includes("نعم") || lower.includes("yes");
 
         if (!isValidService) {
           await sendTextMessage(
             from,
-            `⚠️ لا نقدم "${userService}" كخدمة. يرجى اختيار خدمة صحيحة من القائمة.`
+            lang === "en"
+              ? `⚠️ We don't offer "${userService}". Please choose a valid service from the list.`
+              : `⚠️ لا نقدم "${userService}" كخدمة. يرجى اختيار خدمة صحيحة من القائمة.`,
+            lang
           );
-          await sendServiceList(from);
+          await sendServiceList(from, lang);
           return res.sendStatus(200);
         }
 
@@ -292,29 +388,35 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
         await sendTextMessage(
           from,
-          `✅ تم حفظ حجزك بنجاح:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
+          lang === "en"
+            ? `✅ Booking saved:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
+            : `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
+          lang
         );
 
         delete tempBookings[from];
         return res.sendStatus(200);
       }
 
-      // Step 5: AI chat fallback
+      // Step 5: AI chat fallback when no booking active
       if (!tempBookings[from]) {
-        if (text.includes("حجز") || text.toLowerCase().includes("book")) {
-          await sendAppointmentOptions(from);
+        const lowerText = text.toLowerCase();
+        if (
+          lowerText.includes("حجز") ||
+          lowerText.includes("book") ||
+          lowerText.includes("appointment") ||
+          lowerText.includes("موعد")
+        ) {
+          await sendAppointmentOptions(from, language);
         } else {
-          const reply = await askAI(text);
-          await sendTextMessage(from, reply);
+          const reply = await askAI(text, language);
+          await sendTextMessage(from, reply, language);
         }
       }
 
       return res.sendStatus(200);
     } catch (err) {
+      console.error("Webhook handler error:", err);
       return res.sendStatus(500);
     }
   });
