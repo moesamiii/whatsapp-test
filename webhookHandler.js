@@ -311,7 +311,15 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         if (text.includes("حجز") || text.toLowerCase().includes("book")) {
           await sendAppointmentOptions(from);
         } else {
-          const reply = await askAI(text);
+          // For pure numbers (like phone numbers), always respond in Arabic
+          let reply;
+          if (isPureNumber) {
+            reply = await askAI(
+              `${text}\n\nملاحظة مهمة: الرد يجب أن يكون بالعربية فقط`
+            );
+          } else {
+            reply = await askAI(text);
+          }
           await sendTextMessage(from, reply);
         }
       }
