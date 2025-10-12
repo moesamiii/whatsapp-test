@@ -1,21 +1,6 @@
 /**
  * webhookProcessor.js
- *
- * Responsibilities:
- * - Handle audio (voice) messages: fetch & transcribe the media, detect intent (location/offers/doctors),
- *   respond with media or start/continue the booking flow when the user speaks.
- * - Contains helper functions used by the audio flow (phone normalization, Friday detection, booking confirmation).
- *
- * Usage:
- * - Called from webhookHandler.js for audio messages: handleAudioMessage(message, from)
- *
- * Dependencies:
- * - helpers.js for sending messages, booking persistence and name validation.
- * - messageHandlers.js for transcription, location/offers/doctors sending and language detection.
- *
- * Note:
- * - This file is intentionally focused on voice/audio logic to keep heavy I/O here.
- * - Text & interactive (buttons/lists) flows are handled in webhookHandler.js.
+ * Handles audio (voice) messages and booking flow.
  */
 
 const {
@@ -38,10 +23,6 @@ const {
   isEnglish,
 } = require("./messageHandlers");
 
-/**
- * Normalize Arabic digits and non-digit characters into ascii digits string.
- * Example: "٠٧٨٥٠٥٠٨٧٥" -> "0785050875"
- */
 function normalizeArabicDigits(input = "") {
   return input
     .replace(/[^\d٠-٩]/g, "")
@@ -57,17 +38,11 @@ function normalizeArabicDigits(input = "") {
     .replace(/٩/g, "9");
 }
 
-/**
- * returns true if the provided text contains a Friday word.
- */
 function containsFriday(text = "") {
   const fridayWords = ["الجمعة", "Friday", "friday"];
   return fridayWords.some((w) => text.toLowerCase().includes(w.toLowerCase()));
 }
 
-/**
- * Send a unified booking confirmation message.
- */
 async function sendBookingConfirmation(to, booking) {
   await sendTextMessage(
     to,
@@ -79,24 +54,13 @@ async function sendBookingConfirmation(to, booking) {
   );
 }
 
-/**
- * Handle an incoming audio message (main exported function).
- * - message: the raw message object from the webhook (expected to contain message.audio.id)
- * - from: sender id (phone number)
- */
 async function handleAudioMessage(message, from) {
   try {
-    // Ensure global tempBookings exists
     const tempBookings = (global.tempBookings = global.tempBookings || {});
-
     const mediaId = message?.audio?.id;
     if (!mediaId) return;
 
-    console.log(
-      "🎙️ Audio message received. Starting transcription for media ID:",
-      mediaId
-    );
-
+    console.log("🎙️ Audio message received:", mediaId);
     const transcript = await transcribeAudio(mediaId);
 
     if (!transcript) {
@@ -109,42 +73,37 @@ async function handleAudioMessage(message, from) {
 
     console.log(`🗣️ Transcribed text: "${transcript}"`);
 
-    // If user asked for location / offers / doctors via voice
+    // Skip language detection if transcript is numeric
+    const isNumeric = /^[\d٠-٩\s]+$/.test(transcript);
+    const language = isNumeric ? "ar" : isEnglish(transcript) ? "en" : "ar";
+
     if (isLocationRequest(transcript)) {
-      const language = isEnglish(transcript) ? "en" : "ar";
       await sendLocationMessages(from, language);
       return;
     }
 
     if (isOffersRequest(transcript)) {
-      const language = isEnglish(transcript) ? "en" : "ar";
       await sendOffersImages(from, language);
       return;
     }
 
     if (isDoctorsRequest(transcript)) {
-      const language = isEnglish(transcript) ? "en" : "ar";
       await sendDoctorsImages(from, language);
       return;
     }
 
-    // Friday detection
     if (containsFriday(transcript)) {
       await sendTextMessage(
         from,
         "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
       );
-
-      // after short delay, offer appointment options
       setTimeout(async () => {
         await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
         await sendAppointmentOptions(from);
       }, 2000);
-
       return;
     }
 
-    // If there is no active booking for this user, decide whether to start booking or run AI chat
     if (!tempBookings[from]) {
       if (
         transcript.includes("حجز") ||
@@ -154,16 +113,13 @@ async function handleAudioMessage(message, from) {
       ) {
         await sendAppointmentOptions(from);
       } else {
-        // AI chat fallback for voice message
         const reply = await askAI(transcript);
         await sendTextMessage(from, reply);
       }
       return;
     }
 
-    // If there's an active booking for this user, continue the booking flow
     if (tempBookings[from] && !tempBookings[from].name) {
-      // Use AI to validate name
       const isValid = await validateNameWithAI(transcript);
       if (!isValid) {
         await sendTextMessage(
@@ -172,7 +128,6 @@ async function handleAudioMessage(message, from) {
         );
         return;
       }
-
       tempBookings[from].name = transcript;
       await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
       return;
@@ -188,10 +143,7 @@ async function handleAudioMessage(message, from) {
         );
         return;
       }
-
       tempBookings[from].phone = normalized;
-
-      // Send service dropdown list
       await sendServiceList(from);
       await sendTextMessage(
         from,
@@ -210,7 +162,6 @@ async function handleAudioMessage(message, from) {
     }
   } catch (err) {
     console.error("❌ Audio processing failed:", err.message || err);
-    // Rethrow so caller can decide (webhookHandler logs & responds 500). We choose not to send to user here.
     throw err;
   }
 }
