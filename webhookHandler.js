@@ -74,6 +74,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // When message is audio -> delegate to webhookProcessor
       if (message.type === "audio") {
+        // audio branch is intentionally delegated to keep this file smaller
         await handleAudioMessage(message, from);
         return res.sendStatus(200);
       }
@@ -103,6 +104,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
               "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
             );
 
+            // Re-start booking after a short delay
             setTimeout(async () => {
               await sendTextMessage(
                 from,
@@ -159,15 +161,15 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       console.log(`💬 DEBUG => Message from ${from}:`, text);
 
-      // 🚫 CRITICAL: CHECK FOR BAN WORDS FIRST
+      // 🚫 CRITICAL: CHECK FOR BAN WORDS FIRST - BEFORE ANY OTHER PROCESSING
       if (containsBanWords(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendBanWordsResponse(from, language);
         console.log(`🚫 Ban words detected from ${from}. Response sent.`);
-        return res.sendStatus(200);
+        return res.sendStatus(200); // STOP processing immediately
       }
 
-      // Quick replies (location / offers / doctors)
+      // simple detection shortcuts
       if (isLocationRequest(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendLocationMessages(from, language);
@@ -209,7 +211,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 1: Appointment shortcut (3 / 6 / 9)
+      // Step 1: Appointment shortcut (text 3 / 6 / 9)
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         const appointment = `${text} PM`;
         tempBookings[from] = { appointment };
@@ -220,7 +222,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 2: Name
+      // Step 2: Name input (text)
       if (tempBookings[from] && !tempBookings[from].name) {
         const userName = text.trim();
         const isValid = await validateNameWithAI(userName);
@@ -238,7 +240,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 3: Phone
+      // Step 3: Phone input (text)
       if (tempBookings[from] && !tempBookings[from].phone) {
         const normalized = text
           .replace(/[^\d٠-٩]/g, "")
@@ -264,6 +266,8 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         }
 
         tempBookings[from].phone = normalized;
+
+        // Send service dropdown list
         await sendServiceList(from);
         await sendTextMessage(
           from,
@@ -272,37 +276,9 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // ✅ Step 4: Service input (manual fallback with validation)
+      // Step 4: Service input (manual text fallback)
       if (tempBookings[from] && !tempBookings[from].service) {
         const booking = tempBookings[from];
-        const allowedServices = [
-          "فحص عام",
-          "تنظيف الأسنان",
-          "تبييض الأسنان",
-          "حشو الأسنان",
-          "علاج الجذور",
-          "تركيب التركيبات",
-          "تقويم الأسنان",
-          "خلع الأسنان",
-          "الفينير",
-          "زراعة الأسنان",
-          "ابتسامة هوليود",
-          "خدمة أخرى",
-        ];
-
-        const isValidService = allowedServices.some((service) =>
-          text.replace(/\s+/g, "").includes(service.replace(/\s+/g, ""))
-        );
-
-        if (!isValidService) {
-          await sendTextMessage(
-            from,
-            "⚠️ الرجاء اختيار خدمة صحيحة من القائمة المنسدلة فقط. أعد إرسال الكلمة أو استخدم زر القائمة لاختيار الخدمة."
-          );
-          await sendServiceList(from);
-          return res.sendStatus(200);
-        }
-
         booking.service = text;
         await saveBooking(booking);
 
@@ -319,7 +295,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Step 5: AI fallback
+      // Step 5: AI chat fallback
       if (!tempBookings[from]) {
         if (text.includes("حجز") || text.toLowerCase().includes("book")) {
           await sendAppointmentOptions(from);
