@@ -4,7 +4,7 @@
  * Responsibilities:
  * - Handle audio (voice) messages: fetch & transcribe the media, detect intent (location/offers/doctors),
  *   respond with media or start/continue the booking flow when the user speaks.
- * - Contains helper functions used by the audio flow (phone normalization, Friday detection, booking confirmation).
+ * - Contains helper functions used by the audio flow (Friday detection, booking confirmation).
  *
  * Usage:
  * - Called from webhookHandler.js for audio messages: handleAudioMessage(message, from)
@@ -39,26 +39,7 @@ const {
 } = require("./messageHandlers");
 
 /**
- * Normalize Arabic digits and non-digit characters into ascii digits string.
- * Example: "٠٧٨٥٠٥٠٨٧٥" -> "0785050875"
- */
-function normalizeArabicDigits(input = "") {
-  return input
-    .replace(/[^\d٠-٩]/g, "")
-    .replace(/٠/g, "0")
-    .replace(/١/g, "1")
-    .replace(/٢/g, "2")
-    .replace(/٣/g, "3")
-    .replace(/٤/g, "4")
-    .replace(/٥/g, "5")
-    .replace(/٦/g, "6")
-    .replace(/٧/g, "7")
-    .replace(/٨/g, "8")
-    .replace(/٩/g, "9");
-}
-
-/**
- * returns true if the provided text contains a Friday word.
+ * Returns true if the provided text contains a Friday word.
  */
 function containsFriday(text = "") {
   const fridayWords = ["الجمعة", "Friday", "friday"];
@@ -135,7 +116,7 @@ async function handleAudioMessage(message, from) {
         "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
       );
 
-      // after short delay, offer appointment options
+      // After short delay, offer appointment options
       setTimeout(async () => {
         await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
         await sendAppointmentOptions(from);
@@ -163,7 +144,6 @@ async function handleAudioMessage(message, from) {
 
     // If there's an active booking for this user, continue the booking flow
     if (tempBookings[from] && !tempBookings[from].name) {
-      // Use AI to validate name
       const isValid = await validateNameWithAI(transcript);
       if (!isValid) {
         await sendTextMessage(
@@ -179,17 +159,20 @@ async function handleAudioMessage(message, from) {
     }
 
     if (tempBookings[from] && !tempBookings[from].phone) {
-      const normalized = normalizeArabicDigits(transcript);
-      const isValid = /^07\d{8}$/.test(normalized);
+      // Keep the number as-is (Arabic or English)
+      const userPhone = transcript.trim();
+      // Accept both Arabic and English digits
+      const isValid = /^(07|٠٧)[0-9٠-٩]{8}$/.test(userPhone);
+
       if (!isValid) {
         await sendTextMessage(
           from,
-          "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
+          "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875 أو ٠٧٨٥٠٥٠٨٧٥"
         );
         return;
       }
 
-      tempBookings[from].phone = normalized;
+      tempBookings[from].phone = userPhone;
 
       // Send service dropdown list
       await sendServiceList(from);
@@ -210,7 +193,6 @@ async function handleAudioMessage(message, from) {
     }
   } catch (err) {
     console.error("❌ Audio processing failed:", err.message || err);
-    // Rethrow so caller can decide (webhookHandler logs & responds 500). We choose not to send to user here.
     throw err;
   }
 }
