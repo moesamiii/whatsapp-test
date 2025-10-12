@@ -153,6 +153,9 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
 
+      // Check if message is pure number (including phone numbers)
+      const isPureNumber = /^\d+$/.test(text);
+
       // 🚫 Check for ban words
       if (containsBanWords(text)) {
         const language = isEnglish(text) ? "en" : "ar";
@@ -161,8 +164,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       }
 
       // Shortcut detection (skip language detection for pure numbers)
-      const isPureNumber = /^\d+$/.test(text);
-
       if (!isPureNumber && isLocationRequest(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendLocationMessages(from, language);
