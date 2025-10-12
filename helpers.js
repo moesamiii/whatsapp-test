@@ -9,6 +9,7 @@ const { askAI, validateNameWithAI } = require("./aiHelper"); // ✅ Import AI ut
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const SPREADSHEET_ID = (process.env.GOOGLE_SHEET_ID || "").trim();
+const GROQ_API_KEY = process.env.GROQ_API_KEY; // ✅ Added for service validation
 
 // ---------------------------------------------
 // 🧠 Google Sheets setup
@@ -308,6 +309,75 @@ async function sendAppointmentOptions(to) {
 }
 
 // ---------------------------------------------
+// 🤖 AI-Powered Service Validation
+// ---------------------------------------------
+async function validateServiceWithAI(serviceName) {
+  try {
+    const prompt = `
+You are a dental clinic assistant validator. A patient has requested the following service:
+
+"${serviceName}"
+
+Determine if this is a LEGITIMATE dental or oral health service that a professional dental clinic would offer.
+
+ACCEPT (respond "valid"):
+- Any real dental service: cleaning, whitening, fillings, root canal, extraction, implants, crowns, bridges, veneers, braces, orthodontics, gum treatment, etc.
+- Cosmetic dentistry services
+- Pediatric dental services
+- Oral surgery services
+- Any service related to teeth, gums, mouth, jaw, or oral health
+- Accept both English and Arabic service names
+- Accept common typos if the intent is clear (e.g., "teath cleaning" = teeth cleaning)
+
+REJECT (respond "invalid"):
+- Nonsense or fake services (e.g., "tongue removal", "gum implants", "tooth painting")
+- Services unrelated to dentistry (e.g., "hair cutting", "brain surgery", "massage")
+- Inappropriate or offensive requests
+- Random gibberish or text
+
+Respond with ONLY one word: "valid" or "invalid"
+`;
+
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a strict dental service validator. Respond with only 'valid' or 'invalid'. Nothing else.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 10,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const result = response.data.choices[0].message.content
+      .trim()
+      .toLowerCase();
+    console.log(`🔍 AI Service validation for "${serviceName}": ${result}`);
+
+    return result === "valid";
+  } catch (err) {
+    console.error("❌ Service validation error:", err.message);
+    // In case of error, be safe and reject
+    return false;
+  }
+}
+
+// ---------------------------------------------
 // 🧾 Save booking to Google Sheets
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
@@ -427,6 +497,7 @@ async function testGoogleConnection() {
 module.exports = {
   askAI,
   validateNameWithAI,
+  validateServiceWithAI, // ✅ Export the new AI service validation
   detectSheetName,
   sendTextMessage,
   sendAppointmentButtons,
