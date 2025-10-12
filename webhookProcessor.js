@@ -1,22 +1,21 @@
 /**
  * webhookProcessor.js
  *
- * Rewritten for:
- * - Consistent language detection using global.userLanguage
- * - Phone-number exception (preserve user's language when receiving phone)
- * - All outgoing helpers & askAI receive language param
+ * Responsibilities:
+ * - Handle audio (voice) messages: fetch & transcribe the media, detect intent (location/offers/doctors),
+ *   respond with media or start/continue the booking flow when the user speaks.
+ * - Contains helper functions used by the audio flow (phone normalization, Friday detection, booking confirmation).
  *
- * Expected helper signatures (update helpers if needed):
- * - transcribeAudio(mediaId) -> string transcript
- * - askAI(text, language)
- * - sendTextMessage(to, message, language)
- * - sendServiceList(to, language)
- * - sendAppointmentOptions(to, language)
- * - saveBooking(booking)
- * - sendLocationMessages(to, language)
- * - sendOffersImages(to, language)
- * - sendDoctorsImages(to, language)
- * - validateNameWithAI(name, language)
+ * Usage:
+ * - Called from webhookHandler.js for audio messages: handleAudioMessage(message, from)
+ *
+ * Dependencies:
+ * - helpers.js for sending messages, booking persistence and name validation.
+ * - messageHandlers.js for transcription, location/offers/doctors sending and language detection.
+ *
+ * Note:
+ * - This file is intentionally focused on voice/audio logic to keep heavy I/O here.
+ * - Text & interactive (buttons/lists) flows are handled in webhookHandler.js.
  */
 
 const {
@@ -39,7 +38,10 @@ const {
   isEnglish,
 } = require("./messageHandlers");
 
-// Normalize Arabic digits for phone handling
+/**
+ * Normalize Arabic digits and non-digit characters into ascii digits string.
+ * Example: "٠٧٨٥٠٥٠٨٧٥" -> "0785050875"
+ */
 function normalizeArabicDigits(input = "") {
   return input
     .replace(/[^\d٠-٩]/g, "")
@@ -55,85 +57,73 @@ function normalizeArabicDigits(input = "") {
     .replace(/٩/g, "9");
 }
 
-function looksLikePhoneNumberFromTranscript(text = "") {
-  const digits = normalizeArabicDigits(text);
-  if (/^07\d{8}$/.test(digits)) return true;
-  return digits.length >= 7 && digits.length <= 15;
-}
-
-// Friday detection helper
+/**
+ * returns true if the provided text contains a Friday word.
+ */
 function containsFriday(text = "") {
   const fridayWords = ["الجمعة", "Friday", "friday"];
-  const lower = text.toLowerCase();
-  return fridayWords.some((w) => lower.includes(w.toLowerCase()));
+  return fridayWords.some((w) => text.toLowerCase().includes(w.toLowerCase()));
 }
 
-// Decide language for audio transcript with phone exception
-function decideLanguageForTranscript(from, transcript) {
-  global.userLanguage = global.userLanguage || {};
-  const prev = global.userLanguage[from];
-  const detectedEnglish = isEnglish(transcript);
-  const incoming = detectedEnglish ? "en" : "ar";
-
-  // If previous language present and transcript looks like phone -> preserve previous
-  if (prev && looksLikePhoneNumberFromTranscript(transcript)) return prev;
-
-  return incoming;
-}
-
+/**
+ * Send a unified booking confirmation message.
+ */
 async function sendBookingConfirmation(to, booking) {
-  const language = booking.language || global.userLanguage[to] || "ar";
   await sendTextMessage(
     to,
-    language === "en"
-      ? `✅ Booking saved:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
-      : `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`,
-    language
+    `✅ تم حفظ حجزك بنجاح:
+👤 ${booking.name}
+📱 ${booking.phone}
+💊 ${booking.service}
+📅 ${booking.appointment}`
   );
 }
 
+/**
+ * Handle an incoming audio message (main exported function).
+ * - message: the raw message object from the webhook (expected to contain message.audio.id)
+ * - from: sender id (phone number)
+ */
 async function handleAudioMessage(message, from) {
   try {
+    // Ensure global tempBookings exists
     const tempBookings = (global.tempBookings = global.tempBookings || {});
-    global.userLanguage = global.userLanguage || {};
 
     const mediaId = message?.audio?.id;
     if (!mediaId) return;
 
-    console.log("🎙️ Audio received. Transcribing id:", mediaId);
+    console.log(
+      "🎙️ Audio message received. Starting transcription for media ID:",
+      mediaId
+    );
+
     const transcript = await transcribeAudio(mediaId);
 
     if (!transcript) {
-      // Fallback - default to Arabic message (or use stored language)
-      const language = global.userLanguage[from] || "ar";
       await sendTextMessage(
         from,
-        language === "en"
-          ? "⚠️ I couldn't understand the voice message, please try again."
-          : "⚠️ لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى 🎙️",
-        language
+        "⚠️ لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى 🎙️"
       );
       return;
     }
 
-    console.log("🗣️ Transcript:", transcript);
-
-    // Decide language for transcript and persist
-    const language = decideLanguageForTranscript(from, transcript);
-    global.userLanguage[from] = language;
+    console.log(`🗣️ Transcribed text: "${transcript}"`);
 
     // If user asked for location / offers / doctors via voice
     if (isLocationRequest(transcript)) {
+      const language = isEnglish(transcript) ? "en" : "ar";
       await sendLocationMessages(from, language);
       return;
     }
 
     if (isOffersRequest(transcript)) {
+      const language = isEnglish(transcript) ? "en" : "ar";
       await sendOffersImages(from, language);
       return;
     }
 
     if (isDoctorsRequest(transcript)) {
+      const language = isEnglish(transcript) ? "en" : "ar";
       await sendDoctorsImages(from, language);
       return;
     }
@@ -142,108 +132,76 @@ async function handleAudioMessage(message, from) {
     if (containsFriday(transcript)) {
       await sendTextMessage(
         from,
-        language === "en"
-          ? "📅 Friday is a holiday and the clinic is closed — please choose another day."
-          : "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷",
-        language
+        "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
       );
 
+      // after short delay, offer appointment options
       setTimeout(async () => {
-        await sendTextMessage(
-          from,
-          language === "en"
-            ? "📅 Let's start booking — choose a time below 👇"
-            : "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇",
-          language
-        );
-        await sendAppointmentOptions(from, language);
-      }, 1200);
+        await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
+        await sendAppointmentOptions(from);
+      }, 2000);
 
       return;
     }
 
-    // No active booking
+    // If there is no active booking for this user, decide whether to start booking or run AI chat
     if (!tempBookings[from]) {
-      // voice intents that start booking
-      const lower = transcript.toLowerCase();
       if (
-        lower.includes("حجز") ||
-        lower.includes("book") ||
-        lower.includes("موعد") ||
-        lower.includes("appointment")
+        transcript.includes("حجز") ||
+        transcript.toLowerCase().includes("book") ||
+        transcript.includes("موعد") ||
+        transcript.includes("appointment")
       ) {
-        await sendAppointmentOptions(from, language);
-        return;
+        await sendAppointmentOptions(from);
+      } else {
+        // AI chat fallback for voice message
+        const reply = await askAI(transcript);
+        await sendTextMessage(from, reply);
       }
-
-      // AI chat fallback for voice — enforce language
-      const reply = await askAI(transcript, language);
-      await sendTextMessage(from, reply, language);
       return;
     }
 
-    // Continue booking flow
-    // Step: Name validation
+    // If there's an active booking for this user, continue the booking flow
     if (tempBookings[from] && !tempBookings[from].name) {
-      const isValid = await validateNameWithAI(transcript, language);
+      // Use AI to validate name
+      const isValid = await validateNameWithAI(transcript);
       if (!isValid) {
         await sendTextMessage(
           from,
-          language === "en"
-            ? "⚠️ Please send a real name like: John, Mary..."
-            : "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة...",
-          language
+          "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
         );
         return;
       }
 
       tempBookings[from].name = transcript;
-      tempBookings[from].language = language;
-      await sendTextMessage(
-        from,
-        language === "en"
-          ? "📱 Great! Now send your phone number:"
-          : "📱 ممتاز! الآن أرسل رقم جوالك:",
-        language
-      );
+      await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
       return;
     }
 
-    // Step: Phone input
     if (tempBookings[from] && !tempBookings[from].phone) {
       const normalized = normalizeArabicDigits(transcript);
       const isValid = /^07\d{8}$/.test(normalized);
-
       if (!isValid) {
         await sendTextMessage(
           from,
-          language === "en"
-            ? "⚠️ Please send a valid Jordanian phone like: 0785050875"
-            : "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875",
-          language
+          "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
         );
         return;
       }
 
       tempBookings[from].phone = normalized;
-      tempBookings[from].language = language;
 
-      // send service list & prompt
-      await sendServiceList(from, language);
+      // Send service dropdown list
+      await sendServiceList(from);
       await sendTextMessage(
         from,
-        language === "en"
-          ? "💊 Please choose a service from the dropdown above:"
-          : "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:",
-        language
+        "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
       );
       return;
     }
 
-    // Step: Service input via voice
     if (tempBookings[from] && !tempBookings[from].service) {
       tempBookings[from].service = transcript;
-      tempBookings[from].language = language;
       const booking = tempBookings[from];
       await saveBooking(booking);
       await sendBookingConfirmation(from, booking);
@@ -252,7 +210,7 @@ async function handleAudioMessage(message, from) {
     }
   } catch (err) {
     console.error("❌ Audio processing failed:", err.message || err);
-    // propagate - let the caller decide how to handle HTTP response (webhook handler will respond)
+    // Rethrow so caller can decide (webhookHandler logs & responds 500). We choose not to send to user here.
     throw err;
   }
 }
