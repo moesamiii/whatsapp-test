@@ -39,6 +39,9 @@ async function askAI(userMessage) {
 7. كن ودودًا وطبيعيًا في أسلوبك (مثل موظف استقبال حقيقي).
 8. لا تخترع مواعيد أو مواقع جديدة — استخدم دائمًا:
    🕒 "دوامنا من الساعة 2 ظهرًا إلى 10 مساءً، والجمعة مغلق."
+   9. لا تذكر أي أسعار أو تقديرات مالية إطلاقًا. إذا سُئلت عن السعر، قل فقط:
+   "الأسعار تختلف حسب الحالة، ويمكن للطبيب تحديد التكلفة بعد الفحص."
+
 `;
 
     // 🔵 English system prompt (fixed and controlled)
@@ -69,6 +72,10 @@ Your job is to help clients with:
 7. Keep responses natural, polite, and warm — like a real human receptionist.
 8. Never make up new hours or locations — always say:
    "We are open daily from 2 PM to 10 PM, and closed on Fridays."
+   9. Never mention or guess any prices. If asked about pricing, only reply:
+   "Prices vary depending on the case. The doctor will confirm the cost after the consultation."
+
+   
 `;
 
     const systemPrompt = lang === "ar" ? arabicPrompt : englishPrompt;
