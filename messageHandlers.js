@@ -55,33 +55,34 @@ function containsBanWords(text = "") {
 }
 
 // ---------------------------------------------
-// 🚫 Friendly Ban Words Responses
-// ---------------------------------------------
-const banResponses = {
-  ar: [
-    "😅 شكلك متضايق شوي، بس خلنا نرتب الأمور سوا. أقدر أساعدك بمعلومات عن عيادة سمايلز — موقعنا، العروض، أو المواعيد؟ 💬",
-    "ولا يهمك، أهم شي نحل المشكلة بهدوء 😌💙 ممكن أعرف كيف أقدر أساعدك بخصوص خدمات الأسنان؟",
-    "أفهم إنك ممكن تكون متضايق، بس خلنا نحولها تجربة حلوة ✨ تبي أعرفك على عروضنا أو المواعيد؟",
-    "خلنا ننسى الزعل شوي 😄 ونتكلم عن اللي يهمك أكثر — العروض أو حجز موعد؟"
-  ],
-  en: [
-    "Hey, I get it — sometimes things can be frustrating 😅 Let’s reset and figure this out together. Want me to help with booking or offers?",
-    "No worries, we all get upset sometimes 🙏 I’m here to help you with anything about Smiles Clinic — our services, doctors, or appointments.",
-    "I totally understand how you might feel. Let’s keep it positive 💙 How can I assist you today — location, offers, or booking?",
-    "Let’s take a breath 😌 and focus on getting you what you need. Would you like info about our dental services or to book an appointment?"
-  ]
-};
-
-// ---------------------------------------------
 // 🚫 Send Ban Words Response
 // ---------------------------------------------
 async function sendBanWordsResponse(to, language = "ar") {
   try {
-    const responses = banResponses[language] || banResponses["en"];
-    const reply = responses[Math.floor(Math.random() * responses.length)];
-
-    await sendTextMessage(to, reply);
-    console.log("✅ Sent friendly ban words response to user");
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "I apologize if you're feeling frustrated. I understand that emotions can run high sometimes. 😊\n\n" +
+          "However, I'm here to assist you with information about Smiles Clinic, including:\n" +
+          "📍 Our location\n" +
+          "💊 Services and offers\n" +
+          "👨‍⚕️ Our medical team\n" +
+          "📅 Booking appointments\n\n" +
+          "Please let me know how I can help you with your dental care needs. 🦷✨"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "أعتذر إذا كنت تشعر بالإحباط. أتفهم أن المشاعر قد تكون قوية أحياناً. 😊\n\n" +
+          "ومع ذلك، أنا هنا لمساعدتك بمعلومات حول Smiles Clinic، بما في ذلك:\n" +
+          "📍 موقعنا\n" +
+          "💊 الخدمات والعروض\n" +
+          "👨‍⚕️ فريقنا الطبي\n" +
+          "📅 حجز المواعيد\n\n" +
+          "من فضلك دعني أعرف كيف يمكنني مساعدتك في احتياجات العناية بأسنانك. 🦷✨"
+      );
+    }
+    console.log("✅ Sent ban words response to user");
   } catch (err) {
     console.error("❌ Failed to send ban words response:", err.message);
   }
