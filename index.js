@@ -1,8 +1,9 @@
-// index.js
+// index.js (keeps server boot, simple routes, and registers webhook routes)
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
-const { registerWebhookRoutes } = require("./webhookHandler"); // Import webhook routes
+const { registerWebhookRoutes } = require("./webhookHandler"); // NEW file
+
 const { detectSheetName, getAllBookings } = require("./helpers");
 
 const app = express();
@@ -48,7 +49,7 @@ app.get("/api/bookings", async (req, res) => {
 registerWebhookRoutes(app, VERIFY_TOKEN);
 
 // ---------------------------------------------
-// Run Server (local only — ignored by Vercel)
+// Run Server
 // ---------------------------------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
