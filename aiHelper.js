@@ -80,7 +80,7 @@ Your job is to help clients with:
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ],
-      temperature: 0.6, // أكثر انضباطًا لعدم التخمين
+      temperature: 0.7, // أكثر انضباطًا لعدم التخمين
       max_completion_tokens: 512,
     });
 
