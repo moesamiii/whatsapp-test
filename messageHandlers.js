@@ -559,6 +559,7 @@ function isOffersRequest(text = "") {
     "deal",
     "package",
     "packages",
+    "session",
 
     // ----- Emoji triggers (common in chats) -----
     "💰",
