@@ -122,7 +122,6 @@ const BAN_WORDS = {
     "isis",
     "bomb",
     "explosion",
-    "kill",
     "murder",
     "suicide bomber",
     "attack",
