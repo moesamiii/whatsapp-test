@@ -2,7 +2,8 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
-const { registerWebhookRoutes } = require("./webhookHandler");
+const { registerWebhookRoutes } = require("./webhookHandler"); // NEW file
+
 const { detectSheetName, getAllBookings } = require("./helpers");
 
 const app = express();
@@ -20,6 +21,7 @@ detectSheetName();
 // Global booking memory
 // ---------------------------------------------
 global.tempBookings = global.tempBookings || {};
+const tempBookings = global.tempBookings;
 
 // ---------------------------------------------
 // Basic routes (non-webhook)
@@ -47,6 +49,9 @@ app.get("/api/bookings", async (req, res) => {
 registerWebhookRoutes(app, VERIFY_TOKEN);
 
 // ---------------------------------------------
-// Export for Vercel (serverless)
+// Run Server
 // ---------------------------------------------
-module.exports = app;
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () =>
+  console.log(`✅ Server running on http://localhost:${PORT}`)
+);
