@@ -28,6 +28,8 @@
 const axios = require("axios");
 const FormData = require("form-data");
 const { sendTextMessage } = require("./helpers");
+
+// Import static media assets from mediaAssets.js
 const {
   CLINIC_NAME,
   CLINIC_LOCATION_LINK,
@@ -42,29 +44,21 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
 // ---------------------------------------------
-// 🚫 Expanded Ban Words List (No Violence)
+// 🚫 Ban Words List
 // ---------------------------------------------
 const BAN_WORDS = {
+  // English inappropriate words
   english: [
+    // Sexual/Inappropriate
     "fuck",
     "fck",
     "fuk",
-    "f***",
-    "f.u.c.k",
-    "fu*k",
-    "f-u-c-k",
     "shit",
     "sht",
     "bitch",
     "btch",
-    "b!tch",
-    "bish",
-    "b!sh",
-    "asshole",
     "ass",
-    "a$$",
     "dick",
-    "d!ck",
     "cock",
     "pussy",
     "cunt",
@@ -74,9 +68,7 @@ const BAN_WORDS = {
     "damn",
     "hell",
     "sex",
-    "s3x",
     "porn",
-    "p0rn",
     "nude",
     "naked",
     "boobs",
@@ -86,6 +78,9 @@ const BAN_WORDS = {
     "anal",
     "orgasm",
     "masturbate",
+    "rape",
+    "molest",
+    "abuse",
     "sexual",
     "erotic",
     "xxx",
@@ -94,12 +89,8 @@ const BAN_WORDS = {
     "sexy",
     "hentai",
     "cumming",
-    "cum",
-    "jerk",
-    "blowjob",
-    "bj",
-    "boob",
-    "n1gger",
+
+    // Racist slurs
     "nigger",
     "nigga",
     "negro",
@@ -111,8 +102,10 @@ const BAN_WORDS = {
     "wetback",
     "towelhead",
     "raghead",
+    "camel jockey",
     "beaner",
     "paki",
+    "curry",
     "cracker",
     "whitey",
     "honky",
@@ -121,10 +114,40 @@ const BAN_WORDS = {
     "colored",
     "oriental",
     "muzzie",
-    "camel jockey",
+
+    // Terrorist/Violence related
+    "terrorist",
+    "terrorism",
+    "jihad",
+    "isis",
+    "bomb",
+    "explosion",
+    "kill",
+    "murder",
+    "suicide bomber",
+    "attack",
+    "massacre",
+    "extremist",
+    "radical",
+    "militant",
+    "weapon",
+    "shoot",
+    "knife",
+    "stab",
+    "violence",
+    "threat",
+    "hostage",
+    "kidnap",
+    "al qaeda",
+    "alqaeda",
+    "taliban",
+    "execute",
+    "behead",
   ],
 
+  // Arabic inappropriate words
   arabic: [
+    // Sexual/Inappropriate
     "كس",
     "عرص",
     "شرموط",
@@ -134,6 +157,7 @@ const BAN_WORDS = {
     "طيز",
     "نيك",
     "متناك",
+    "لعنة",
     "جنس",
     "سكس",
     "عاهرة",
@@ -146,10 +170,11 @@ const BAN_WORDS = {
     "ابن حرام",
     "كلب",
     "حمار",
-    "يا كلب",
     "يا حيوان",
+    "يا كلب",
     "خرا",
     "تفو",
+    "يخرب بيتك",
     "وقح",
     "قليل ادب",
     "سافل",
@@ -159,10 +184,12 @@ const BAN_WORDS = {
     "شرموطة",
     "زبي",
     "متناكة",
-    "كسختك",
     "يلعن",
+    "كسختك",
     "امشم",
     "مشم",
+
+    // Racist/Discriminatory
     "عبد",
     "زنجي",
     "يهودي نجس",
@@ -176,7 +203,39 @@ const BAN_WORDS = {
     "عنصري",
     "دونية",
     "عرق حقير",
+    "حقير",
     "سلالة حقيرة",
+
+    // Terrorist/Violence related
+    "إرهاب",
+    "إرهابي",
+    "داعش",
+    "القاعدة",
+    "قنبلة",
+    "انفجار",
+    "اقتل",
+    "ذبح",
+    "سلاح",
+    "مسدس",
+    "رصاص",
+    "سكين",
+    "طعن",
+    "تفجير",
+    "انتحاري",
+    "هجوم",
+    "مذبحة",
+    "متطرف",
+    "راديكالي",
+    "مسلح",
+    "عنف",
+    "تهديد",
+    "رهينة",
+    "اختطاف",
+    "خطف",
+    "تدمير",
+    "اعدام",
+    "طالبان",
+    "فجر",
   ],
 };
 
@@ -185,10 +244,13 @@ const BAN_WORDS = {
 // ---------------------------------------------
 function containsBanWords(text = "") {
   if (!text || typeof text !== "string") return false;
+
   const lowerText = text.toLowerCase();
   const originalText = text;
 
+  // Check English ban words (case-insensitive)
   for (const word of BAN_WORDS.english) {
+    // Use word boundaries to avoid false positives
     const regex = new RegExp(`\\b${word}\\b`, "i");
     if (regex.test(lowerText)) {
       console.log(`🚫 Detected banned English word: ${word}`);
@@ -196,6 +258,7 @@ function containsBanWords(text = "") {
     }
   }
 
+  // Check Arabic ban words (exact match, Arabic is case-sensitive in nature)
   for (const word of BAN_WORDS.arabic) {
     if (originalText.includes(word)) {
       console.log(`🚫 Detected banned Arabic word: ${word}`);
@@ -207,44 +270,34 @@ function containsBanWords(text = "") {
 }
 
 // ---------------------------------------------
-// 💬 Randomized Polite Responses (10 options)
-// ---------------------------------------------
-const BAN_RESPONSES_AR = [
-  "🙏 رجاءً استخدم لغة محترمة، أنا هنا لمساعدتك 😊",
-  "🤝 فلنحافظ على الاحترام المتبادل، كيف يمكنني خدمتك اليوم؟",
-  "😌 الكلمات اللطيفة تجعل المحادثة أجمل، كيف أقدر أساعدك؟",
-  "🙈 يبدو أنك منزعج، خذ نفس عميق وخلينا نكمل بهدوء ❤️",
-  "🌿 الاحترام أساس التعامل، وشرف لي أساعدك في أي استفسار!",
-  "💬 لا بأس، كلنا نغضب أحيانًا، لكن دعنا نتحدث بطريقة راقية 🙏",
-  "🦷 أنا هنا لمساعدتك بمعلومات عن العيادة فقط، فلنحافظ على الأسلوب 👌",
-  "😊 نقدر تفهمك، لكن رجاءً تجنب الكلمات المسيئة ❤️",
-  "⚠️ دعنا نركز على هدفنا: ابتسامتك الجميلة! 😁",
-  "✨ لا داعي للانفعال، أنا موجود لأساعدك بأفضل طريقة ممكنة 🌟",
-];
-
-const BAN_RESPONSES_EN = [
-  "🙏 Please use polite language. I'm here to help you 😊",
-  "🤝 Let's keep our chat respectful. How can I assist you today?",
-  "😌 Kind words make conversations better. How may I help you?",
-  "🙈 You might be upset, but let's stay calm and continue ❤️",
-  "🌿 Respect is key — I’d love to assist you in any way I can!",
-  "💬 No worries, emotions happen. Let’s keep it friendly 🙏",
-  "🦷 I'm here only for Smiles Clinic info — let’s keep it professional 👌",
-  "😊 I understand frustration, but please avoid offensive language ❤️",
-  "⚠️ Let’s focus on what matters — your smile 😁",
-  "✨ No need for harsh words — I’m happy to assist you 🌟",
-];
-
-// ---------------------------------------------
-// 🚫 Send Random Ban Words Response
+// 🚫 Send Ban Words Response
 // ---------------------------------------------
 async function sendBanWordsResponse(to, language = "ar") {
   try {
-    const responses = language === "en" ? BAN_RESPONSES_EN : BAN_RESPONSES_AR;
-    const randomResponse =
-      responses[Math.floor(Math.random() * responses.length)];
-    await sendTextMessage(to, randomResponse);
-    console.log(`✅ Sent random ban words response (${language})`);
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "I apologize if you're feeling frustrated. I understand that emotions can run high sometimes. 😊\n\n" +
+          "However, I'm here to assist you with information about Smiles Clinic, including:\n" +
+          "📍 Our location\n" +
+          "💊 Services and offers\n" +
+          "👨‍⚕️ Our medical team\n" +
+          "📅 Booking appointments\n\n" +
+          "Please let me know how I can help you with your dental care needs. 🦷✨"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "أعتذر إذا كنت تشعر بالإحباط. أتفهم أن المشاعر قد تكون قوية أحياناً. 😊\n\n" +
+          "ومع ذلك، أنا هنا لمساعدتك بمعلومات حول Smiles Clinic، بما في ذلك:\n" +
+          "📍 موقعنا\n" +
+          "💊 الخدمات والعروض\n" +
+          "👨‍⚕️ فريقنا الطبي\n" +
+          "📅 حجز المواعيد\n\n" +
+          "من فضلك دعني أعرف كيف يمكنني مساعدتك في احتياجات العناية بأسنانك. 🦷✨"
+      );
+    }
+    console.log("✅ Sent ban words response to user");
   } catch (err) {
     console.error("❌ Failed to send ban words response:", err.message);
   }
@@ -266,8 +319,8 @@ function isLocationRequest(text = "") {
     "address",
     "place",
     "maps",
-    "clinic",
     "العيادة",
+    "clinic",
     "وينكم",
     "فينكم",
   ];
@@ -306,12 +359,14 @@ function isDoctorsRequest(text = "") {
     "دكاترة",
     "طبيب",
     "أطباء",
+    "الدكتور",
     "الطبيب",
-    "الاطباء",
     "doctor",
     "doctors",
     "physician",
     "dr",
+    "اطباء",
+    "الاطباء",
   ];
   const lowerText = String(text).toLowerCase();
   return doctorsKeywords.some((keyword) => lowerText.includes(keyword));
@@ -329,12 +384,17 @@ function isEnglish(text = "") {
 // 📍 Send Location Messages
 // ---------------------------------------------
 async function sendLocationMessages(to, language = "ar") {
+  // First message: Just the link
   await sendTextMessage(to, CLINIC_LOCATION_LINK);
-  await new Promise((r) => setTimeout(r, 500));
+
+  // Small delay for better UX
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  // Second message: Explanation
   if (language === "en") {
     await sendTextMessage(
       to,
-      `📍 This is our location at ${CLINIC_NAME}. You can open it on Google Maps 🗺️`
+      `📍 This is our location at ${CLINIC_NAME}. You can click on the link to open it in Google Maps 🗺️`
     );
   } else {
     await sendTextMessage(
@@ -345,7 +405,7 @@ async function sendLocationMessages(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 📸 Send Image Helper (to WhatsApp)
+// 📸 Send Image Helper (performs network call to WhatsApp)
 // ---------------------------------------------
 async function sendImageMessage(to, imageUrl) {
   try {
@@ -353,9 +413,11 @@ async function sendImageMessage(to, imageUrl) {
       `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: "whatsapp",
-        to,
+        to: to,
         type: "image",
-        image: { link: imageUrl },
+        image: {
+          link: imageUrl,
+        },
       },
       {
         headers: {
@@ -373,83 +435,103 @@ async function sendImageMessage(to, imageUrl) {
 }
 
 // ---------------------------------------------
-// 🎁 Send Offers Images
+// 🎁 Send Offers & Services Images (uses OFFER_IMAGES from mediaAssets)
 // ---------------------------------------------
 async function sendOffersImages(to, language = "ar") {
   try {
-    await sendTextMessage(
-      to,
-      language === "en"
-        ? "💊 Here are our offers and services:"
-        : "💊 هذه عروضنا وخدماتنا الحالية:"
-    );
-
-    await new Promise((r) => setTimeout(r, 500));
-    for (let i = 0; i < OFFER_IMAGES.length; i++) {
-      await sendImageMessage(to, OFFER_IMAGES[i]);
-      if (i < OFFER_IMAGES.length - 1)
-        await new Promise((r) => setTimeout(r, 800));
+    if (language === "en") {
+      await sendTextMessage(to, "💊 Here are our offers and services:");
+    } else {
+      await sendTextMessage(to, "💊 هذه عروضنا وخدماتنا الحالية:");
     }
 
-    await new Promise((r) => setTimeout(r, 500));
-    await sendTextMessage(
-      to,
-      language === "en"
-        ? "✨ For more details or to book an appointment, just let me know!"
-        : "✨ لمزيد من التفاصيل أو لحجز موعد، أخبرني فقط!"
-    );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    for (let i = 0; i < OFFER_IMAGES.length; i++) {
+      await sendImageMessage(to, OFFER_IMAGES[i]);
+      if (i < OFFER_IMAGES.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "✨ For more details or to book an appointment, just let me know!"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "✨ لمزيد من التفاصيل أو لحجز موعد، أخبرني فقط!"
+      );
+    }
   } catch (err) {
     console.error("❌ Failed to send offers images:", err.message || err);
   }
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Send Doctors Images
+// 👨‍⚕️ Send Doctors Images (uses DOCTOR_IMAGES from mediaAssets)
 // ---------------------------------------------
 async function sendDoctorsImages(to, language = "ar") {
   try {
-    await sendTextMessage(
-      to,
-      language === "en"
-        ? "👨‍⚕️ Meet our professional medical team:"
-        : "👨‍⚕️ تعرف على فريقنا الطبي المتخصص:"
-    );
-
-    await new Promise((r) => setTimeout(r, 500));
-    for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
-      await sendImageMessage(to, DOCTOR_IMAGES[i]);
-      if (i < DOCTOR_IMAGES.length - 1)
-        await new Promise((r) => setTimeout(r, 800));
+    if (language === "en") {
+      await sendTextMessage(to, "👨‍⚕️ Meet our professional medical team:");
+    } else {
+      await sendTextMessage(to, "👨‍⚕️ تعرف على فريقنا الطبي المتخصص:");
     }
 
-    await new Promise((r) => setTimeout(r, 500));
-    await sendTextMessage(
-      to,
-      language === "en"
-        ? "✨ Our doctors are ready to care for your smile! 😊"
-        : "✨ أطباؤنا مستعدون للعناية بابتسامتك! 😊"
-    );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
+      await sendImageMessage(to, DOCTOR_IMAGES[i]);
+      if (i < DOCTOR_IMAGES.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "✨ Our experienced doctors are here to provide you with the best care! To book an appointment, just let us know 😊"
+      );
+    } else {
+      await sendTextMessage(
+        to,
+        "✨ أطباؤنا ذوو الخبرة هنا لتقديم أفضل رعاية لك! لحجز موعد، فقط أخبرنا 😊"
+      );
+    }
   } catch (err) {
     console.error("❌ Failed to send doctors images:", err.message || err);
   }
 }
 
 // ---------------------------------------------
-// 🎧 Voice Transcription (Groq Whisper)
+// 🧠 Voice Transcription Helper (using Groq Whisper)
 // ---------------------------------------------
 async function transcribeAudio(mediaId) {
   try {
-    console.log("🎙️ Starting transcription for:", mediaId);
+    console.log("🎙️ Starting transcription for media ID:", mediaId);
+
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
-      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        },
+      }
     );
+
     const mediaUrl = mediaUrlResponse.data.url;
     if (!mediaUrl) return null;
 
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
-      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+      },
     });
 
     const form = new FormData();
