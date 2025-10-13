@@ -2,8 +2,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
-const { registerWebhookRoutes } = require("./webhookHandler"); // NEW file
-
+const { registerWebhookRoutes } = require("./webhookHandler");
 const { detectSheetName, getAllBookings } = require("./helpers");
 
 const app = express();
@@ -39,6 +38,7 @@ app.get("/api/bookings", async (req, res) => {
     const data = await getAllBookings();
     res.json(data);
   } catch (err) {
+    console.error("❌ Failed to fetch bookings:", err);
     res.status(500).json({ error: "Failed to fetch bookings" });
   }
 });
@@ -49,9 +49,14 @@ app.get("/api/bookings", async (req, res) => {
 registerWebhookRoutes(app, VERIFY_TOKEN);
 
 // ---------------------------------------------
-// Run Server
+// Export for Vercel (NO app.listen here)
 // ---------------------------------------------
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`✅ Server running on http://localhost:${PORT}`)
-);
+module.exports = app;
+
+// For local testing only (optional)
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`✅ Server running locally on http://localhost:${PORT}`);
+  });
+}
