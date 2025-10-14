@@ -32,6 +32,45 @@ const {
 
 const { handleAudioMessage } = require("./webhookProcessor");
 
+// ✅ Official clinic services (Bulletproof list)
+const VALID_SERVICES = [
+  // Dentistry
+  "تنظيف الأسنان",
+  "تلميع الأسنان",
+  "تبييض الأسنان",
+  "حشوة الأسنان",
+  "خلع ضرس",
+  "علاج العصب",
+  "تقويم الأسنان",
+  "زراعة الأسنان",
+  "تركيب ابتسامة هوليود",
+
+  // Dermatology & Cosmetic
+  "بوتوكس",
+  "فيلر",
+  "ميزوثيرابي",
+  "ليزر إزالة الشعر",
+  "تقشير البشرة",
+  "علاج حب الشباب",
+  "جلسة تنظيف بشرة",
+  "ديرما بن",
+  "علاج التصبغات",
+
+  // Women & Others
+  "طبيبة نساء وولادة",
+  "كشف نسائية",
+  "تحاليل مخبرية",
+  "استشارة طبية",
+];
+
+function normalizeService(text) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\u0621-\u064Aa-zA-Z0-9\s]/g, "")
+    .replace(/\s+/g, " ");
+}
+
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
   // Webhook verification
   app.get("/webhook", (req, res) => {
@@ -146,19 +185,16 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       if (!text) return res.sendStatus(200);
 
       // 🚫 Check for ban words
-      // 🚫 Check for ban words
       if (containsBanWords(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendBanWordsResponse(from, language);
 
-        // 🔒 Reset any ongoing booking session to prevent accidental saves
         if (global.tempBookings && global.tempBookings[from]) {
           delete global.tempBookings[from];
           console.log(
             `⚠️ Cleared booking state for ${from} due to ban word usage`
           );
         }
-
         return res.sendStatus(200);
       }
 
@@ -267,29 +303,25 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // 🧩 Step 4: Service input (manual fallback)
+      // 🧩 Step 4: Service input (manual fallback, bulletproof)
       if (tempBookings[from] && !tempBookings[from].service) {
         const booking = tempBookings[from];
-        const userService = text.trim();
+        const userService = normalizeService(text);
 
-        const aiReply = await askAI(
-          `هل نقدم هذه الخدمة في عيادتنا: "${userService}"؟ أجب فقط بـ نعم أو لا. إذا لا، اقترح الخدمات المتاحة.`
+        const matched = VALID_SERVICES.find(
+          (s) => normalizeService(s) === userService
         );
 
-        const isValidService =
-          aiReply.toLowerCase().includes("نعم") ||
-          aiReply.toLowerCase().includes("yes");
-
-        if (!isValidService) {
+        if (!matched) {
           await sendTextMessage(
             from,
-            `⚠️ لا نقدم "${userService}" كخدمة. يرجى اختيار خدمة صحيحة من القائمة.`
+            `⚠️ الخدمة "${text}" غير متوفرة لدينا حاليًا.\nالرجاء اختيار خدمة من القائمة المعتمدة:`
           );
           await sendServiceList(from);
           return res.sendStatus(200);
         }
 
-        booking.service = userService;
+        booking.service = matched;
         await saveBooking(booking);
 
         await sendTextMessage(
