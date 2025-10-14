@@ -71,11 +71,25 @@ function getReply(text) {
           "👋 Hello! Welcome to *Ibtisama Clinic*! How can I assist you today?",
           "Hi there! 😊 How can I help you book an appointment or learn more about our services?",
           "Welcome to Ibtisama Medical Clinic! How can I support you today?",
+          "Hey! 👋 Glad to see you at *Ibtisama Clinic*! What can I do for you today?",
+          "✨ Hello and welcome to *Ibtisama Clinic*! Are you interested in our offers or booking a visit?",
+          "Good day! 💚 How can I assist you with your dental or beauty needs today?",
+          "😊 Hi! You’ve reached *Ibtisama Clinic*, your smile is our priority!",
+          "👋 Hello there! Would you like to see our latest offers or book an appointment?",
+          "Welcome! 🌸 How can I help you take care of your smile today?",
+          "💬 Hi! How can I help you find the right service or offer at *Ibtisama Clinic*?",
         ])
       : pickRandom([
           "👋 أهلاً وسهلاً في *عيادة ابتسامة الطبية*! كيف يمكنني مساعدتك اليوم؟",
           "مرحباً بك في عيادتنا 💚 هل ترغب بحجز موعد أو الاستفسار عن خدمة؟",
           "أهلاً بك 👋 يسعدنا تواصلك مع *عيادة ابتسامة*، كيف نقدر نخدمك اليوم؟",
+          "🌸 حيّاك الله! وش أكثر خدمة حاب تستفسر عنها اليوم؟",
+          "✨ أهلاً وسهلاً! هل ترغب بالتعرف على عروضنا أو حجز موعد؟",
+          "💚 يسعدنا تواصلك مع *عيادة ابتسامة*! كيف ممكن نساعدك اليوم؟",
+          "😊 مرحباً بك! تقدر تسأل عن أي خدمة أو عرض متوفر حالياً.",
+          "👋 أهلين وسهلين فيك! وش الخدمة اللي حاب تعرف عنها أكثر؟",
+          "🌷 يا مرحبا! كيف نقدر نساعدك اليوم في *عيادة ابتسامة*؟",
+          "💬 أهلاً بك! هل ترغب بحجز موعد أو الاطلاع على عروضنا الحالية؟",
         ]);
   }
 
