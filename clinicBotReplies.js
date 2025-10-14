@@ -65,12 +65,12 @@ function getReply(text) {
   const isEnglish = /[a-z]/i.test(text);
 
   // ✅ تحية
-  if (includesAny(keywords.greeting)) {
-    // Define pickRandom inline to ensure fresh randomness each execution
-    const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const crypto = require("crypto");
 
-    // Force regeneration each run (helps in serverless cache contexts)
-    const randomSeed = Date.now() + Math.random();
+  if (includesAny(keywords.greeting)) {
+    // Strong random integer
+    const randomIndex = (max) =>
+      parseInt(crypto.randomBytes(2).toString("hex"), 16) % max;
 
     const englishGreetings = [
       "👋 Hello! Welcome to *Ibtisama Clinic*! How can I assist you today?",
@@ -98,13 +98,10 @@ function getReply(text) {
       "💬 أهلاً بك! هل ترغب بحجز موعد أو الاطلاع على عروضنا الحالية؟",
     ];
 
-    // Seed randomizer using timestamp so it’s never the same message twice in a row
     const listToPickFrom = isEnglish ? englishGreetings : arabicGreetings;
-    const randomIndex = Math.floor(
-      ((Math.random() + randomSeed) % 1) * listToPickFrom.length
-    );
+    const reply = listToPickFrom[randomIndex(listToPickFrom.length)];
 
-    return listToPickFrom[randomIndex];
+    return reply;
   }
 
   // ✅ المواعيد
