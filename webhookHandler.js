@@ -149,6 +149,15 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       if (containsBanWords(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendBanWordsResponse(from, language);
+
+        // 🔒 Reset any ongoing booking session to prevent accidental saves
+        if (global.tempBookings && global.tempBookings[from]) {
+          delete global.tempBookings[from];
+          console.log(
+            `⚠️ Cleared booking state for ${from} due to ban word usage`
+          );
+        }
+
         return res.sendStatus(200);
       }
 
@@ -257,38 +266,112 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // 🧩 Step 4: Service input (manual fallback)
+      // 🧩 Step 4: Service input (smart validation & balanced behavior)
       if (tempBookings[from] && !tempBookings[from].service) {
         const booking = tempBookings[from];
         const userService = text.trim();
 
-        const aiReply = await askAI(
-          `هل نقدم هذه الخدمة في عيادتنا: "${userService}"؟ أجب فقط بـ نعم أو لا. إذا لا، اقترح الخدمات المتاحة.`
-        );
+        // ✅ Define valid services and their possible keywords
+        const SERVICE_KEYWORDS = {
+          "تنظيف الأسنان": ["تنظيف", "كلين", "كلينينج", "clean", "تنضيف"],
+          "تبييض الأسنان": ["تبييض", "تبيض", "whitening"],
+          "حشو الأسنان": ["حشو", "حشوة", "حشوات", "fill", "filling"],
+          "زراعة الأسنان": ["زراعة", "زرع", "implant", "زراعه"],
+          "ابتسامة هوليود": ["ابتسامة", "هوليود", "ابتسامه", "smile"],
+          "تقويم الأسنان": ["تقويم", "braces"],
+          "خلع الأسنان": ["خلع", "قلع", "remove", "extraction"],
+          "جلسة ليزر بشرة": ["ليزر", "جلسة", "بشرة", "laser"],
+          فيلر: ["فيلر", "filler"],
+          بوتوكس: ["بوتوكس", "botox"],
+        };
 
-        const isValidService =
-          aiReply.toLowerCase().includes("نعم") ||
-          aiReply.toLowerCase().includes("yes");
+        // ❌ Common nonsense or forbidden body areas
+        const FORBIDDEN_WORDS = [
+          "أنف",
+          "بطن",
+          "ظهر",
+          "رجل",
+          "يد",
+          "عين",
+          "أذن",
+          "وجه",
+          "شعر",
+          "رقبة",
+          "تصفير",
+          "تحمير",
+          "تزريق",
+          "تخصير",
+          "تسويد",
+        ];
 
-        if (!isValidService) {
+        // 🔍 Normalize text for safer matching
+        const normalized = userService
+          .replace(/[^\u0600-\u06FFa-zA-Z0-9\s]/g, "")
+          .toLowerCase();
+
+        // ❌ Detect nonsense / forbidden areas
+        if (FORBIDDEN_WORDS.some((word) => normalized.includes(word))) {
           await sendTextMessage(
             from,
-            `⚠️ لا نقدم "${userService}" كخدمة. يرجى اختيار خدمة صحيحة من القائمة.`
+            "⚠️ يبدو أنك ذكرت منطقة من الجسم لا تتعلق بخدماتنا. يرجى اختيار خدمة خاصة بالأسنان أو البشرة فقط."
           );
           await sendServiceList(from);
           return res.sendStatus(200);
         }
 
-        booking.service = userService;
+        // ✅ Fuzzy match against valid keywords
+        let matchedService = null;
+        for (const [service, keywords] of Object.entries(SERVICE_KEYWORDS)) {
+          if (
+            keywords.some((kw) => normalized.includes(kw.toLowerCase())) ||
+            normalized.includes(service.replace(/\s/g, ""))
+          ) {
+            matchedService = service;
+            break;
+          }
+        }
+
+        // If still nothing found, use AI for backup validation
+        if (!matchedService) {
+          try {
+            const aiCheck = await askAI(
+              `هل "${userService}" خدمة تتعلق بطب الأسنان أو البشرة في عيادة تجميل؟ أجب فقط بـ نعم أو لا.`
+            );
+            if (aiCheck.toLowerCase().includes("نعم")) {
+              // Still safe to ask the user to clarify which exact service
+              await sendTextMessage(
+                from,
+                "💬 ممكن توضح أكثر نوع الخدمة؟ مثلاً: حشو الأسنان، تبييض، فيلر..."
+              );
+              return res.sendStatus(200);
+            }
+          } catch (err) {
+            console.warn(
+              "⚠️ AI service validation fallback failed:",
+              err.message
+            );
+          }
+        }
+
+        // ❌ Not matched → reject gracefully
+        if (!matchedService) {
+          await sendTextMessage(
+            from,
+            `⚠️ لا يمكننا تحديد "${userService}" كخدمة صحيحة.\nالخدمات المتاحة لدينا:\n- ${Object.keys(
+              SERVICE_KEYWORDS
+            ).join("\n- ")}`
+          );
+          await sendServiceList(from);
+          return res.sendStatus(200);
+        }
+
+        // ✅ Valid service found → continue booking
+        booking.service = matchedService;
         await saveBooking(booking);
 
         await sendTextMessage(
           from,
-          `✅ تم حفظ حجزك بنجاح:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
+          `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
         );
 
         delete tempBookings[from];
