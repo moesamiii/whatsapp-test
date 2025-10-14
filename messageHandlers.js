@@ -189,7 +189,7 @@ const BAN_WORDS = {
     "مشم",
 
     // Racist/Discriminatory
-    "عبد",
+
     "زنجي",
     "يهودي نجس",
     "صهيوني",
