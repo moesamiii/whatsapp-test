@@ -213,10 +213,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       }
 
       // 🧩 Step 1: Appointment shortcut
-      if (
-        !tempBookings[from] &&
-        ["2", "3", "4", "5", "6", "7", "8", "9", "10"].includes(text)
-      ) {
+      if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
         const appointment = `${text} PM`;
         tempBookings[from] = { appointment };
         await sendTextMessage(
