@@ -32,46 +32,6 @@ const {
 
 const { handleAudioMessage } = require("./webhookProcessor");
 
-// ✅ FIX: List of valid services (must match your dropdown exactly)
-const VALID_SERVICES = [
-  "فحص عام",
-  "تنظيف الأسنان",
-  "تبييض الأسنان",
-  "حشو الأسنان",
-  "علاج الجذور",
-  "تركيب التركيبات",
-  "تقويم الأسنان",
-  "خلع الأسنان",
-  "الفينير",
-  "زراعة الأسنان",
-  "ابتسامة هوليود",
-  "خدمة أخرى",
-];
-
-// ✅ FIX: Helper to reset user state completely
-function resetUserState(from, tempBookings) {
-  console.log(`🔄 DEBUG => Resetting conversation state for ${from}`);
-  delete tempBookings[from];
-}
-
-// ✅ FIX: Check if service confirmation is recent (within 5 minutes)
-function isServiceConfirmationFresh(booking) {
-  if (!booking.serviceConfirmedAt) return false;
-  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-  return booking.serviceConfirmedAt > fiveMinutesAgo;
-}
-
-// ✅ FIX: Validate booking is complete and fresh before saving
-function canSaveBooking(booking) {
-  return (
-    booking.name &&
-    booking.phone &&
-    booking.service &&
-    booking.appointment &&
-    isServiceConfirmationFresh(booking)
-  );
-}
-
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
   // Webhook verification
   app.get("/webhook", (req, res) => {
@@ -153,42 +113,16 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
         if (id?.startsWith("service_")) {
           const serviceName = id.replace("service_", "").replace(/_/g, " ");
-
-          // ✅ FIX: Validate booking state before accepting service
           if (!tempBookings[from] || !tempBookings[from].phone) {
             await sendTextMessage(
               from,
               "⚠️ يرجى إكمال خطوات الحجز أولاً (الموعد، الاسم، رقم الجوال)"
             );
-            resetUserState(from, tempBookings);
-            return res.sendStatus(200);
-          }
-
-          // ✅ FIX: Validate service is in our list
-          if (!VALID_SERVICES.includes(serviceName)) {
-            await sendTextMessage(
-              from,
-              "⚠️ خدمة غير صحيحة. يرجى اختيار خدمة من القائمة."
-            );
-            await sendServiceList(from);
             return res.sendStatus(200);
           }
 
           tempBookings[from].service = serviceName;
-          tempBookings[from].serviceConfirmedAt = Date.now(); // ✅ FIX: Timestamp
-
           const booking = tempBookings[from];
-
-          // ✅ FIX: Final validation before saving
-          if (!canSaveBooking(booking)) {
-            await sendTextMessage(
-              from,
-              "⚠️ حدث خطأ في الحجز. يرجى المحاولة مرة أخرى."
-            );
-            resetUserState(from, tempBookings);
-            return res.sendStatus(200);
-          }
-
           await saveBooking(booking);
 
           await sendTextMessage(
@@ -211,13 +145,10 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
 
-      // 🚫 FIX: Check for ban words AND reset state
+      // 🚫 Check for ban words
       if (containsBanWords(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendBanWordsResponse(from, language);
-
-        // ✅ CRITICAL FIX: Reset conversation state after ban
-        resetUserState(from, tempBookings);
         return res.sendStatus(200);
       }
 
@@ -331,18 +262,8 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         const booking = tempBookings[from];
         const userService = text.trim();
 
-        // ✅ FIX: Check if service confirmation is stale
-        if (!isServiceConfirmationFresh(booking)) {
-          console.log(`⚠️ DEBUG => Stale booking attempt for ${from}`);
-        }
-
-        // ✅ FIX: Better AI validation with more flexible prompt
         const aiReply = await askAI(
-          `أنت مساعد عيادة طبية. لدينا هذه الخدمات: فحص عام، تنظيف الأسنان، تبييض الأسنان، حشو الأسنان، علاج الجذور، تركيب التركيبات، تقويم الأسنان، خلع الأسنان، الفينير، زراعة الأسنان، ابتسامة هوليود.
-
-العميل يريد: "${userService}"
-
-هل هذه الخدمة موجودة لدينا أو قريبة من خدماتنا؟ أجب فقط بـ "نعم" إذا كانت موجودة أو مشابهة، أو "لا" إذا كانت غير متعلقة بالأسنان أو الطب نهائياً.`
+          `هل نقدم هذه الخدمة في عيادتنا: "${userService}"؟ أجب فقط بـ نعم أو لا. إذا لا، اقترح الخدمات المتاحة.`
         );
 
         const isValidService =
@@ -352,26 +273,13 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         if (!isValidService) {
           await sendTextMessage(
             from,
-            `⚠️ عذراً، لا نقدم "${userService}" في عيادتنا. يرجى اختيار خدمة من القائمة أدناه:`
+            `⚠️ لا نقدم "${userService}" كخدمة. يرجى اختيار خدمة صحيحة من القائمة.`
           );
           await sendServiceList(from);
           return res.sendStatus(200);
         }
 
         booking.service = userService;
-        booking.serviceConfirmedAt = Date.now(); // ✅ FIX: Timestamp when service is validated
-
-        // ✅ FIX: Final validation before saving
-        if (!canSaveBooking(booking)) {
-          await sendTextMessage(
-            from,
-            "⚠️ انتهت صلاحية الحجز. يرجى البدء من جديد."
-          );
-          resetUserState(from, tempBookings);
-          await sendAppointmentOptions(from);
-          return res.sendStatus(200);
-        }
-
         await saveBooking(booking);
 
         await sendTextMessage(
