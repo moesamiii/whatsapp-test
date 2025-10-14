@@ -146,9 +146,19 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       if (!text) return res.sendStatus(200);
 
       // 🚫 Check for ban words
+      // 🚫 Check for ban words
       if (containsBanWords(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendBanWordsResponse(from, language);
+
+        // 🔒 Reset any ongoing booking session to prevent accidental saves
+        if (global.tempBookings && global.tempBookings[from]) {
+          delete global.tempBookings[from];
+          console.log(
+            `⚠️ Cleared booking state for ${from} due to ban word usage`
+          );
+        }
+
         return res.sendStatus(200);
       }
 
