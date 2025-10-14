@@ -28,6 +28,8 @@ const {
   isEnglish,
   containsBanWords,
   sendBanWordsResponse,
+  isGreeting,
+  getGreeting,
 } = require("./messageHandlers");
 
 const { handleAudioMessage } = require("./webhookProcessor");
@@ -144,6 +146,13 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       // 💬 Text messages
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
+
+      // 👋 Greeting detection (before any other logic)
+      if (isGreeting(text)) {
+        const reply = getGreeting(isEnglish(text));
+        await sendTextMessage(from, reply);
+        return res.sendStatus(200);
+      }
 
       // 🚫 Check for ban words
       if (containsBanWords(text)) {
