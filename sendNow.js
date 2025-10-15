@@ -1,8 +1,9 @@
-import axios from "axios";
+// ✅ متوافق مع CommonJS
+const axios = require("axios");
 
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN; // التوكن الموجود عندك
-const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_ID; // ID من الميتا
-const to = "962772741757"; // الرقم الذي تريد الإرسال له
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN; // توكن Meta Cloud
+const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_ID; // ID رقم واتساب
+const to = "962772741757"; // رقم المستقبل بدون +
 const message =
   "مرحبًا 👋 اليوم عندنا عروض خاصة! 🎉 خصومات حصرية لفترة محدودة 💥";
 
