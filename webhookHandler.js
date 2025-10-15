@@ -130,10 +130,10 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           await sendTextMessage(
             from,
             `✅ تم حفظ حجزك:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
+              👤 ${booking.name}
+              📱 ${booking.phone}
+              💊 ${booking.service}
+              📅 ${booking.appointment}`
           );
 
           delete tempBookings[from];
@@ -389,12 +389,14 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // 💬 Step 5: AI Chat fallback
       if (!tempBookings[from]) {
-        if (text.includes("حجز") || text.toLowerCase().includes("book")) {
+        if (isBookingRequest(text)) {
           await sendAppointmentOptions(from);
-        } else {
-          const reply = await askAI(text);
-          await sendTextMessage(from, reply);
+          return res.sendStatus(200);
         }
+        s;
+        const reply = await askAI(text);
+        await sendTextMessage(from, reply);
+        return res.sendStatus(200);
       }
 
       return res.sendStatus(200);
