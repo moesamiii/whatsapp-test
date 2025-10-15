@@ -25,6 +25,7 @@ const {
   isLocationRequest,
   isOffersRequest,
   isDoctorsRequest,
+  isBookingRequest,
   isEnglish,
   containsBanWords,
   sendBanWordsResponse,
@@ -130,10 +131,10 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           await sendTextMessage(
             from,
             `✅ تم حفظ حجزك:
-👤 ${booking.name}
-📱 ${booking.phone}
-💊 ${booking.service}
-📅 ${booking.appointment}`
+              👤 ${booking.name}
+              📱 ${booking.phone}
+              💊 ${booking.service}
+              📅 ${booking.appointment}`
           );
 
           delete tempBookings[from];
@@ -387,14 +388,19 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // 💬 Step 5: AI Chat fallback
+      // 💬 Step 5: Booking or AI fallback
       if (!tempBookings[from]) {
-        if (text.includes("حجز") || text.toLowerCase().includes("book")) {
+        // 🗓️ If user wants to book (even with typos)
+        if (isBookingRequest(text)) {
+          console.log(`✅ Booking intent detected from ${from}`);
           await sendAppointmentOptions(from);
-        } else {
-          const reply = await askAI(text);
-          await sendTextMessage(from, reply);
+          return res.sendStatus(200);
         }
+
+        // 💬 Otherwise fallback to AI
+        const reply = await askAI(text);
+        await sendTextMessage(from, reply);
+        return res.sendStatus(200);
       }
 
       return res.sendStatus(200);
