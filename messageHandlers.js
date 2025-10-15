@@ -676,57 +676,6 @@ function isDoctorsRequest(text = "") {
 }
 
 // ---------------------------------------------
-// 📅 Booking Detection Helper (with typo tolerance)
-// ---------------------------------------------
-function isBookingRequest(text = "") {
-  const bookingKeywords = [
-    // ----- English -----
-    "book",
-    "booking",
-    "boocing",
-    "bocking",
-    "bokking",
-    "pooking",
-    "pocking",
-    "boking",
-    "boocking",
-    "bokin",
-    "bokking",
-    "boonking",
-    "appointment",
-    "reserve",
-    "reservation",
-    "schedul",
-    "shedule",
-    "schedual",
-    "resrv",
-    "appoint",
-    "appoinment", // common typo
-
-    // ----- Arabic -----
-    "احجز",
-    "احجر",
-    "احجد",
-    "اجحر",
-    "احجذ", // common keyboard typo
-    "ابغى احجز",
-    "ابي احجز",
-    "ابي موعد",
-    "ابغى موعد",
-    "موعد",
-    "حجز",
-    "ارغب بالحجز",
-    "اريد حجز",
-    "ودي احجز",
-    "ودّي احجز",
-    "احجوز", // colloquial typo
-  ];
-
-  const lower = String(text).toLowerCase();
-  return bookingKeywords.some((keyword) => lower.includes(keyword));
-}
-
-// ---------------------------------------------
 // 🌐 Language Detection Helper
 // ---------------------------------------------
 function isEnglish(text = "") {
@@ -925,7 +874,6 @@ module.exports = {
   isLocationRequest,
   isOffersRequest,
   isDoctorsRequest,
-  isBookingRequest,
   isEnglish,
   containsBanWords,
   sendBanWordsResponse,
