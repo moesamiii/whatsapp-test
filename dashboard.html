@@ -774,5 +774,35 @@
       load();
       setInterval(load, 15000);
     </script>
+
+    <!-- Load Supabase library -->
+    <script src="https://unpkg.com/@supabase/supabase-js"></script>
+
+    <script type="module">
+      // 🔗 Replace these with your own Supabase credentials
+      const SUPABASE_URL =
+        "https://https://bqedllfttvheajqtpccg.supabase.co.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxZWRsbGZ0dHZoZWFqcXRwY2NnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MDkyOTEsImV4cCI6MjA3NjM4NTI5MX0.xqBvZZ8k0Sb5Be6MWkvCGTTwj3wvS4Si4yYKlCbWfY0";
+
+      // Create the client
+      const supabase = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY
+      );
+
+      // Example: fetch all users from your 'users' table
+      async function loadUsers() {
+        const { data, error } = await supabase.from("users").select("*");
+        if (error) {
+          console.error("❌ Error fetching users:", error);
+        } else {
+          console.log("✅ Users:", data);
+        }
+      }
+
+      // Call it when the page loads
+      loadUsers();
+    </script>
   </body>
 </html>
