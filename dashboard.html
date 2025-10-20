@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <title>Clinic Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
       * {
         box-sizing: border-box;
@@ -329,6 +330,48 @@
         font-weight: 700;
         color: #06d001;
       }
+
+      /* ===== LOGIN OVERLAY ===== */
+      #loginScreen {
+        position: fixed;
+        inset: 0;
+        background: rgba(10, 15, 26, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      #loginBox {
+        background: #1a2332;
+        padding: 40px;
+        border-radius: 16px;
+        width: 320px;
+        box-shadow: 0 0 25px rgba(6, 208, 1, 0.3);
+        text-align: center;
+      }
+      #loginBox h2 {
+        color: #06d001;
+        margin-bottom: 20px;
+      }
+      #loginBox input {
+        width: 100%;
+        margin-bottom: 15px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(6, 208, 1, 0.3);
+        color: #fff;
+        padding: 10px;
+        border-radius: 8px;
+      }
+      #loginBox button {
+        width: 100%;
+      }
+      #errorMsg {
+        color: #f87171;
+        margin-top: 10px;
+        font-size: 13px;
+        display: none;
+      }
+
       @media (max-width: 768px) {
         .stats {
           grid-template-columns: 1fr;
@@ -352,115 +395,179 @@
     </style>
   </head>
   <body>
-    <header>
-      <div>
-        <h1>
-          <span>🏥</span>
-          <span>Clinic Dashboard</span>
-        </h1>
-        <p>Real-time Google Sheets sync • Auto-refresh enabled</p>
-      </div>
-      <div class="header-actions">
-        <button id="themeBtn">🌙</button>
-      </div>
-    </header>
-
-    <div class="container">
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-icon">📊</div>
-          <h2 id="total">0</h2>
-          <p>Total Bookings</p>
-          <span class="stat-change up" id="totalChange">+12% this week</span>
-        </div>
-        <div class="stat">
-          <div class="stat-icon">📅</div>
-          <h2 id="today">0</h2>
-          <p>Today's Bookings</p>
-          <span class="stat-change up" id="todayChange">+5 from yesterday</span>
-        </div>
-        <div class="stat">
-          <div class="stat-icon">⭐</div>
-          <h2 id="popular" style="font-size: 20px">-</h2>
-          <p>Most Popular Service</p>
-          <span class="stat-change up">Trending</span>
-        </div>
-        <div class="stat">
-          <div class="stat-icon">💰</div>
-          <h2 id="revenue">$0</h2>
-          <p>Est. Revenue Today</p>
-          <span class="stat-change up" id="revenueChange">+8.5%</span>
-        </div>
-      </div>
-
-      <div class="analytics-row">
-        <div class="metric-card">
-          <h3>Average Bookings Per Day</h3>
-          <div class="metric-value" id="avgPerDay">0</div>
-        </div>
-        <div class="metric-card">
-          <h3>Peak Hour</h3>
-          <div class="metric-value" id="peakHour">-</div>
-        </div>
-        <div class="metric-card">
-          <h3>This Week</h3>
-          <div class="metric-value" id="thisWeek">0</div>
-        </div>
-      </div>
-
-      <div class="filter-section">
-        <div class="filter-bar">
-          <div class="filter-inputs">
-            <input
-              id="search"
-              placeholder="🔍 Search name, phone, or service..."
-            />
-            <input type="date" id="dateFilter" />
-            <select id="serviceFilter">
-              <option value="">All Services</option>
-            </select>
-          </div>
-          <div style="display: flex; gap: 10px">
-            <button onclick="downloadCSV()">⬇ Export CSV</button>
-            <button onclick="load()">🔄 Refresh</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="table-container">
-        <table id="tbl">
-          <thead>
-            <tr>
-              <th onclick="sortTable(0)">Name ↕</th>
-              <th onclick="sortTable(1)">Phone ↕</th>
-              <th onclick="sortTable(2)">Service ↕</th>
-              <th onclick="sortTable(3)">Appointment ↕</th>
-              <th onclick="sortTable(4)">Time ↕</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-
-      <div class="charts-grid">
-        <div class="chart-card">
-          <div class="chart-title">Service Distribution</div>
-          <canvas id="bar" height="250"></canvas>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title">Booking Breakdown</div>
-          <canvas id="pie" height="250"></canvas>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title">Weekly Trend</div>
-          <canvas id="line" height="250"></canvas>
-        </div>
+    <!-- Login Screen -->
+    <div id="loginScreen">
+      <div id="loginBox">
+        <h2>🔐 Admin Login</h2>
+        <input type="email" id="email" placeholder="Admin Email" />
+        <input type="password" id="password" placeholder="Password" />
+        <button onclick="login()">Login</button>
+        <p id="errorMsg">Invalid email or password</p>
       </div>
     </div>
 
-    <footer>© 2025 Smile Clinic • Auto-refresh every 15s • Made with ❤️</footer>
+    <!-- Dashboard Content (Hidden until login) -->
+    <div id="dashboardContent" style="display: none">
+      <header>
+        <div>
+          <h1>
+            <span>🏥</span>
+            <span>Clinic Dashboard</span>
+          </h1>
+          <p>Real-time Google Sheets sync • Auto-refresh enabled</p>
+        </div>
+        <div class="header-actions">
+          <button id="themeBtn">🌙</button>
+          <button id="logoutBtn" onclick="logout()">🚪 Logout</button>
+        </div>
+      </header>
+
+      <div class="container">
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-icon">📊</div>
+            <h2 id="total">0</h2>
+            <p>Total Bookings</p>
+            <span class="stat-change up" id="totalChange">+12% this week</span>
+          </div>
+          <div class="stat">
+            <div class="stat-icon">📅</div>
+            <h2 id="today">0</h2>
+            <p>Today's Bookings</p>
+            <span class="stat-change up" id="todayChange"
+              >+5 from yesterday</span
+            >
+          </div>
+          <div class="stat">
+            <div class="stat-icon">⭐</div>
+            <h2 id="popular" style="font-size: 20px">-</h2>
+            <p>Most Popular Service</p>
+            <span class="stat-change up">Trending</span>
+          </div>
+          <div class="stat">
+            <div class="stat-icon">💰</div>
+            <h2 id="revenue">$0</h2>
+            <p>Est. Revenue Today</p>
+            <span class="stat-change up" id="revenueChange">+8.5%</span>
+          </div>
+        </div>
+
+        <div class="analytics-row">
+          <div class="metric-card">
+            <h3>Average Bookings Per Day</h3>
+            <div class="metric-value" id="avgPerDay">0</div>
+          </div>
+          <div class="metric-card">
+            <h3>Peak Hour</h3>
+            <div class="metric-value" id="peakHour">-</div>
+          </div>
+          <div class="metric-card">
+            <h3>This Week</h3>
+            <div class="metric-value" id="thisWeek">0</div>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-bar">
+            <div class="filter-inputs">
+              <input
+                id="search"
+                placeholder="🔍 Search name, phone, or service..."
+              />
+              <input type="date" id="dateFilter" />
+              <select id="serviceFilter">
+                <option value="">All Services</option>
+              </select>
+            </div>
+            <div style="display: flex; gap: 10px">
+              <button onclick="downloadCSV()">⬇ Export CSV</button>
+              <button onclick="load()">🔄 Refresh</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table id="tbl">
+            <thead>
+              <tr>
+                <th onclick="sortTable(0)">Name ↕</th>
+                <th onclick="sortTable(1)">Phone ↕</th>
+                <th onclick="sortTable(2)">Service ↕</th>
+                <th onclick="sortTable(3)">Appointment ↕</th>
+                <th onclick="sortTable(4)">Time ↕</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">Service Distribution</div>
+            <canvas id="bar" height="250"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Booking Breakdown</div>
+            <canvas id="pie" height="250"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Weekly Trend</div>
+            <canvas id="line" height="250"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        © 2025 Smile Clinic • Auto-refresh every 15s • Made with ❤️
+      </footer>
+    </div>
 
     <script>
+      // ======= SUPABASE LOGIN LOGIC =======
+      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      async function login() {
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value.trim();
+
+        const { data, error } = await supabase
+          .from("admin_auth")
+          .select("*")
+          .eq("email", email)
+          .eq("password", password)
+          .maybeSingle();
+
+        if (data) {
+          document.getElementById("loginScreen").style.display = "none";
+          document.getElementById("dashboardContent").style.display = "block";
+          localStorage.setItem("clinic_logged_in", "true");
+          // Initialize dashboard after successful login
+          load();
+        } else {
+          const msg = document.getElementById("errorMsg");
+          msg.style.display = "block";
+          msg.textContent = "Invalid email or password";
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("clinic_logged_in");
+        document.getElementById("loginScreen").style.display = "flex";
+        document.getElementById("dashboardContent").style.display = "none";
+        document.getElementById("email").value = "";
+        document.getElementById("password").value = "";
+      }
+
+      // Auto-hide login if already logged in
+      if (localStorage.getItem("clinic_logged_in") === "true") {
+        document.getElementById("loginScreen").style.display = "none";
+        document.getElementById("dashboardContent").style.display = "block";
+      }
+
+      // ======= DASHBOARD LOGIC =======
       let bar, pie, line;
       let allData = [];
       let sortDirection = 1;
@@ -771,8 +878,10 @@
       q("#dateFilter").onchange = filterAndRender;
       q("#serviceFilter").onchange = filterAndRender;
 
-      load();
-      setInterval(load, 15000);
+      // Only set up auto-refresh if user is logged in
+      if (localStorage.getItem("clinic_logged_in") === "true") {
+        setInterval(load, 15000);
+      }
     </script>
   </body>
 </html>
