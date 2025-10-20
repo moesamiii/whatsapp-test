@@ -407,7 +407,7 @@
     </div>
 
     <!-- Login Screen -->
-      <!-- Login Screen -->
+    <!-- Login Screen -->
 
     <!-- Dashboard Content (Hidden until login) -->
     <div id="dashboardContent" style="display: none">
@@ -565,6 +565,7 @@
         document.getElementById("password").value = "";
       }
 
+      // Auto-hide login if already logged in
       // Auto-hide login if already logged in
       if (localStorage.getItem("clinic_logged_in") === "true") {
         document.getElementById("loginScreen").style.display = "none";
