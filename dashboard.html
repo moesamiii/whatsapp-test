@@ -17,21 +17,89 @@
         padding: 0;
         box-sizing: border-box;
       }
+
+      /* CSS VARIABLES FOR THEME */
+      :root {
+        --primary: #8555e7;
+        --primary-light: #c1b2de;
+        --primary-dark: #6a42c5;
+        --accent: #8555e7;
+        --accent-light: #c1b2de;
+        --slate-50: #f8fafc;
+        --slate-100: #f1f5f9;
+        --slate-150: #f6f6fb;
+        --slate-200: #e2e8f0;
+        --slate-300: #cbd5e1;
+        --slate-400: #94a3b8;
+        --slate-500: #64748b;
+        --slate-600: #475569;
+        --slate-700: #334155;
+        --slate-800: #1e293b;
+        --slate-900: #0f172a;
+        --navy-50: #f0f4f8;
+        --navy-100: #d9e2ec;
+        --navy-200: #bcccdc;
+        --navy-300: #9fb3c8;
+        --navy-400: #829ab1;
+        --navy-500: #627d98;
+        --navy-600: #486581;
+        --navy-700: #334e68;
+        --navy-800: #243b53;
+        --navy-900: #102a43;
+        --white: #ffffff;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --error: #ef4444;
+        --info: #3b82f6;
+        --border-radius: 8px;
+        --border-radius-lg: 16px;
+        --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1),
+          0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+
+      /* DARK MODE VARIABLES */
+      .dark {
+        --bg-primary: var(--navy-900);
+        --bg-secondary: var(--navy-800);
+        --bg-tertiary: var(--navy-700);
+        --text-primary: var(--slate-100);
+        --text-secondary: var(--slate-300);
+        --text-muted: var(--slate-400);
+        --border-color: var(--navy-600);
+      }
+
+      /* LIGHT MODE VARIABLES */
+      :root {
+        --bg-primary: var(--slate-50);
+        --bg-secondary: var(--white);
+        --bg-tertiary: var(--slate-100);
+        --text-primary: var(--slate-800);
+        --text-secondary: var(--slate-600);
+        --text-muted: var(--slate-500);
+        --border-color: var(--slate-200);
+      }
+
       body {
-        font-family: "Inter", sans-serif;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, sans-serif;
         display: flex;
         min-height: 100vh;
-        background: #f6f6fb;
-        color: #2d2d2d;
+        background: var(--bg-primary);
+        color: var(--text-primary);
         transition: background 0.3s, color 0.3s;
         overflow-x: hidden;
+        line-height: 1.5;
       }
 
       /* SIDEBAR */
       .sidebar {
         width: 240px;
-        background: #fff;
-        border-right: 1px solid #eee;
+        background: var(--bg-secondary);
+        border-right: 1px solid var(--border-color);
         display: flex;
         flex-direction: column;
         padding: 25px 20px;
@@ -41,36 +109,53 @@
         top: 0;
         transition: left 0.3s ease;
         z-index: 1000;
+        box-shadow: var(--shadow);
       }
+
       .logo {
-        color: #8555e7;
+        color: var(--primary);
         font-weight: 700;
         font-size: 22px;
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-bottom: 20px;
+        margin-bottom: 30px;
+        padding: 10px 0;
       }
+
+      .logo i {
+        font-size: 24px;
+      }
+
       .menu {
         margin-top: 10px;
         display: flex;
         flex-direction: column;
-        gap: 15px;
+        gap: 8px;
       }
+
       .menu a {
-        color: #8555e7;
+        color: var(--text-secondary);
         text-decoration: none;
-        padding: 10px 14px;
-        border-radius: 8px;
+        padding: 12px 14px;
+        border-radius: var(--border-radius);
         display: flex;
         align-items: center;
-        gap: 10px;
-        transition: 0.3s;
+        gap: 12px;
+        transition: all 0.3s;
+        font-weight: 500;
       }
+
+      .menu a i {
+        width: 20px;
+        text-align: center;
+      }
+
       .menu a.active,
       .menu a:hover {
-        background: #8555e7;
-        color: #fff;
+        background: var(--primary);
+        color: var(--white);
+        box-shadow: 0 4px 6px -1px rgba(133, 85, 231, 0.2);
       }
 
       /* MAIN CONTENT */
@@ -91,32 +176,66 @@
         margin-bottom: 25px;
         position: relative;
         z-index: 10;
+        padding: 10px 0;
       }
+
+      .topbar h2 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
       .menu-toggle {
         background: none;
         border: none;
         font-size: 22px;
-        color: #8555e7;
+        color: var(--primary);
         cursor: pointer;
         display: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
       }
+
+      .menu-toggle:hover {
+        background: var(--bg-tertiary);
+      }
+
       .top-actions {
         display: flex;
         align-items: center;
-        gap: 18px;
-        color: #8555e7;
+        gap: 12px;
       }
+
       .icon-btn {
-        background: none;
+        background: var(--bg-tertiary);
         border: none;
         cursor: pointer;
-        color: #8555e7;
+        color: var(--text-secondary);
         font-size: 18px;
         position: relative;
-        transition: transform 0.2s;
+        transition: all 0.2s;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
+
+      .icon-btn:hover {
+        background: var(--primary);
+        color: var(--white);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+
       .icon-btn:active {
-        transform: scale(0.9);
+        transform: translateY(0);
       }
 
       /* DASHBOARD GRID */
@@ -125,41 +244,62 @@
         grid-template-columns: 1fr 1fr;
         gap: 25px;
       }
+
       .left-col,
       .right-col {
         display: flex;
         flex-direction: column;
         gap: 25px;
       }
+
       .card {
-        background: #fff;
-        border-radius: 16px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        padding: 20px;
+        background: var(--bg-secondary);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow);
+        padding: 24px;
+        border: 1px solid var(--border-color);
+        transition: all 0.3s;
       }
+
+      .card:hover {
+        box-shadow: var(--shadow-md);
+      }
+
       .card h3 {
-        margin-bottom: 15px;
+        margin-bottom: 20px;
         font-size: 18px;
-        color: #2d2d2d;
+        font-weight: 600;
+        color: var(--text-primary);
       }
 
       .metric-card {
-        background: #fff;
-        border-radius: 16px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        padding: 20px;
+        background: var(--bg-secondary);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow);
+        padding: 24px;
         text-align: center;
+        border: 1px solid var(--border-color);
+        transition: all 0.3s;
       }
+
+      .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+      }
+
       .metric-card h4 {
         font-size: 14px;
-        color: #555;
-        margin-bottom: 10px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+        font-weight: 500;
       }
+
       .metric-card p {
-        font-size: 26px;
-        color: #8555e7;
+        font-size: 28px;
+        color: var(--primary);
         font-weight: 700;
       }
+
       .metrics {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -167,35 +307,53 @@
       }
 
       .table-container {
-        background: #fff;
-        border-radius: 16px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        padding: 20px;
+        background: var(--bg-secondary);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow);
+        padding: 24px;
         overflow: auto;
+        border: 1px solid var(--border-color);
       }
+
       table {
         width: 100%;
         border-collapse: collapse;
       }
+
       th,
       td {
-        padding: 12px 15px;
+        padding: 14px 16px;
         text-align: left;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid var(--border-color);
       }
+
       th {
-        color: #8555e7;
+        color: var(--primary);
         cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+        user-select: none;
       }
+
+      th:hover {
+        background: var(--bg-tertiary);
+      }
+
+      td {
+        color: var(--text-secondary);
+        font-size: 14px;
+      }
+
       tr:hover {
-        background: #f3f1fb;
+        background: var(--bg-tertiary);
       }
 
       footer {
         text-align: center;
-        color: #777;
+        color: var(--text-muted);
         margin-top: 40px;
         font-size: 13px;
+        padding: 20px 0;
       }
 
       /* LOGIN SCREEN */
@@ -208,104 +366,166 @@
         justify-content: center;
         z-index: 2000;
       }
+
       #loginBox {
-        background: #fff;
+        background: var(--bg-secondary);
         padding: 40px;
-        border-radius: 16px;
-        width: 320px;
-        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+        border-radius: var(--border-radius-lg);
+        width: 380px;
+        box-shadow: var(--shadow-lg);
         text-align: center;
       }
+
       #loginBox h2 {
-        color: #8555e7;
-        margin-bottom: 20px;
+        color: var(--primary);
+        margin-bottom: 24px;
+        font-size: 24px;
+        font-weight: 700;
       }
+
       #loginBox input {
         width: 100%;
-        margin-bottom: 15px;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
+        margin-bottom: 16px;
+        padding: 12px 16px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-size: 16px;
+        transition: all 0.2s;
       }
+
+      #loginBox input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(133, 85, 231, 0.2);
+      }
+
       #loginBox button {
-        background: #8555e7;
-        color: #fff;
+        background: var(--primary);
+        color: var(--white);
         border: none;
-        padding: 10px;
+        padding: 12px;
         width: 100%;
-        border-radius: 8px;
+        border-radius: var(--border-radius);
         cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.2s;
+        margin-top: 8px;
       }
+
+      #loginBox button:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(133, 85, 231, 0.3);
+      }
+
+      #loginBox button:active {
+        transform: translateY(0);
+      }
+
       #errorMsg {
-        color: #ef4444;
-        margin-top: 10px;
-        font-size: 13px;
+        color: var(--error);
+        margin-top: 12px;
+        font-size: 14px;
         display: none;
       }
 
-      /* DARK MODE */
-      body.dark {
-        background: #1a1a24;
-        color: #eee;
-      }
-      body.dark .card,
-      body.dark .metric-card,
-      body.dark .table-container {
-        background: #2a2a3b;
-        color: #eee;
-      }
-      body.dark .sidebar {
-        background: #2a2a3b;
-        border-color: #3b3b4b;
-      }
-      body.dark .menu a {
-        color: #c1b2de;
-      }
-      body.dark .menu a.active,
-      body.dark .menu a:hover {
-        background: #8555e7;
-        color: #fff;
-      }
-      body.dark .icon-btn {
-        color: #c1b2de;
-      }
-      body.dark tr:hover {
-        background: #353545;
-      }
-      body.dark th {
-        color: #c1b2de;
-      }
-      body.dark #loginBox {
-        background: #2a2a3b;
-        color: #eee;
-      }
-      body.dark #loginBox input {
-        background: #1a1a24;
-        color: #eee;
-        border-color: #555;
+      /* CHART CONTAINERS */
+      .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
       }
 
       /* RESPONSIVE */
+      @media (max-width: 1024px) {
+        .dashboard-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
       @media (max-width: 768px) {
         .sidebar {
           left: -260px;
         }
+
         .sidebar.active {
           left: 0;
         }
+
         .menu-toggle {
-          display: block !important;
+          display: flex !important;
         }
+
         .main-content {
           margin-left: 0;
           padding: 20px;
         }
-        .dashboard-grid {
-          grid-template-columns: 1fr;
-        }
+
         .metrics {
           grid-template-columns: 1fr;
         }
+
+        .topbar {
+          flex-wrap: wrap;
+          gap: 15px;
+        }
+
+        .topbar h2 {
+          font-size: 20px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .main-content {
+          padding: 15px;
+        }
+
+        .card,
+        .metric-card,
+        .table-container {
+          padding: 20px;
+        }
+
+        #loginBox {
+          width: 90%;
+          padding: 30px 20px;
+        }
+      }
+
+      /* UTILITY CLASSES */
+      .text-primary {
+        color: var(--primary);
+      }
+
+      .text-muted {
+        color: var(--text-muted);
+      }
+
+      .bg-primary {
+        background: var(--primary);
+      }
+
+      .bg-secondary {
+        background: var(--bg-secondary);
+      }
+
+      .rounded {
+        border-radius: var(--border-radius);
+      }
+
+      .rounded-lg {
+        border-radius: var(--border-radius-lg);
+      }
+
+      .shadow {
+        box-shadow: var(--shadow);
+      }
+
+      .shadow-lg {
+        box-shadow: var(--shadow-lg);
       }
     </style>
   </head>
@@ -313,7 +533,7 @@
     <!-- LOGIN SCREEN -->
     <div id="loginScreen">
       <div id="loginBox">
-        <h2>🔐 Admin Login</h2>
+        <h2><i class="fas fa-lock"></i> Admin Login</h2>
         <input type="email" id="email" placeholder="Admin Email" />
         <input type="password" id="password" placeholder="Password" />
         <button onclick="login()">Login</button>
@@ -324,13 +544,16 @@
     <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
       <div class="logo">
-        <i class="fa-solid fa-circle f-icon"></i><span>Clinic</span>
+        <i class="fa-solid fa-stethoscope"></i><span>Clinic</span>
       </div>
       <nav class="menu">
         <a href="#" class="active"
           ><i class="fa-solid fa-house"></i> Dashboard</a
         >
         <a href="#"><i class="fa-solid fa-chart-pie"></i> Analytics</a>
+        <a href="#"><i class="fa-solid fa-calendar-check"></i> Appointments</a>
+        <a href="#"><i class="fa-solid fa-user-doctor"></i> Staff</a>
+        <a href="#"><i class="fa-solid fa-gear"></i> Settings</a>
       </nav>
     </aside>
 
@@ -374,28 +597,44 @@
         <div class="left-col">
           <div class="card">
             <h3>Service Distribution</h3>
-            <canvas id="bar"></canvas>
+            <div class="chart-container">
+              <canvas id="bar"></canvas>
+            </div>
           </div>
           <div class="card">
             <h3>Booking Breakdown</h3>
-            <canvas id="pie"></canvas>
+            <div class="chart-container">
+              <canvas id="pie"></canvas>
+            </div>
           </div>
         </div>
 
         <div class="right-col">
           <div class="card">
             <h3>Weekly Trend</h3>
-            <canvas id="line"></canvas>
+            <div class="chart-container">
+              <canvas id="line"></canvas>
+            </div>
           </div>
           <div class="table-container">
             <table id="tbl">
               <thead>
                 <tr>
-                  <th onclick="sortTable(0)">Name</th>
-                  <th onclick="sortTable(1)">Phone</th>
-                  <th onclick="sortTable(2)">Service</th>
-                  <th onclick="sortTable(3)">Appointment</th>
-                  <th onclick="sortTable(4)">Time</th>
+                  <th onclick="sortTable(0)">
+                    Name <i class="fas fa-sort"></i>
+                  </th>
+                  <th onclick="sortTable(1)">
+                    Phone <i class="fas fa-sort"></i>
+                  </th>
+                  <th onclick="sortTable(2)">
+                    Service <i class="fas fa-sort"></i>
+                  </th>
+                  <th onclick="sortTable(3)">
+                    Appointment <i class="fas fa-sort"></i>
+                  </th>
+                  <th onclick="sortTable(4)">
+                    Time <i class="fas fa-sort"></i>
+                  </th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -529,14 +768,30 @@
           data: {
             labels,
             datasets: [
-              { data: vals, backgroundColor: "#8555e7", borderRadius: 8 },
+              {
+                data: vals,
+                backgroundColor: "#8555e7",
+                borderRadius: 8,
+                borderWidth: 0,
+              },
             ],
           },
           options: {
-            plugins: { legend: { display: false } },
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+            },
             scales: {
-              y: { beginAtZero: true },
-              x: { grid: { display: false } },
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: "rgba(0,0,0,0.05)",
+                },
+              },
+              x: {
+                grid: { display: false },
+              },
             },
           },
         });
@@ -548,13 +803,29 @@
             datasets: [
               {
                 data: vals,
-                backgroundColor: ["#8555e7", "#c1b2de", "#eee"],
+                backgroundColor: [
+                  "#8555e7",
+                  "#c1b2de",
+                  "#a78bfa",
+                  "#7e5bef",
+                  "#5b21b6",
+                ],
                 borderWidth: 0,
               },
             ],
           },
           options: {
-            plugins: { legend: { position: "bottom" } },
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  usePointStyle: true,
+                  padding: 20,
+                },
+              },
+            },
             cutout: "70%",
           },
         });
@@ -572,14 +843,28 @@
                 backgroundColor: "rgba(133,85,231,0.2)",
                 fill: true,
                 tension: 0.4,
+                borderWidth: 3,
+                pointRadius: 5,
+                pointBackgroundColor: "#8555e7",
               },
             ],
           },
           options: {
-            plugins: { legend: { display: false } },
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+            },
             scales: {
-              y: { beginAtZero: true },
-              x: { grid: { display: false } },
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: "rgba(0,0,0,0.05)",
+                },
+              },
+              x: {
+                grid: { display: false },
+              },
             },
           },
         });
@@ -618,11 +903,21 @@
         if (document.body.classList.contains("dark")) {
           icon.classList.remove("fa-moon");
           icon.classList.add("fa-sun");
+          localStorage.setItem("clinic_theme", "dark");
         } else {
           icon.classList.remove("fa-sun");
           icon.classList.add("fa-moon");
+          localStorage.setItem("clinic_theme", "light");
         }
       });
+
+      // Check for saved theme preference
+      if (localStorage.getItem("clinic_theme") === "dark") {
+        document.body.classList.add("dark");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.remove("fa-moon");
+        icon.classList.add("fa-sun");
+      }
 
       // Sidebar toggle
       const menuToggle = document.getElementById("menuToggle");
@@ -631,7 +926,21 @@
         sidebar.classList.toggle("active");
       });
 
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener("click", (e) => {
+        if (
+          window.innerWidth <= 768 &&
+          sidebar.classList.contains("active") &&
+          !sidebar.contains(e.target) &&
+          e.target !== menuToggle
+        ) {
+          sidebar.classList.remove("active");
+        }
+      });
+
+      // Auto-refresh if logged in
       if (localStorage.getItem("clinic_logged_in") === "true") {
+        load();
         setInterval(load, 15000);
       }
     </script>
