@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,309 +10,218 @@
     />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-      /* RESET */
+      /* ================= RESET ================= */
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
 
-      /* CSS VARIABLES FOR THEME */
+      html {
+        scroll-behavior: smooth;
+      }
+
+      /* ================= COLOR VARIABLES ================= */
       :root {
-        --primary: #8555e7;
-        --primary-light: #c1b2de;
-        --primary-dark: #6a42c5;
-        --accent: #8555e7;
-        --accent-light: #c1b2de;
-        --slate-50: #f8fafc;
-        --slate-100: #f1f5f9;
-        --slate-150: #f6f6fb;
-        --slate-200: #e2e8f0;
-        --slate-300: #cbd5e1;
-        --slate-400: #94a3b8;
-        --slate-500: #64748b;
-        --slate-600: #475569;
-        --slate-700: #334155;
-        --slate-800: #1e293b;
-        --slate-900: #0f172a;
-        --navy-50: #f0f4f8;
-        --navy-100: #d9e2ec;
-        --navy-200: #bcccdc;
-        --navy-300: #9fb3c8;
-        --navy-400: #829ab1;
-        --navy-500: #627d98;
-        --navy-600: #486581;
-        --navy-700: #334e68;
-        --navy-800: #243b53;
-        --navy-900: #102a43;
-        --white: #ffffff;
+        --primary: #5e72e4;
+        --secondary: #825ee4;
+        --bg: #f8f9fa;
+        --card-bg: #ffffff;
+        --text-dark: #344767;
+        --text-light: #8392ab;
         --success: #10b981;
         --warning: #f59e0b;
-        --error: #ef4444;
-        --info: #3b82f6;
-        --border-radius: 8px;
-        --border-radius-lg: 16px;
-        --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1),
-          0 1px 2px 0 rgba(0, 0, 0, 0.06);
-        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-          0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
-          0 4px 6px -2px rgba(0, 0, 0, 0.05);
-      }
-
-      /* DARK MODE VARIABLES */
-      .dark {
-        --bg-primary: var(--navy-900);
-        --bg-secondary: var(--navy-800);
-        --bg-tertiary: var(--navy-700);
-        --text-primary: var(--slate-100);
-        --text-secondary: var(--slate-300);
-        --text-muted: var(--slate-400);
-        --border-color: var(--navy-600);
-      }
-
-      /* LIGHT MODE VARIABLES */
-      :root {
-        --bg-primary: var(--slate-50);
-        --bg-secondary: var(--white);
-        --bg-tertiary: var(--slate-100);
-        --text-primary: var(--slate-800);
-        --text-secondary: var(--slate-600);
-        --text-muted: var(--slate-500);
-        --border-color: var(--slate-200);
+        --danger: #ef4444;
+        --radius: 18px;
+        --shadow-soft: 0 8px 20px rgba(0, 0, 0, 0.05);
+        --shadow-strong: 0 10px 25px rgba(94, 114, 228, 0.3);
       }
 
       body {
-        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
-          Roboto, sans-serif;
+        font-family: "Cairo", sans-serif;
+        background: var(--bg);
+        color: var(--text-dark);
         display: flex;
-        min-height: 100vh;
-        background: var(--bg-primary);
-        color: var(--text-primary);
-        transition: background 0.3s, color 0.3s;
+        direction: rtl;
         overflow-x: hidden;
-        line-height: 1.5;
+        min-height: 100vh;
+        line-height: 1.6;
+        transition: background 0.3s, color 0.3s;
       }
 
-      /* SIDEBAR */
+      /* ================= SIDEBAR ================= */
       .sidebar {
-        width: 240px;
-        background: var(--bg-secondary);
-        border-right: 1px solid var(--border-color);
-        display: flex;
-        flex-direction: column;
-        padding: 25px 20px;
+        width: 250px;
+        background: var(--card-bg);
+        box-shadow: -2px 0 12px rgba(0, 0, 0, 0.05);
+        border-radius: 20px 0 0 20px;
+        padding: 30px 20px;
         position: fixed;
-        height: 100%;
         left: 0;
         top: 0;
-        transition: left 0.3s ease;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
         z-index: 1000;
-        box-shadow: var(--shadow);
+        transition: all 0.3s ease;
       }
 
       .logo {
-        color: var(--primary);
-        font-weight: 700;
+        font-weight: 800;
         font-size: 22px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 30px;
-        padding: 10px 0;
-      }
-
-      .logo i {
-        font-size: 24px;
+        color: var(--primary);
+        text-align: center;
+        margin-bottom: 25px;
       }
 
       .menu {
-        margin-top: 10px;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
       }
 
       .menu a {
-        color: var(--text-secondary);
+        color: var(--text-dark);
         text-decoration: none;
-        padding: 12px 14px;
-        border-radius: var(--border-radius);
+        padding: 12px 16px;
+        border-radius: var(--radius);
         display: flex;
         align-items: center;
         gap: 12px;
-        transition: all 0.3s;
-        font-weight: 500;
+        transition: all 0.3s ease;
+        font-weight: 600;
       }
 
       .menu a i {
-        width: 20px;
-        text-align: center;
+        color: var(--primary);
       }
 
-      .menu a.active,
-      .menu a:hover {
-        background: var(--primary);
-        color: var(--white);
-        box-shadow: 0 4px 6px -1px rgba(133, 85, 231, 0.2);
+      .menu a:hover,
+      .menu a.active {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: #fff;
+        box-shadow: var(--shadow-strong);
       }
 
-      /* MAIN CONTENT */
+      .menu a:hover i,
+      .menu a.active i {
+        color: #fff;
+      }
+
+      /* ================= MAIN CONTENT ================= */
       .main-content {
         flex: 1;
-        margin-left: 260px;
-        padding: 30px;
+        padding: 40px;
+        margin-left: 270px;
         max-width: 1400px;
-        margin-right: auto;
-        transition: margin-left 0.3s ease;
+        transition: all 0.3s;
       }
 
-      /* TOPBAR */
       .topbar {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 25px;
-        position: relative;
-        z-index: 10;
-        padding: 10px 0;
+        margin-bottom: 30px;
       }
 
       .topbar h2 {
-        font-size: 24px;
+        font-size: 26px;
         font-weight: 700;
-        color: var(--text-primary);
-      }
-
-      .menu-toggle {
-        background: none;
-        border: none;
-        font-size: 22px;
-        color: var(--primary);
-        cursor: pointer;
-        display: none;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-      }
-
-      .menu-toggle:hover {
-        background: var(--bg-tertiary);
-      }
-
-      .top-actions {
-        display: flex;
-        align-items: center;
-        gap: 12px;
+        color: var(--text-dark);
       }
 
       .icon-btn {
-        background: var(--bg-tertiary);
+        background: var(--card-bg);
         border: none;
-        cursor: pointer;
-        color: var(--text-secondary);
-        font-size: 18px;
-        position: relative;
-        transition: all 0.2s;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
+        color: var(--primary);
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(94, 114, 228, 0.15);
       }
 
       .icon-btn:hover {
-        background: var(--primary);
-        color: var(--white);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-strong);
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
       }
 
-      .icon-btn:active {
-        transform: translateY(0);
-      }
-
-      /* DASHBOARD GRID */
-      .dashboard-grid {
+      /* ================= METRICS ================= */
+      .metrics {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 25px;
-      }
-
-      .left-col,
-      .right-col {
-        display: flex;
-        flex-direction: column;
-        gap: 25px;
-      }
-
-      .card {
-        background: var(--bg-secondary);
-        border-radius: var(--border-radius-lg);
-        box-shadow: var(--shadow);
-        padding: 24px;
-        border: 1px solid var(--border-color);
-        transition: all 0.3s;
-      }
-
-      .card:hover {
-        box-shadow: var(--shadow-md);
-      }
-
-      .card h3 {
-        margin-bottom: 20px;
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--text-primary);
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 30px;
       }
 
       .metric-card {
-        background: var(--bg-secondary);
-        border-radius: var(--border-radius-lg);
-        box-shadow: var(--shadow);
-        padding: 24px;
+        background: var(--card-bg);
+        padding: 25px;
+        border-radius: 20px;
         text-align: center;
-        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-soft);
         transition: all 0.3s;
       }
 
       .metric-card:hover {
         transform: translateY(-5px);
-        box-shadow: var(--shadow-lg);
+        box-shadow: var(--shadow-strong);
       }
 
       .metric-card h4 {
-        font-size: 14px;
-        color: var(--text-muted);
-        margin-bottom: 12px;
-        font-weight: 500;
+        color: var(--text-light);
+        font-size: 15px;
+        margin-bottom: 10px;
       }
 
       .metric-card p {
-        font-size: 28px;
-        color: var(--primary);
-        font-weight: 700;
+        color: var(--text-dark);
+        font-weight: 800;
+        font-size: 26px;
       }
 
-      .metrics {
+      /* ================= CHARTS + CARDS ================= */
+      .dashboard-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 25px;
       }
 
+      .card {
+        background: var(--card-bg);
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: var(--shadow-soft);
+        transition: all 0.3s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-strong);
+      }
+
+      .card h3 {
+        font-size: 18px;
+        color: var(--text-dark);
+        font-weight: 700;
+        margin-bottom: 15px;
+      }
+
+      /* ================= TABLE ================= */
       .table-container {
-        background: var(--bg-secondary);
-        border-radius: var(--border-radius-lg);
-        box-shadow: var(--shadow);
-        padding: 24px;
-        overflow: auto;
-        border: 1px solid var(--border-color);
+        background: var(--card-bg);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: var(--shadow-soft);
       }
 
       table {
@@ -322,45 +231,30 @@
 
       th,
       td {
-        padding: 14px 16px;
-        text-align: left;
-        border-bottom: 1px solid var(--border-color);
+        padding: 14px 18px;
+        font-size: 14px;
       }
 
       th {
+        background: #f6f8fb;
         color: var(--primary);
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 14px;
-        user-select: none;
+        font-weight: 700;
+        text-align: right;
       }
 
-      th:hover {
-        background: var(--bg-tertiary);
-      }
-
-      td {
-        color: var(--text-secondary);
-        font-size: 14px;
+      tr:nth-child(even) {
+        background: #fafbff;
       }
 
       tr:hover {
-        background: var(--bg-tertiary);
+        background: #f0f3ff;
       }
 
-      footer {
-        text-align: center;
-        color: var(--text-muted);
-        margin-top: 40px;
-        font-size: 13px;
-        padding: 20px 0;
-      }
-
-      /* LOGIN SCREEN */
+      /* ================= LOGIN ================= */
       #loginScreen {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.8);
+        background: rgba(0, 0, 0, 0.75);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -368,202 +262,138 @@
       }
 
       #loginBox {
-        background: var(--bg-secondary);
+        background: var(--card-bg);
+        border-radius: 20px;
         padding: 40px;
-        border-radius: var(--border-radius-lg);
-        width: 380px;
-        box-shadow: var(--shadow-lg);
         text-align: center;
+        width: 380px;
+        box-shadow: var(--shadow-soft);
       }
 
       #loginBox h2 {
         color: var(--primary);
-        margin-bottom: 24px;
-        font-size: 24px;
-        font-weight: 700;
+        margin-bottom: 25px;
       }
 
       #loginBox input {
         width: 100%;
-        margin-bottom: 16px;
-        padding: 12px 16px;
-        border: 1px solid var(--border-color);
-        border-radius: var(--border-radius);
-        background: var(--bg-primary);
-        color: var(--text-primary);
-        font-size: 16px;
+        padding: 12px;
+        margin-bottom: 15px;
+        border-radius: 12px;
+        border: 1px solid #d2d6dc;
+        background: #f8f9fa;
+        font-size: 15px;
         transition: all 0.2s;
       }
 
       #loginBox input:focus {
-        outline: none;
         border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(133, 85, 231, 0.2);
+        outline: none;
+        box-shadow: 0 0 5px rgba(94, 114, 228, 0.3);
       }
 
       #loginBox button {
-        background: var(--primary);
-        color: var(--white);
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
         border: none;
+        color: white;
+        font-weight: 700;
         padding: 12px;
-        width: 100%;
-        border-radius: var(--border-radius);
+        border-radius: 12px;
         cursor: pointer;
-        font-size: 16px;
-        font-weight: 600;
-        transition: all 0.2s;
-        margin-top: 8px;
+        width: 100%;
+        transition: all 0.3s ease;
       }
 
       #loginBox button:hover {
-        background: var(--primary-dark);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 6px -1px rgba(133, 85, 231, 0.3);
-      }
-
-      #loginBox button:active {
-        transform: translateY(0);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-strong);
       }
 
       #errorMsg {
-        color: var(--error);
-        margin-top: 12px;
+        color: var(--danger);
         font-size: 14px;
-        display: none;
+        margin-top: 10px;
       }
 
-      /* CHART CONTAINERS */
-      .chart-container {
-        position: relative;
-        height: 300px;
-        width: 100%;
+      /* ================= DARK MODE ================= */
+      .dark {
+        background: #1e1e2f;
+        color: #fff;
       }
 
-      /* RESPONSIVE */
-      @media (max-width: 1024px) {
+      .dark .sidebar {
+        background: #2d2d44;
+      }
+
+      .dark .metric-card,
+      .dark .card,
+      .dark .table-container,
+      .dark #loginBox {
+        background: #2d2d44;
+        color: #e0e0e0;
+      }
+
+      /* ================= RESPONSIVE ================= */
+      @media (max-width: 992px) {
+        .metrics {
+          grid-template-columns: repeat(2, 1fr);
+        }
         .dashboard-grid {
           grid-template-columns: 1fr;
         }
-      }
-
-      @media (max-width: 768px) {
-        .sidebar {
-          left: -260px;
+        .main-content {
+          margin-left: 0;
         }
-
+        .sidebar {
+          left: -270px;
+        }
         .sidebar.active {
           left: 0;
         }
+      }
 
-        .menu-toggle {
-          display: flex !important;
-        }
-
-        .main-content {
-          margin-left: 0;
-          padding: 20px;
-        }
-
+      @media (max-width: 600px) {
         .metrics {
           grid-template-columns: 1fr;
         }
-
-        .topbar {
-          flex-wrap: wrap;
-          gap: 15px;
-        }
-
-        .topbar h2 {
-          font-size: 20px;
-        }
-      }
-
-      @media (max-width: 480px) {
-        .main-content {
-          padding: 15px;
-        }
-
-        .card,
-        .metric-card,
-        .table-container {
-          padding: 20px;
-        }
-
         #loginBox {
           width: 90%;
           padding: 30px 20px;
         }
       }
-
-      /* UTILITY CLASSES */
-      .text-primary {
-        color: var(--primary);
-      }
-
-      .text-muted {
-        color: var(--text-muted);
-      }
-
-      .bg-primary {
-        background: var(--primary);
-      }
-
-      .bg-secondary {
-        background: var(--bg-secondary);
-      }
-
-      .rounded {
-        border-radius: var(--border-radius);
-      }
-
-      .rounded-lg {
-        border-radius: var(--border-radius-lg);
-      }
-
-      .shadow {
-        box-shadow: var(--shadow);
-      }
-
-      .shadow-lg {
-        box-shadow: var(--shadow-lg);
-      }
     </style>
   </head>
+
   <body>
     <!-- LOGIN SCREEN -->
     <div id="loginScreen">
       <div id="loginBox">
-        <h2><i class="fas fa-lock"></i> Admin Login</h2>
-        <input type="email" id="email" placeholder="Admin Email" />
-        <input type="password" id="password" placeholder="Password" />
-        <button onclick="login()">Login</button>
-        <p id="errorMsg">Invalid email or password</p>
+        <h2><i class="fas fa-lock"></i> تسجيل الدخول</h2>
+        <input type="email" id="email" placeholder="البريد الإلكتروني" />
+        <input type="password" id="password" placeholder="كلمة المرور" />
+        <button onclick="login()">دخول</button>
+        <p id="errorMsg">بيانات الدخول غير صحيحة</p>
       </div>
     </div>
 
     <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
-      <div class="logo">
-        <i class="fa-solid fa-stethoscope"></i><span>Clinic</span>
-      </div>
+      <div class="logo"><i class="fa-solid fa-stethoscope"></i> العيادة</div>
       <nav class="menu">
         <a href="#" class="active"
-          ><i class="fa-solid fa-house"></i> Dashboard</a
+          ><i class="fa-solid fa-house"></i> لوحة التحكم</a
         >
-        <a href="#"><i class="fa-solid fa-chart-pie"></i> Analytics</a>
-        <a href="#"><i class="fa-solid fa-calendar-check"></i> Appointments</a>
-        <a href="#"><i class="fa-solid fa-user-doctor"></i> Staff</a>
-        <a href="#"><i class="fa-solid fa-gear"></i> Settings</a>
+        <a href="#"><i class="fa-solid fa-chart-pie"></i> التحليلات</a>
+        <a href="#"><i class="fa-solid fa-calendar-check"></i> المواعيد</a>
+        <a href="#"><i class="fa-solid fa-user-doctor"></i> الطاقم</a>
+        <a href="#"><i class="fa-solid fa-gear"></i> الإعدادات</a>
       </nav>
     </aside>
 
     <!-- MAIN CONTENT -->
     <main class="main-content" id="dashboardContent" style="display: none">
       <header class="topbar">
-        <button id="menuToggle" class="menu-toggle">
-          <i class="fa-solid fa-bars"></i>
-        </button>
-        <h2>Clinic Dashboard</h2>
+        <h2>لوحة تحكم العيادة</h2>
         <div class="top-actions">
           <button id="themeToggle" class="icon-btn">
             <i class="fa-regular fa-moon"></i>
@@ -576,80 +406,75 @@
 
       <section class="metrics">
         <div class="metric-card">
-          <h4>Total Bookings</h4>
+          <h4>إجمالي الحجوزات</h4>
           <p id="total">0</p>
         </div>
         <div class="metric-card">
-          <h4>Today's Bookings</h4>
+          <h4>حجوزات اليوم</h4>
           <p id="today">0</p>
         </div>
         <div class="metric-card">
-          <h4>Most Popular Service</h4>
+          <h4>الخدمة الأكثر طلبًا</h4>
           <p id="popular">-</p>
         </div>
         <div class="metric-card">
-          <h4>Est. Revenue</h4>
+          <h4>الإيرادات المقدّرة</h4>
           <p id="revenue">$0</p>
         </div>
       </section>
 
       <section class="dashboard-grid">
-        <div class="left-col">
-          <div class="card">
-            <h3>Service Distribution</h3>
-            <div class="chart-container">
-              <canvas id="bar"></canvas>
-            </div>
-          </div>
-          <div class="card">
-            <h3>Booking Breakdown</h3>
-            <div class="chart-container">
-              <canvas id="pie"></canvas>
-            </div>
+        <div class="card">
+          <h3>توزيع الخدمات</h3>
+          <div class="chart-container">
+            <canvas id="bar"></canvas>
           </div>
         </div>
 
-        <div class="right-col">
-          <div class="card">
-            <h3>Weekly Trend</h3>
-            <div class="chart-container">
-              <canvas id="line"></canvas>
-            </div>
+        <div class="card">
+          <h3>تفصيل الحجوزات</h3>
+          <div class="chart-container">
+            <canvas id="pie"></canvas>
           </div>
-          <div class="table-container">
-            <table id="tbl">
-              <thead>
-                <tr>
-                  <th onclick="sortTable(0)">
-                    Name <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(1)">
-                    Phone <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(2)">
-                    Service <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(3)">
-                    Appointment <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(4)">
-                    Time <i class="fas fa-sort"></i>
-                  </th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+        </div>
+
+        <div class="card" style="grid-column: span 2">
+          <h3>الاتجاه الأسبوعي</h3>
+          <div class="chart-container">
+            <canvas id="line"></canvas>
           </div>
+        </div>
+
+        <div class="table-container" style="grid-column: span 2">
+          <table id="tbl">
+            <thead>
+              <tr>
+                <th onclick="sortTable(0)">
+                  الاسم <i class="fas fa-sort"></i>
+                </th>
+                <th onclick="sortTable(1)">
+                  الهاتف <i class="fas fa-sort"></i>
+                </th>
+                <th onclick="sortTable(2)">
+                  الخدمة <i class="fas fa-sort"></i>
+                </th>
+                <th onclick="sortTable(3)">
+                  الموعد <i class="fas fa-sort"></i>
+                </th>
+                <th onclick="sortTable(4)">
+                  الوقت <i class="fas fa-sort"></i>
+                </th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
       </section>
 
-      <footer>
-        © 2025 Smile Clinic • Auto-refresh every 15s • Made with 💜
-      </footer>
+      <footer>© 2025 عيادة سمايل • تحديث تلقائي كل 15 ثانية • 💜</footer>
     </main>
 
     <script>
-      // ======= SUPABASE LOGIN LOGIC =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -674,7 +499,7 @@
         } else {
           const msg = document.getElementById("errorMsg");
           msg.style.display = "block";
-          msg.textContent = "Invalid email or password";
+          msg.textContent = "بيانات الدخول غير صحيحة";
         }
       }
 
@@ -691,7 +516,6 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
-      // ======= DASHBOARD LOGIC =======
       let bar, pie, line;
       let allData = [];
       let sortDirection = 1;
@@ -770,7 +594,7 @@
             datasets: [
               {
                 data: vals,
-                backgroundColor: "#8555e7",
+                backgroundColor: "#5e72e4",
                 borderRadius: 8,
                 borderWidth: 0,
               },
@@ -779,19 +603,10 @@
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-            },
+            plugins: { legend: { display: false } },
             scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: "rgba(0,0,0,0.05)",
-                },
-              },
-              x: {
-                grid: { display: false },
-              },
+              y: { beginAtZero: true },
+              x: { grid: { display: false } },
             },
           },
         });
@@ -804,11 +619,11 @@
               {
                 data: vals,
                 backgroundColor: [
-                  "#8555e7",
-                  "#c1b2de",
+                  "#5e72e4",
+                  "#825ee4",
                   "#a78bfa",
+                  "#c1b2de",
                   "#7e5bef",
-                  "#5b21b6",
                 ],
                 borderWidth: 0,
               },
@@ -816,15 +631,8 @@
           },
           options: {
             responsive: true,
-            maintainAspectRatio: false,
             plugins: {
-              legend: {
-                position: "bottom",
-                labels: {
-                  usePointStyle: true,
-                  padding: 20,
-                },
-              },
+              legend: { position: "bottom", labels: { usePointStyle: true } },
             },
             cutout: "70%",
           },
@@ -837,41 +645,35 @@
             labels: weekData.labels,
             datasets: [
               {
-                label: "Bookings",
+                label: "الحجوزات",
                 data: weekData.values,
-                borderColor: "#8555e7",
+                borderColor: "#5e72e4",
                 backgroundColor: "rgba(133,85,231,0.2)",
                 fill: true,
                 tension: 0.4,
                 borderWidth: 3,
                 pointRadius: 5,
-                pointBackgroundColor: "#8555e7",
+                pointBackgroundColor: "#825ee4",
               },
             ],
           },
           options: {
             responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: "rgba(0,0,0,0.05)",
-                },
-              },
-              x: {
-                grid: { display: false },
-              },
-            },
+            plugins: { legend: { display: false } },
           },
         });
       }
 
       function getWeeklyData(d) {
-        const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const days = [
+          "الأحد",
+          "الإثنين",
+          "الثلاثاء",
+          "الأربعاء",
+          "الخميس",
+          "الجمعة",
+          "السبت",
+        ];
         const counts = [0, 0, 0, 0, 0, 0, 0];
         d.forEach((b) => {
           if (b.timestamp) {
@@ -895,7 +697,6 @@
         rows.forEach((r) => tb.appendChild(r));
       }
 
-      // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
@@ -911,7 +712,6 @@
         }
       });
 
-      // Check for saved theme preference
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
         const icon = themeToggle.querySelector("i");
@@ -919,26 +719,6 @@
         icon.classList.add("fa-sun");
       }
 
-      // Sidebar toggle
-      const menuToggle = document.getElementById("menuToggle");
-      const sidebar = document.getElementById("sidebar");
-      menuToggle.addEventListener("click", () => {
-        sidebar.classList.toggle("active");
-      });
-
-      // Close sidebar when clicking outside on mobile
-      document.addEventListener("click", (e) => {
-        if (
-          window.innerWidth <= 768 &&
-          sidebar.classList.contains("active") &&
-          !sidebar.contains(e.target) &&
-          e.target !== menuToggle
-        ) {
-          sidebar.classList.remove("active");
-        }
-      });
-
-      // Auto-refresh if logged in
       if (localStorage.getItem("clinic_logged_in") === "true") {
         load();
         setInterval(load, 15000);
