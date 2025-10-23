@@ -11,41 +11,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-      /* RESET */
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      /* CSS VARIABLES FOR THEME */
+      /* CSS VARIABLES FOR THEME - Soft UI Inspired */
       :root {
         --primary: #8555e7;
         --primary-light: #c1b2de;
         --primary-dark: #6a42c5;
         --accent: #8555e7;
         --accent-light: #c1b2de;
-        --slate-50: #f8fafc;
-        --slate-100: #f1f5f9;
-        --slate-150: #f6f6fb;
-        --slate-200: #e2e8f0;
-        --slate-300: #cbd5e1;
-        --slate-400: #94a3b8;
-        --slate-500: #64748b;
-        --slate-600: #475569;
-        --slate-700: #334155;
-        --slate-800: #1e293b;
-        --slate-900: #0f172a;
-        --navy-50: #f0f4f8;
-        --navy-100: #d9e2ec;
-        --navy-200: #bcccdc;
-        --navy-300: #9fb3c8;
-        --navy-400: #829ab1;
-        --navy-500: #627d98;
-        --navy-600: #486581;
-        --navy-700: #334e68;
-        --navy-800: #243b53;
-        --navy-900: #102a43;
         --white: #ffffff;
         --success: #10b981;
         --warning: #f59e0b;
@@ -59,28 +31,26 @@
           0 2px 4px -1px rgba(0, 0, 0, 0.06);
         --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
           0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+        /* Soft UI Color Palette */
+        --soft-bg: #f8f9fa;
+        --soft-card-bg: #ffffff;
+        --soft-text: #344767;
+        --soft-text-secondary: #67748e;
+        --soft-border: #e9ecef;
+        --soft-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --soft-gradient: linear-gradient(195deg, #8555e7, #6a42c5);
       }
 
       /* DARK MODE VARIABLES */
       .dark {
-        --bg-primary: var(--navy-900);
-        --bg-secondary: var(--navy-800);
-        --bg-tertiary: var(--navy-700);
-        --text-primary: var(--slate-100);
-        --text-secondary: var(--slate-300);
-        --text-muted: var(--slate-400);
-        --border-color: var(--navy-600);
-      }
-
-      /* LIGHT MODE VARIABLES */
-      :root {
-        --bg-primary: var(--slate-50);
-        --bg-secondary: var(--white);
-        --bg-tertiary: var(--slate-100);
-        --text-primary: var(--slate-800);
-        --text-secondary: var(--slate-600);
-        --text-muted: var(--slate-500);
-        --border-color: var(--slate-200);
+        --soft-bg: #15203b;
+        --soft-card-bg: #1a2540;
+        --soft-text: #ffffff;
+        --soft-text-secondary: #b0b7c3;
+        --soft-border: #2d3748;
+        --soft-gradient: linear-gradient(195deg, #8555e7, #6a42c5);
       }
 
       body {
@@ -88,18 +58,19 @@
           Roboto, sans-serif;
         display: flex;
         min-height: 100vh;
-        background: var(--bg-primary);
-        color: var(--text-primary);
+        background: var(--soft-bg);
+        color: var(--soft-text);
         transition: background 0.3s, color 0.3s;
         overflow-x: hidden;
         line-height: 1.5;
+        margin: 0;
       }
 
-      /* SIDEBAR */
+      /* SIDEBAR - Soft UI Inspired */
       .sidebar {
         width: 240px;
-        background: var(--bg-secondary);
-        border-right: 1px solid var(--border-color);
+        background: var(--soft-card-bg);
+        border-right: 1px solid var(--soft-border);
         display: flex;
         flex-direction: column;
         padding: 25px 20px;
@@ -109,7 +80,7 @@
         top: 0;
         transition: left 0.3s ease;
         z-index: 1000;
-        box-shadow: var(--shadow);
+        box-shadow: var(--soft-shadow);
       }
 
       .logo {
@@ -135,7 +106,7 @@
       }
 
       .menu a {
-        color: var(--text-secondary);
+        color: var(--soft-text-secondary);
         text-decoration: none;
         padding: 12px 14px;
         border-radius: var(--border-radius);
@@ -153,7 +124,7 @@
 
       .menu a.active,
       .menu a:hover {
-        background: var(--primary);
+        background: var(--soft-gradient);
         color: var(--white);
         box-shadow: 0 4px 6px -1px rgba(133, 85, 231, 0.2);
       }
@@ -168,7 +139,7 @@
         transition: margin-left 0.3s ease;
       }
 
-      /* TOPBAR */
+      /* TOPBAR - Soft UI Inspired */
       .topbar {
         display: flex;
         justify-content: space-between;
@@ -182,7 +153,7 @@
       .topbar h2 {
         font-size: 24px;
         font-weight: 700;
-        color: var(--text-primary);
+        color: var(--soft-text);
       }
 
       .menu-toggle {
@@ -202,7 +173,7 @@
       }
 
       .menu-toggle:hover {
-        background: var(--bg-tertiary);
+        background: var(--soft-border);
       }
 
       .top-actions {
@@ -212,10 +183,10 @@
       }
 
       .icon-btn {
-        background: var(--bg-tertiary);
+        background: var(--soft-card-bg);
         border: none;
         cursor: pointer;
-        color: var(--text-secondary);
+        color: var(--soft-text-secondary);
         font-size: 18px;
         position: relative;
         transition: all 0.2s;
@@ -225,10 +196,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        box-shadow: var(--soft-shadow);
       }
 
       .icon-btn:hover {
-        background: var(--primary);
+        background: var(--soft-gradient);
         color: var(--white);
         transform: translateY(-2px);
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -252,12 +224,13 @@
         gap: 25px;
       }
 
+      /* CARDS - Soft UI Inspired */
       .card {
-        background: var(--bg-secondary);
+        background: var(--soft-card-bg);
         border-radius: var(--border-radius-lg);
-        box-shadow: var(--shadow);
+        box-shadow: var(--soft-shadow);
         padding: 24px;
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--soft-border);
         transition: all 0.3s;
       }
 
@@ -269,16 +242,16 @@
         margin-bottom: 20px;
         font-size: 18px;
         font-weight: 600;
-        color: var(--text-primary);
+        color: var(--soft-text);
       }
 
       .metric-card {
-        background: var(--bg-secondary);
+        background: var(--soft-card-bg);
         border-radius: var(--border-radius-lg);
-        box-shadow: var(--shadow);
+        box-shadow: var(--soft-shadow);
         padding: 24px;
         text-align: center;
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--soft-border);
         transition: all 0.3s;
       }
 
@@ -289,7 +262,7 @@
 
       .metric-card h4 {
         font-size: 14px;
-        color: var(--text-muted);
+        color: var(--soft-text-secondary);
         margin-bottom: 12px;
         font-weight: 500;
       }
@@ -307,12 +280,12 @@
       }
 
       .table-container {
-        background: var(--bg-secondary);
+        background: var(--soft-card-bg);
         border-radius: var(--border-radius-lg);
-        box-shadow: var(--shadow);
+        box-shadow: var(--soft-shadow);
         padding: 24px;
         overflow: auto;
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--soft-border);
       }
 
       table {
@@ -324,7 +297,7 @@
       td {
         padding: 14px 16px;
         text-align: left;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--soft-border);
       }
 
       th {
@@ -336,21 +309,21 @@
       }
 
       th:hover {
-        background: var(--bg-tertiary);
+        background: var(--soft-border);
       }
 
       td {
-        color: var(--text-secondary);
+        color: var(--soft-text-secondary);
         font-size: 14px;
       }
 
       tr:hover {
-        background: var(--bg-tertiary);
+        background: var(--soft-border);
       }
 
       footer {
         text-align: center;
-        color: var(--text-muted);
+        color: var(--soft-text-secondary);
         margin-top: 40px;
         font-size: 13px;
         padding: 20px 0;
@@ -368,7 +341,7 @@
       }
 
       #loginBox {
-        background: var(--bg-secondary);
+        background: var(--soft-card-bg);
         padding: 40px;
         border-radius: var(--border-radius-lg);
         width: 380px;
@@ -387,10 +360,10 @@
         width: 100%;
         margin-bottom: 16px;
         padding: 12px 16px;
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--soft-border);
         border-radius: var(--border-radius);
-        background: var(--bg-primary);
-        color: var(--text-primary);
+        background: var(--soft-bg);
+        color: var(--soft-text);
         font-size: 16px;
         transition: all 0.2s;
       }
@@ -402,7 +375,7 @@
       }
 
       #loginBox button {
-        background: var(--primary);
+        background: var(--soft-gradient);
         color: var(--white);
         border: none;
         padding: 12px;
@@ -493,39 +466,6 @@
           width: 90%;
           padding: 30px 20px;
         }
-      }
-
-      /* UTILITY CLASSES */
-      .text-primary {
-        color: var(--primary);
-      }
-
-      .text-muted {
-        color: var(--text-muted);
-      }
-
-      .bg-primary {
-        background: var(--primary);
-      }
-
-      .bg-secondary {
-        background: var(--bg-secondary);
-      }
-
-      .rounded {
-        border-radius: var(--border-radius);
-      }
-
-      .rounded-lg {
-        border-radius: var(--border-radius-lg);
-      }
-
-      .shadow {
-        box-shadow: var(--shadow);
-      }
-
-      .shadow-lg {
-        box-shadow: var(--shadow-lg);
       }
     </style>
   </head>
