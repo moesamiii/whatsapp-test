@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,23 +11,28 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-      /* RESET */
+      @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap");
+
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
 
-      /* CSS VARIABLES FOR THEME */
       :root {
-        --primary: #8555e7;
-        --primary-light: #c1b2de;
-        --primary-dark: #6a42c5;
-        --accent: #8555e7;
-        --accent-light: #c1b2de;
+        --primary: #d946ef;
+        --primary-dark: #c026d3;
+        --secondary: #8b5cf6;
+        --accent: #ec4899;
+        --blue: #3b82f6;
+        --cyan: #06b6d4;
+        --orange: #f97316;
+        --red: #ef4444;
+        --navy: #1e293b;
+        --navy-light: #334155;
+        --navy-dark: #0f172a;
         --slate-50: #f8fafc;
         --slate-100: #f1f5f9;
-        --slate-150: #f6f6fb;
         --slate-200: #e2e8f0;
         --slate-300: #cbd5e1;
         --slate-400: #94a3b8;
@@ -35,250 +40,222 @@
         --slate-600: #475569;
         --slate-700: #334155;
         --slate-800: #1e293b;
-        --slate-900: #0f172a;
-        --navy-50: #f0f4f8;
-        --navy-100: #d9e2ec;
-        --navy-200: #bcccdc;
-        --navy-300: #9fb3c8;
-        --navy-400: #829ab1;
-        --navy-500: #627d98;
-        --navy-600: #486581;
-        --navy-700: #334e68;
-        --navy-800: #243b53;
-        --navy-900: #102a43;
         --white: #ffffff;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --error: #ef4444;
-        --info: #3b82f6;
-        --border-radius: 8px;
-        --border-radius-lg: 16px;
-        --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1),
-          0 1px 2px 0 rgba(0, 0, 0, 0.06);
-        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-          0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
-          0 4px 6px -2px rgba(0, 0, 0, 0.05);
-      }
-
-      /* DARK MODE VARIABLES */
-      .dark {
-        --bg-primary: var(--navy-900);
-        --bg-secondary: var(--navy-800);
-        --bg-tertiary: var(--navy-700);
-        --text-primary: var(--slate-100);
-        --text-secondary: var(--slate-300);
-        --text-muted: var(--slate-400);
-        --border-color: var(--navy-600);
-      }
-
-      /* LIGHT MODE VARIABLES */
-      :root {
-        --bg-primary: var(--slate-50);
-        --bg-secondary: var(--white);
-        --bg-tertiary: var(--slate-100);
-        --text-primary: var(--slate-800);
-        --text-secondary: var(--slate-600);
-        --text-muted: var(--slate-500);
-        --border-color: var(--slate-200);
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
       }
 
       body {
-        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
-          Roboto, sans-serif;
+        font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        min-height: 100vh;
+        color: var(--navy);
+        direction: rtl;
+      }
+
+      .container {
         display: flex;
         min-height: 100vh;
-        background: var(--bg-primary);
-        color: var(--text-primary);
-        transition: background 0.3s, color 0.3s;
-        overflow-x: hidden;
-        line-height: 1.5;
       }
 
       /* SIDEBAR */
       .sidebar {
-        width: 240px;
-        background: var(--bg-secondary);
-        border-right: 1px solid var(--border-color);
-        display: flex;
-        flex-direction: column;
-        padding: 25px 20px;
+        width: 280px;
+        background: var(--white);
+        padding: 30px 20px;
+        box-shadow: var(--shadow-lg);
         position: fixed;
-        height: 100%;
-        left: 0;
+        height: 100vh;
+        right: 0;
         top: 0;
-        transition: left 0.3s ease;
         z-index: 1000;
-        box-shadow: var(--shadow);
+        transition: right 0.3s ease;
+        overflow-y: auto;
+      }
+
+      .sidebar.hidden {
+        right: -280px;
       }
 
       .logo {
-        color: var(--primary);
-        font-weight: 700;
-        font-size: 22px;
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 30px;
-        padding: 10px 0;
+        gap: 12px;
+        margin-bottom: 40px;
+        padding: 15px;
+        background: linear-gradient(
+          135deg,
+          var(--primary) 0%,
+          var(--secondary) 100%
+        );
+        border-radius: 16px;
+        color: white;
       }
 
       .logo i {
-        font-size: 24px;
+        font-size: 28px;
+      }
+
+      .logo span {
+        font-size: 22px;
+        font-weight: 700;
       }
 
       .menu {
-        margin-top: 10px;
         display: flex;
         flex-direction: column;
         gap: 8px;
       }
 
       .menu a {
-        color: var(--text-secondary);
-        text-decoration: none;
-        padding: 12px 14px;
-        border-radius: var(--border-radius);
         display: flex;
         align-items: center;
         gap: 12px;
+        padding: 14px 16px;
+        color: var(--slate-600);
+        text-decoration: none;
+        border-radius: 12px;
         transition: all 0.3s;
         font-weight: 500;
       }
 
       .menu a i {
-        width: 20px;
+        width: 24px;
         text-align: center;
+        font-size: 18px;
       }
 
-      .menu a.active,
-      .menu a:hover {
-        background: var(--primary);
-        color: var(--white);
-        box-shadow: 0 4px 6px -1px rgba(133, 85, 231, 0.2);
+      .menu a.active {
+        background: linear-gradient(
+          135deg,
+          var(--primary) 0%,
+          var(--secondary) 100%
+        );
+        color: white;
+        box-shadow: 0 8px 16px rgba(217, 70, 239, 0.3);
+      }
+
+      .menu a:hover:not(.active) {
+        background: var(--slate-100);
+        transform: translateX(-5px);
       }
 
       /* MAIN CONTENT */
       .main-content {
         flex: 1;
-        margin-left: 260px;
+        margin-right: 280px;
         padding: 30px;
-        max-width: 1400px;
-        margin-right: auto;
-        transition: margin-left 0.3s ease;
+        transition: margin-right 0.3s ease;
       }
 
-      /* TOPBAR */
-      .topbar {
+      .main-content.expanded {
+        margin-right: 0;
+      }
+
+      /* HEADER */
+      .header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 25px;
-        position: relative;
-        z-index: 10;
-        padding: 10px 0;
-      }
-
-      .topbar h2 {
-        font-size: 24px;
-        font-weight: 700;
-        color: var(--text-primary);
-      }
-
-      .menu-toggle {
-        background: none;
-        border: none;
-        font-size: 22px;
-        color: var(--primary);
-        cursor: pointer;
-        display: none;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-      }
-
-      .menu-toggle:hover {
-        background: var(--bg-tertiary);
-      }
-
-      .top-actions {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-
-      .icon-btn {
-        background: var(--bg-tertiary);
-        border: none;
-        cursor: pointer;
-        color: var(--text-secondary);
-        font-size: 18px;
-        position: relative;
-        transition: all 0.2s;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .icon-btn:hover {
-        background: var(--primary);
-        color: var(--white);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      }
-
-      .icon-btn:active {
-        transform: translateY(0);
-      }
-
-      /* DASHBOARD GRID */
-      .dashboard-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 25px;
-      }
-
-      .left-col,
-      .right-col {
-        display: flex;
-        flex-direction: column;
-        gap: 25px;
-      }
-
-      .card {
-        background: var(--bg-secondary);
-        border-radius: var(--border-radius-lg);
+        margin-bottom: 30px;
+        background: white;
+        padding: 20px 30px;
+        border-radius: 20px;
         box-shadow: var(--shadow);
-        padding: 24px;
-        border: 1px solid var(--border-color);
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .search-box {
+        position: relative;
+      }
+
+      .search-box input {
+        padding: 10px 45px 10px 20px;
+        border: 2px solid var(--slate-200);
+        border-radius: 12px;
+        width: 250px;
+        font-family: "Cairo", sans-serif;
         transition: all 0.3s;
       }
 
-      .card:hover {
-        box-shadow: var(--shadow-md);
+      .search-box input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(217, 70, 239, 0.1);
       }
 
-      .card h3 {
-        margin-bottom: 20px;
+      .search-box i {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--slate-400);
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .header-left h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--navy);
+      }
+
+      .rtl-toggle,
+      .icon-btn {
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        border: none;
+        background: var(--slate-100);
+        color: var(--slate-600);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
         font-size: 18px;
-        font-weight: 600;
-        color: var(--text-primary);
+      }
+
+      .rtl-toggle:hover,
+      .icon-btn:hover {
+        background: linear-gradient(
+          135deg,
+          var(--primary) 0%,
+          var(--secondary) 100%
+        );
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(217, 70, 239, 0.3);
+      }
+
+      .menu-toggle {
+        display: none;
+      }
+
+      /* METRICS */
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 30px;
       }
 
       .metric-card {
-        background: var(--bg-secondary);
-        border-radius: var(--border-radius-lg);
+        background: white;
+        padding: 25px;
+        border-radius: 20px;
         box-shadow: var(--shadow);
-        padding: 24px;
-        text-align: center;
-        border: 1px solid var(--border-color);
+        position: relative;
+        overflow: hidden;
         transition: all 0.3s;
       }
 
@@ -287,32 +264,196 @@
         box-shadow: var(--shadow-lg);
       }
 
+      .metric-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(
+          90deg,
+          var(--primary) 0%,
+          var(--secondary) 100%
+        );
+      }
+
+      .metric-card.purple::before {
+        background: linear-gradient(90deg, #d946ef 0%, #a855f7 100%);
+      }
+
+      .metric-card.blue::before {
+        background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+      }
+
+      .metric-card.pink::before {
+        background: linear-gradient(90deg, #ec4899 0%, #d946ef 100%);
+      }
+
+      .metric-card.orange::before {
+        background: linear-gradient(90deg, #f97316 0%, #fb923c 100%);
+      }
+
+      .metric-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        color: white;
+        margin-bottom: 15px;
+      }
+
+      .metric-card.purple .metric-icon {
+        background: linear-gradient(135deg, #d946ef 0%, #a855f7 100%);
+      }
+
+      .metric-card.blue .metric-icon {
+        background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+      }
+
+      .metric-card.pink .metric-icon {
+        background: linear-gradient(135deg, #ec4899 0%, #d946ef 100%);
+      }
+
+      .metric-card.orange .metric-icon {
+        background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+      }
+
       .metric-card h4 {
         font-size: 14px;
-        color: var(--text-muted);
-        margin-bottom: 12px;
+        color: var(--slate-500);
+        margin-bottom: 8px;
         font-weight: 500;
       }
 
-      .metric-card p {
+      .metric-value {
         font-size: 28px;
-        color: var(--primary);
         font-weight: 700;
+        color: var(--navy);
+        margin-bottom: 8px;
       }
 
-      .metrics {
+      .metric-change {
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .metric-change.positive {
+        color: #10b981;
+      }
+
+      .metric-change.negative {
+        color: #ef4444;
+      }
+
+      /* DASHBOARD GRID */
+      .dashboard-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
+        grid-template-columns: 1fr 1fr;
+        gap: 25px;
+        margin-bottom: 30px;
       }
 
-      .table-container {
-        background: var(--bg-secondary);
-        border-radius: var(--border-radius-lg);
+      .card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
         box-shadow: var(--shadow);
-        padding: 24px;
+        transition: all 0.3s;
+      }
+
+      .card:hover {
+        box-shadow: var(--shadow-lg);
+      }
+
+      .card h3 {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--navy);
+        margin-bottom: 20px;
+      }
+
+      .chart-container {
+        position: relative;
+        height: 300px;
+      }
+
+      /* HERO CARDS */
+      .hero-cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 25px;
+        margin-bottom: 30px;
+      }
+
+      .hero-card {
+        border-radius: 20px;
+        padding: 40px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        min-height: 250px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .hero-card.dark {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      }
+
+      .hero-card.gradient {
+        background: linear-gradient(135deg, #d946ef 0%, #a855f7 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .hero-card h3 {
+        font-size: 24px;
+        margin-bottom: 15px;
+        color: white;
+      }
+
+      .hero-card p {
+        font-size: 15px;
+        line-height: 1.7;
+        opacity: 0.9;
+        color: white;
+      }
+
+      .hero-card button {
+        align-self: flex-start;
+        padding: 12px 24px;
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+        font-family: "Cairo", sans-serif;
+      }
+
+      .hero-card button:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+      }
+
+      .rocket-icon {
+        font-size: 120px;
+      }
+
+      /* TABLE */
+      .table-card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: var(--shadow);
         overflow: auto;
-        border: 1px solid var(--border-color);
       }
 
       table {
@@ -320,47 +461,38 @@
         border-collapse: collapse;
       }
 
-      th,
-      td {
-        padding: 14px 16px;
-        text-align: left;
-        border-bottom: 1px solid var(--border-color);
-      }
-
       th {
-        color: var(--primary);
-        cursor: pointer;
+        padding: 16px;
+        text-align: right;
+        color: var(--slate-500);
         font-weight: 600;
-        font-size: 14px;
+        font-size: 13px;
+        border-bottom: 2px solid var(--slate-200);
+        cursor: pointer;
         user-select: none;
       }
 
       th:hover {
-        background: var(--bg-tertiary);
+        color: var(--primary);
       }
 
       td {
-        color: var(--text-secondary);
+        padding: 16px;
+        text-align: right;
+        color: var(--slate-700);
+        border-bottom: 1px solid var(--slate-100);
         font-size: 14px;
       }
 
       tr:hover {
-        background: var(--bg-tertiary);
-      }
-
-      footer {
-        text-align: center;
-        color: var(--text-muted);
-        margin-top: 40px;
-        font-size: 13px;
-        padding: 20px 0;
+        background: var(--slate-50);
       }
 
       /* LOGIN SCREEN */
       #loginScreen {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.8);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -368,113 +500,123 @@
       }
 
       #loginBox {
-        background: var(--bg-secondary);
-        padding: 40px;
-        border-radius: var(--border-radius-lg);
-        width: 380px;
-        box-shadow: var(--shadow-lg);
+        background: white;
+        padding: 50px;
+        border-radius: 24px;
+        width: 420px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         text-align: center;
       }
 
       #loginBox h2 {
-        color: var(--primary);
-        margin-bottom: 24px;
-        font-size: 24px;
+        color: var(--navy);
+        margin-bottom: 30px;
+        font-size: 28px;
         font-weight: 700;
+      }
+
+      #loginBox h2 i {
+        color: var(--primary);
+        margin-left: 10px;
       }
 
       #loginBox input {
         width: 100%;
-        margin-bottom: 16px;
-        padding: 12px 16px;
-        border: 1px solid var(--border-color);
-        border-radius: var(--border-radius);
-        background: var(--bg-primary);
-        color: var(--text-primary);
-        font-size: 16px;
-        transition: all 0.2s;
+        margin-bottom: 20px;
+        padding: 16px 20px;
+        border: 2px solid var(--slate-200);
+        border-radius: 12px;
+        font-size: 15px;
+        font-family: "Cairo", sans-serif;
+        transition: all 0.3s;
       }
 
       #loginBox input:focus {
         outline: none;
         border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(133, 85, 231, 0.2);
+        box-shadow: 0 0 0 3px rgba(217, 70, 239, 0.1);
       }
 
       #loginBox button {
-        background: var(--primary);
-        color: var(--white);
-        border: none;
-        padding: 12px;
         width: 100%;
-        border-radius: var(--border-radius);
+        padding: 16px;
+        background: linear-gradient(
+          135deg,
+          var(--primary) 0%,
+          var(--secondary) 100%
+        );
+        color: white;
+        border: none;
+        border-radius: 12px;
         cursor: pointer;
         font-size: 16px;
-        font-weight: 600;
-        transition: all 0.2s;
-        margin-top: 8px;
+        font-weight: 700;
+        transition: all 0.3s;
+        font-family: "Cairo", sans-serif;
       }
 
       #loginBox button:hover {
-        background: var(--primary-dark);
         transform: translateY(-2px);
-        box-shadow: 0 4px 6px -1px rgba(133, 85, 231, 0.3);
-      }
-
-      #loginBox button:active {
-        transform: translateY(0);
+        box-shadow: 0 12px 24px rgba(217, 70, 239, 0.4);
       }
 
       #errorMsg {
-        color: var(--error);
-        margin-top: 12px;
+        color: var(--red);
+        margin-top: 15px;
         font-size: 14px;
         display: none;
       }
 
-      /* CHART CONTAINERS */
-      .chart-container {
-        position: relative;
-        height: 300px;
-        width: 100%;
+      footer {
+        text-align: center;
+        color: var(--slate-500);
+        padding: 30px;
+        font-size: 14px;
       }
 
       /* RESPONSIVE */
-      @media (max-width: 1024px) {
+      @media (max-width: 1200px) {
+        .metrics {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
         .dashboard-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-cards {
           grid-template-columns: 1fr;
         }
       }
 
       @media (max-width: 768px) {
         .sidebar {
-          left: -260px;
+          right: -280px;
         }
 
         .sidebar.active {
-          left: 0;
+          right: 0;
+        }
+
+        .main-content {
+          margin-right: 0;
         }
 
         .menu-toggle {
           display: flex !important;
         }
 
-        .main-content {
-          margin-left: 0;
-          padding: 20px;
-        }
-
         .metrics {
           grid-template-columns: 1fr;
         }
 
-        .topbar {
+        .header {
           flex-wrap: wrap;
           gap: 15px;
         }
 
-        .topbar h2 {
-          font-size: 20px;
+        .search-box input {
+          width: 100%;
         }
       }
 
@@ -483,49 +625,10 @@
           padding: 15px;
         }
 
-        .card,
-        .metric-card,
-        .table-container {
-          padding: 20px;
-        }
-
         #loginBox {
           width: 90%;
           padding: 30px 20px;
         }
-      }
-
-      /* UTILITY CLASSES */
-      .text-primary {
-        color: var(--primary);
-      }
-
-      .text-muted {
-        color: var(--text-muted);
-      }
-
-      .bg-primary {
-        background: var(--primary);
-      }
-
-      .bg-secondary {
-        background: var(--bg-secondary);
-      }
-
-      .rounded {
-        border-radius: var(--border-radius);
-      }
-
-      .rounded-lg {
-        border-radius: var(--border-radius-lg);
-      }
-
-      .shadow {
-        box-shadow: var(--shadow);
-      }
-
-      .shadow-lg {
-        box-shadow: var(--shadow-lg);
       }
     </style>
   </head>
@@ -533,120 +636,196 @@
     <!-- LOGIN SCREEN -->
     <div id="loginScreen">
       <div id="loginBox">
-        <h2><i class="fas fa-lock"></i> Admin Login</h2>
-        <input type="email" id="email" placeholder="Admin Email" />
-        <input type="password" id="password" placeholder="Password" />
-        <button onclick="login()">Login</button>
-        <p id="errorMsg">Invalid email or password</p>
+        <h2><i class="fas fa-lock"></i>تسجيل دخول المسؤول</h2>
+        <input type="email" id="email" placeholder="البريد الإلكتروني" />
+        <input type="password" id="password" placeholder="كلمة المرور" />
+        <button onclick="login()">تسجيل الدخول</button>
+        <p id="errorMsg">بريد إلكتروني أو كلمة مرور غير صالحة</p>
       </div>
     </div>
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar" id="sidebar">
-      <div class="logo">
-        <i class="fa-solid fa-stethoscope"></i><span>Clinic</span>
-      </div>
-      <nav class="menu">
-        <a href="#" class="active"
-          ><i class="fa-solid fa-house"></i> Dashboard</a
-        >
-        <a href="#"><i class="fa-solid fa-chart-pie"></i> Analytics</a>
-        <a href="#"><i class="fa-solid fa-calendar-check"></i> Appointments</a>
-        <a href="#"><i class="fa-solid fa-user-doctor"></i> Staff</a>
-        <a href="#"><i class="fa-solid fa-gear"></i> Settings</a>
-      </nav>
-    </aside>
+    <div class="container">
+      <!-- SIDEBAR -->
+      <aside class="sidebar" id="sidebar">
+        <div class="logo">
+          <i class="fa-solid fa-stethoscope"></i>
+          <span>Soft UI Dashboard</span>
+        </div>
+        <nav class="menu">
+          <a href="#" class="active">
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
+          </a>
+          <a href="#">
+            <i class="fa-solid fa-table"></i>
+            الجداول
+          </a>
+          <a href="#">
+            <i class="fa-solid fa-receipt"></i>
+            الفواتير
+          </a>
+          <a href="#">
+            <i class="fa-solid fa-bell"></i>
+            الواقع الافتراضي
+          </a>
+          <a href="#">
+            <i class="fa-solid fa-user"></i>
+            حساب تعريفي
+          </a>
+          <a href="#">
+            <i class="fa-solid fa-right-to-bracket"></i>
+            تسجيل الدخول
+          </a>
+          <a href="#">
+            <i class="fa-solid fa-rocket"></i>
+            اشتراك
+          </a>
+        </nav>
+      </aside>
 
-    <!-- MAIN CONTENT -->
-    <main class="main-content" id="dashboardContent" style="display: none">
-      <header class="topbar">
-        <button id="menuToggle" class="menu-toggle">
-          <i class="fa-solid fa-bars"></i>
-        </button>
-        <h2>Clinic Dashboard</h2>
-        <div class="top-actions">
-          <button id="themeToggle" class="icon-btn">
-            <i class="fa-regular fa-moon"></i>
-          </button>
-          <button id="logoutBtn" class="icon-btn" onclick="logout()">
-            <i class="fa-solid fa-right-from-bracket"></i>
-          </button>
-        </div>
-      </header>
+      <!-- MAIN CONTENT -->
+      <main class="main-content" id="dashboardContent" style="display: none">
+        <!-- HEADER -->
+        <header class="header">
+          <div class="header-left">
+            <button class="menu-toggle icon-btn" id="menuToggle">
+              <i class="fa-solid fa-bars"></i>
+            </button>
+            <h1>Soft UI Dashboard</h1>
+          </div>
+          <div class="header-right">
+            <div class="search-box">
+              <input type="text" placeholder="اكتب هنا..." />
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            <button class="rtl-toggle" title="RTL">
+              <i class="fa-solid fa-align-right"></i>
+            </button>
+            <button class="icon-btn" id="themeToggle">
+              <i class="fa-regular fa-moon"></i>
+            </button>
+            <button class="icon-btn" onclick="logout()">
+              <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+          </div>
+        </header>
 
-      <section class="metrics">
-        <div class="metric-card">
-          <h4>Total Bookings</h4>
-          <p id="total">0</p>
-        </div>
-        <div class="metric-card">
-          <h4>Today's Bookings</h4>
-          <p id="today">0</p>
-        </div>
-        <div class="metric-card">
-          <h4>Most Popular Service</h4>
-          <p id="popular">-</p>
-        </div>
-        <div class="metric-card">
-          <h4>Est. Revenue</h4>
-          <p id="revenue">$0</p>
-        </div>
-      </section>
+        <!-- METRICS -->
+        <section class="metrics">
+          <div class="metric-card purple">
+            <div class="metric-icon">
+              <i class="fa-solid fa-computer"></i>
+            </div>
+            <h4>أموال اليوم</h4>
+            <div class="metric-value" id="revenue">$0</div>
+            <div class="metric-change positive">
+              <i class="fa-solid fa-arrow-up"></i> 55%+
+            </div>
+          </div>
+          <div class="metric-card blue">
+            <div class="metric-icon">
+              <i class="fa-solid fa-globe"></i>
+            </div>
+            <h4>مستخدمو اليوم</h4>
+            <div class="metric-value" id="today">0</div>
+            <div class="metric-change positive">
+              <i class="fa-solid fa-arrow-up"></i> 33%+
+            </div>
+          </div>
+          <div class="metric-card pink">
+            <div class="metric-icon">
+              <i class="fa-solid fa-file-invoice"></i>
+            </div>
+            <h4>عملاء جدد</h4>
+            <div class="metric-value" id="total">0</div>
+            <div class="metric-change negative">
+              <i class="fa-solid fa-arrow-down"></i> 2%-
+            </div>
+          </div>
+          <div class="metric-card orange">
+            <div class="metric-icon">
+              <i class="fa-solid fa-cart-shopping"></i>
+            </div>
+            <h4>مبيعات</h4>
+            <div class="metric-value" id="popular">-</div>
+            <div class="metric-change positive">
+              <i class="fa-solid fa-arrow-up"></i> 5%+
+            </div>
+          </div>
+        </section>
 
-      <section class="dashboard-grid">
-        <div class="left-col">
+        <!-- HERO CARDS -->
+        <section class="hero-cards">
+          <div class="hero-card dark">
+            <div>
+              <h3>بناها المطورون</h3>
+              <p>
+                من الألوان والبطاقات والطباعة إلى العناصر المعقدة ، ستجد الوثائق
+                الكاملة.
+              </p>
+            </div>
+            <button>اقرأ المستندات</button>
+          </div>
+          <div class="hero-card gradient">
+            <div class="rocket-icon">🚀</div>
+          </div>
+        </section>
+
+        <!-- DASHBOARD GRID -->
+        <section class="dashboard-grid">
           <div class="card">
-            <h3>Service Distribution</h3>
+            <h3>توزيع الخدمات</h3>
             <div class="chart-container">
               <canvas id="bar"></canvas>
             </div>
           </div>
-          <div class="card">
-            <h3>Booking Breakdown</h3>
-            <div class="chart-container">
-              <canvas id="pie"></canvas>
-            </div>
-          </div>
-        </div>
 
-        <div class="right-col">
           <div class="card">
-            <h3>Weekly Trend</h3>
+            <h3>الاتجاه الأسبوعي</h3>
             <div class="chart-container">
               <canvas id="line"></canvas>
             </div>
           </div>
-          <div class="table-container">
+
+          <div class="card">
+            <h3>تفصيل الحجز</h3>
+            <div class="chart-container">
+              <canvas id="pie"></canvas>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <h3>جدول الحجوزات</h3>
             <table id="tbl">
               <thead>
                 <tr>
                   <th onclick="sortTable(0)">
-                    Name <i class="fas fa-sort"></i>
+                    الاسم <i class="fas fa-sort"></i>
                   </th>
                   <th onclick="sortTable(1)">
-                    Phone <i class="fas fa-sort"></i>
+                    الهاتف <i class="fas fa-sort"></i>
                   </th>
                   <th onclick="sortTable(2)">
-                    Service <i class="fas fa-sort"></i>
+                    الخدمة <i class="fas fa-sort"></i>
                   </th>
                   <th onclick="sortTable(3)">
-                    Appointment <i class="fas fa-sort"></i>
+                    الموعد <i class="fas fa-sort"></i>
                   </th>
                   <th onclick="sortTable(4)">
-                    Time <i class="fas fa-sort"></i>
+                    الوقت <i class="fas fa-sort"></i>
                   </th>
                 </tr>
               </thead>
               <tbody></tbody>
             </table>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <footer>
-        © 2025 Smile Clinic • Auto-refresh every 15s • Made with 💜
-      </footer>
-    </main>
+        <footer>
+          © 2025 Smile Clinic • التحديث التلقائي كل 15 ثانية • صنع بـ 💜
+        </footer>
+      </main>
+    </div>
 
     <script>
       // ======= SUPABASE LOGIN LOGIC =======
@@ -674,7 +853,7 @@
         } else {
           const msg = document.getElementById("errorMsg");
           msg.style.display = "block";
-          msg.textContent = "Invalid email or password";
+          msg.textContent = "بريد إلكتروني أو كلمة مرور غير صالحة";
         }
       }
 
@@ -770,7 +949,7 @@
             datasets: [
               {
                 data: vals,
-                backgroundColor: "#8555e7",
+                backgroundColor: "rgba(217, 70, 239, 0.8)",
                 borderRadius: 8,
                 borderWidth: 0,
               },
@@ -804,11 +983,11 @@
               {
                 data: vals,
                 backgroundColor: [
-                  "#8555e7",
-                  "#c1b2de",
-                  "#a78bfa",
-                  "#7e5bef",
-                  "#5b21b6",
+                  "#d946ef",
+                  "#a855f7",
+                  "#ec4899",
+                  "#f97316",
+                  "#3b82f6",
                 ],
                 borderWidth: 0,
               },
@@ -823,6 +1002,9 @@
                 labels: {
                   usePointStyle: true,
                   padding: 20,
+                  font: {
+                    family: "'Cairo', sans-serif",
+                  },
                 },
               },
             },
@@ -837,15 +1019,15 @@
             labels: weekData.labels,
             datasets: [
               {
-                label: "Bookings",
+                label: "الحجوزات",
                 data: weekData.values,
-                borderColor: "#8555e7",
-                backgroundColor: "rgba(133,85,231,0.2)",
+                borderColor: "#d946ef",
+                backgroundColor: "rgba(217, 70, 239, 0.1)",
                 fill: true,
                 tension: 0.4,
                 borderWidth: 3,
                 pointRadius: 5,
-                pointBackgroundColor: "#8555e7",
+                pointBackgroundColor: "#d946ef",
               },
             ],
           },
@@ -871,7 +1053,15 @@
       }
 
       function getWeeklyData(d) {
-        const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const days = [
+          "الأحد",
+          "الاثنين",
+          "الثلاثاء",
+          "الأربعاء",
+          "الخميس",
+          "الجمعة",
+          "السبت",
+        ];
         const counts = [0, 0, 0, 0, 0, 0, 0];
         d.forEach((b) => {
           if (b.timestamp) {
@@ -932,7 +1122,8 @@
           window.innerWidth <= 768 &&
           sidebar.classList.contains("active") &&
           !sidebar.contains(e.target) &&
-          e.target !== menuToggle
+          e.target !== menuToggle &&
+          !menuToggle.contains(e.target)
         ) {
           sidebar.classList.remove("active");
         }
