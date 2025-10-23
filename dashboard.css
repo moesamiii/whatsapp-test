@@ -1,8 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap");
 
-/* ==========================
-   RESET & BASE VARIABLES
-========================== */
 * {
   margin: 0;
   padding: 0;
@@ -11,6 +8,7 @@
 
 :root {
   --primary: #d946ef;
+  --primary-dark: #c026d3;
   --secondary: #8b5cf6;
   --accent: #ec4899;
   --blue: #3b82f6;
@@ -18,6 +16,8 @@
   --orange: #f97316;
   --red: #ef4444;
   --navy: #1e293b;
+  --navy-light: #334155;
+  --navy-dark: #0f172a;
   --slate-50: #f8fafc;
   --slate-100: #f1f5f9;
   --slate-200: #e2e8f0;
@@ -25,42 +25,39 @@
   --slate-400: #94a3b8;
   --slate-500: #64748b;
   --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
   --white: #ffffff;
-  --shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 15px 30px rgba(0, 0, 0, 0.08);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
 body {
   font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
-  background: linear-gradient(135deg, #f9fafb 0%, #f1f5f9 100%);
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   min-height: 100vh;
   color: var(--navy);
   direction: rtl;
 }
 
-/* ==========================
-   LAYOUT STRUCTURE
-========================== */
 .container {
   display: flex;
   min-height: 100vh;
 }
 
-/* ==========================
-   SIDEBAR
-========================== */
+/* SIDEBAR */
 .sidebar {
   width: 280px;
   background: var(--white);
   padding: 30px 20px;
+  box-shadow: var(--shadow-lg);
   position: fixed;
   height: 100vh;
   right: 0;
   top: 0;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.05);
   z-index: 1000;
-  overflow-y: auto;
   transition: right 0.3s ease;
+  overflow-y: auto;
 }
 
 .sidebar.hidden {
@@ -70,22 +67,20 @@ body {
 .logo {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 12px;
   margin-bottom: 40px;
   padding: 15px;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   border-radius: 16px;
   color: white;
-  box-shadow: 0 8px 16px rgba(217, 70, 239, 0.4);
 }
 
 .logo i {
-  font-size: 26px;
+  font-size: 28px;
 }
 
 .logo span {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
 }
 
@@ -99,64 +94,59 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 16px;
   color: var(--slate-600);
   text-decoration: none;
   border-radius: 12px;
-  font-weight: 500;
   transition: all 0.3s;
+  font-weight: 500;
 }
 
 .menu a i {
-  width: 22px;
+  width: 24px;
   text-align: center;
-  font-size: 17px;
+  font-size: 18px;
 }
 
 .menu a.active {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  color: #fff;
-  box-shadow: 0 6px 12px rgba(217, 70, 239, 0.35);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  color: white;
+  box-shadow: 0 8px 16px rgba(217, 70, 239, 0.3);
 }
 
 .menu a:hover:not(.active) {
   background: var(--slate-100);
-  transform: translateX(-4px);
+  transform: translateX(-5px);
 }
 
-/* ==========================
-   MAIN CONTENT
-========================== */
+/* MAIN CONTENT */
 .main-content {
   flex: 1;
   margin-right: 280px;
   padding: 30px;
   transition: margin-right 0.3s ease;
-  overflow-x: hidden;
 }
 
 .main-content.expanded {
   margin-right: 0;
 }
 
-/* ==========================
-   HEADER
-========================== */
+/* HEADER */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
-  background: #fff;
-  padding: 18px 25px;
-  border-radius: 18px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+  background: white;
+  padding: 20px 30px;
+  border-radius: 20px;
+  box-shadow: var(--shadow);
 }
 
-.header-left h1 {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--navy);
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
 .search-box {
@@ -173,9 +163,9 @@ body {
 }
 
 .search-box input:focus {
+  outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(217, 70, 239, 0.1);
-  outline: none;
 }
 
 .search-box i {
@@ -186,13 +176,25 @@ body {
   color: var(--slate-400);
 }
 
-.icon-btn,
-.rtl-toggle {
-  width: 42px;
-  height: 42px;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.header-left h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.rtl-toggle,
+.icon-btn {
+  width: 45px;
+  height: 45px;
   border-radius: 12px;
-  background: var(--slate-100);
   border: none;
+  background: var(--slate-100);
   color: var(--slate-600);
   cursor: pointer;
   display: flex;
@@ -202,17 +204,19 @@ body {
   font-size: 18px;
 }
 
-.icon-btn:hover,
-.rtl-toggle:hover {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+.rtl-toggle:hover,
+.icon-btn:hover {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   color: white;
   transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(217, 70, 239, 0.3);
+  box-shadow: 0 8px 16px rgba(217, 70, 239, 0.3);
 }
 
-/* ==========================
-   METRICS CARDS
-========================== */
+.menu-toggle {
+  display: none;
+}
+
+/* METRICS */
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -224,15 +228,15 @@ body {
   background: white;
   padding: 25px;
   border-radius: 20px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.04);
-  border: 1px solid var(--slate-100);
+  box-shadow: var(--shadow);
   position: relative;
+  overflow: hidden;
   transition: all 0.3s;
 }
 
 .metric-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.07);
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
 }
 
 .metric-card::before {
@@ -242,64 +246,65 @@ body {
   right: 0;
   width: 100%;
   height: 4px;
-  border-radius: 8px 8px 0 0;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
 }
 
 .metric-card.purple::before {
-  background: linear-gradient(90deg, #d946ef, #a855f7);
+  background: linear-gradient(90deg, #d946ef 0%, #a855f7 100%);
 }
 
 .metric-card.blue::before {
-  background: linear-gradient(90deg, #3b82f6, #06b6d4);
+  background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
 }
 
 .metric-card.pink::before {
-  background: linear-gradient(90deg, #ec4899, #d946ef);
+  background: linear-gradient(90deg, #ec4899 0%, #d946ef 100%);
 }
 
 .metric-card.orange::before {
-  background: linear-gradient(90deg, #f97316, #fb923c);
+  background: linear-gradient(90deg, #f97316 0%, #fb923c 100%);
 }
 
 .metric-icon {
-  width: 55px;
-  height: 55px;
+  width: 60px;
+  height: 60px;
   border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 25px;
+  font-size: 26px;
   color: white;
   margin-bottom: 15px;
 }
 
 .metric-card.purple .metric-icon {
-  background: linear-gradient(135deg, #d946ef, #a855f7);
+  background: linear-gradient(135deg, #d946ef 0%, #a855f7 100%);
 }
 
 .metric-card.blue .metric-icon {
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
 }
 
 .metric-card.pink .metric-icon {
-  background: linear-gradient(135deg, #ec4899, #d946ef);
+  background: linear-gradient(135deg, #ec4899 0%, #d946ef 100%);
 }
 
 .metric-card.orange .metric-icon {
-  background: linear-gradient(135deg, #f97316, #fb923c);
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
 }
 
 .metric-card h4 {
-  font-size: 15px;
-  color: var(--slate-600);
-  margin-bottom: 6px;
+  font-size: 14px;
+  color: var(--slate-500);
+  margin-bottom: 8px;
+  font-weight: 500;
 }
 
 .metric-value {
-  font-size: 26px;
-  font-weight: 800;
+  font-size: 28px;
+  font-weight: 700;
   color: var(--navy);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .metric-change {
@@ -315,9 +320,39 @@ body {
   color: #ef4444;
 }
 
-/* ==========================
-   HERO CARDS
-========================== */
+/* DASHBOARD GRID */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+.card {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: var(--shadow);
+  transition: all 0.3s;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 20px;
+}
+
+.chart-container {
+  position: relative;
+  height: 300px;
+}
+
+/* HERO CARDS */
 .hero-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -338,11 +373,11 @@ body {
 }
 
 .hero-card.dark {
-  background: linear-gradient(135deg, #1e293b, #475569);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
 }
 
 .hero-card.gradient {
-  background: linear-gradient(135deg, #d946ef, #a855f7);
+  background: linear-gradient(135deg, #d946ef 0%, #a855f7 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -350,26 +385,28 @@ body {
 
 .hero-card h3 {
   font-size: 24px;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
+  color: white;
 }
 
 .hero-card p {
   font-size: 15px;
   line-height: 1.7;
   opacity: 0.9;
+  color: white;
 }
 
 .hero-card button {
   align-self: flex-start;
-  padding: 10px 22px;
-  background: rgba(255, 255, 255, 0.25);
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
   color: white;
-  font-weight: 600;
-  font-family: "Cairo", sans-serif;
+  border-radius: 12px;
   cursor: pointer;
+  font-weight: 600;
   transition: all 0.3s;
+  font-family: "Cairo", sans-serif;
 }
 
 .hero-card button:hover {
@@ -381,40 +418,11 @@ body {
   font-size: 120px;
 }
 
-/* ==========================
-   CHART CARDS & TABLE
-========================== */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 25px;
-  margin-bottom: 30px;
-}
-
-.card {
-  background: white;
-  border-radius: 20px;
-  padding: 25px;
-  border: 1px solid var(--slate-100);
-  box-shadow: var(--shadow);
-  transition: all 0.3s;
-}
-
-.card:hover {
-  box-shadow: var(--shadow-lg);
-}
-
-.card h3 {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 15px;
-}
-
+/* TABLE */
 .table-card {
   background: white;
   border-radius: 20px;
-  padding: 25px;
-  border: 1px solid var(--slate-100);
+  padding: 30px;
   box-shadow: var(--shadow);
   overflow: auto;
 }
@@ -424,17 +432,15 @@ table {
   border-collapse: collapse;
 }
 
-th,
-td {
-  padding: 14px;
-  text-align: right;
-}
-
 th {
+  padding: 16px;
+  text-align: right;
   color: var(--slate-500);
   font-weight: 600;
   font-size: 13px;
   border-bottom: 2px solid var(--slate-200);
+  cursor: pointer;
+  user-select: none;
 }
 
 th:hover {
@@ -442,6 +448,8 @@ th:hover {
 }
 
 td {
+  padding: 16px;
+  text-align: right;
   color: var(--slate-700);
   border-bottom: 1px solid var(--slate-100);
   font-size: 14px;
@@ -451,13 +459,11 @@ tr:hover {
   background: var(--slate-50);
 }
 
-/* ==========================
-   LOGIN SCREEN
-========================== */
+/* LOGIN SCREEN */
 #loginScreen {
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -466,17 +472,17 @@ tr:hover {
 
 #loginBox {
   background: white;
-  padding: 45px 40px;
-  border-radius: 22px;
-  width: 400px;
+  padding: 50px;
+  border-radius: 24px;
+  width: 420px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   text-align: center;
 }
 
 #loginBox h2 {
   color: var(--navy);
-  margin-bottom: 25px;
-  font-size: 24px;
+  margin-bottom: 30px;
+  font-size: 28px;
   font-weight: 700;
 }
 
@@ -488,12 +494,12 @@ tr:hover {
 #loginBox input {
   width: 100%;
   margin-bottom: 20px;
-  padding: 14px 20px;
+  padding: 16px 20px;
   border: 2px solid var(--slate-200);
   border-radius: 12px;
   font-size: 15px;
-  transition: all 0.3s;
   font-family: "Cairo", sans-serif;
+  transition: all 0.3s;
 }
 
 #loginBox input:focus {
@@ -504,13 +510,13 @@ tr:hover {
 
 #loginBox button {
   width: 100%;
-  padding: 14px;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  padding: 16px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   color: white;
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   transition: all 0.3s;
   font-family: "Cairo", sans-serif;
@@ -528,19 +534,14 @@ tr:hover {
   display: none;
 }
 
-/* ==========================
-   FOOTER
-========================== */
 footer {
   text-align: center;
   color: var(--slate-500);
-  padding: 25px;
-  font-size: 13px;
+  padding: 30px;
+  font-size: 14px;
 }
 
-/* ==========================
-   RESPONSIVE
-========================== */
+/* RESPONSIVE */
 @media (max-width: 1200px) {
   .metrics {
     grid-template-columns: repeat(2, 1fr);
