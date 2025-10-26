@@ -620,28 +620,77 @@ footer {
 }
 
 /* ================================================
-   🌙 DARK MODE STYLES
-   These styles activate automatically when the <body>
-   element has the class "dark" (added via JavaScript).
-   They invert background and text colors to create a
-   dark theme for the entire dashboard.
+   🌙 IMPROVED DARK MODE STYLES
+   A modern, soft dark theme — less harsh than pure black.
+   Uses deep charcoal tones, subtle contrasts, and elegant
+   accent colors for better readability and comfort.
    ================================================ */
 
 body.dark {
-  /* Main background and global text color */
-  background-color: #121212;
-  color: #f1f1f1;
+  /* Gentle dark background with soft contrast text */
+  background-color: #18181b; /* Deep charcoal gray */
+  color: #e5e5e5; /* Soft off-white text */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Card elements and sidebar background adjustments */
 body.dark .card,
 body.dark .metric-card,
 body.dark .sidebar {
-  background-color: #1e1e1e;
-  color: #f1f1f1;
+  background-color: #232327; /* Slightly lighter panel tone */
+  color: #f2f2f2;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* Accent color for links in dark mode */
+/* Links and accent elements */
 body.dark a {
-  color: #d946ef;
+  color: #c084fc; /* Soft violet accent */
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+body.dark a:hover {
+  color: #d946ef; /* Brighter accent on hover */
+}
+
+/* Input fields, buttons, etc. */
+body.dark input,
+body.dark select,
+body.dark textarea {
+  background-color: #2a2a2e;
+  color: #f5f5f5;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+body.dark button {
+  background-color: #3b3b42;
+  color: #ffffff;
+  border: none;
+  transition: background-color 0.2s ease;
+}
+
+body.dark button:hover {
+  background-color: #4f46e5; /* Indigo hover effect */
+}
+
+/* Subtle highlight color for metrics or icons */
+body.dark .highlight {
+  color: #a78bfa; /* Soft purple highlight */
+}
+
+/* Optional: Scrollbar styling */
+body.dark ::-webkit-scrollbar {
+  width: 8px;
+}
+body.dark ::-webkit-scrollbar-track {
+  background: #1a1a1d;
+}
+body.dark ::-webkit-scrollbar-thumb {
+  background-color: #4b4b52;
+  border-radius: 4px;
+}
+body.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: #6b6b76;
 }
