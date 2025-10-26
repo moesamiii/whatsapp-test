@@ -94,52 +94,24 @@
 
         <!-- METRICS -->
         <section class="metrics">
-          <!-- CARD 1 -->
-          <div class="metric-card purple">
-            <div class="metric-icon">
-              <i class="fa-solid fa-star"></i>
-            </div>
-            <h4>أكثر خدمة طلبًا اليوم</h4>
-            <div class="metric-value" id="topServiceToday">-</div>
-            <div class="metric-change positive">
-              <i class="fa-solid fa-arrow-up"></i>
-              <span id="topServiceCount">0</span>
-            </div>
-          </div>
-
-          <!-- CARD 2 -->
-          <div class="metric-card blue">
-            <div class="metric-icon">
-              <i class="fa-solid fa-chart-line"></i>
-            </div>
-            <h4>نسبة إشغال اليوم</h4>
-            <div class="metric-value" id="occupancyRate">0%</div>
-            <div class="metric-change positive">
-              <i class="fa-solid fa-arrow-up"></i>
-              <span id="todayBookingsCount">0</span>
-            </div>
-          </div>
-
           <div class="metric-card pink">
             <div class="metric-icon">
               <i class="fa-solid fa-file-invoice"></i>
             </div>
-            <h4>إجمالي الحجوزات</h4>
+            <h4>عملاء جدد</h4>
             <div class="metric-value" id="total">0</div>
-            <div class="metric-change positive">
-              <i class="fa-solid fa-arrow-up"></i>
-              <span id="totalChange">جميع الأوقات</span>
+            <div class="metric-change negative">
+              <i class="fa-solid fa-arrow-down"></i> 2%-
             </div>
           </div>
           <div class="metric-card orange">
             <div class="metric-icon">
               <i class="fa-solid fa-cart-shopping"></i>
             </div>
-            <h4>أكثر خدمة طلبًا</h4>
+            <h4>مبيعات</h4>
             <div class="metric-value" id="popular">-</div>
             <div class="metric-change positive">
-              <i class="fa-solid fa-arrow-up"></i>
-              <span id="popularCount">0</span>
+              <i class="fa-solid fa-arrow-up"></i> 5%+
             </div>
           </div>
         </section>
@@ -308,41 +280,13 @@
       }
 
       function updateStats(d) {
-        // Total bookings (all time)
         animateNum(q("#total"), d.length);
-
-        // Get today's data
         const today = new Date().toISOString().split("T")[0];
-        const todayBookings = d.filter((b) => b.timestamp?.startsWith(today));
-        const todayCount = todayBookings.length;
+        const todayCount = d.filter((b) =>
+          b.timestamp?.startsWith(today)
+        ).length;
+        animateNum(q("#today"), todayCount);
 
-        // Calculate most requested service today
-        const todayServices = {};
-        todayBookings.forEach((b) => {
-          if (b.service) {
-            todayServices[b.service] = (todayServices[b.service] || 0) + 1;
-          }
-        });
-        const topServiceToday = Object.entries(todayServices).sort(
-          (a, b) => b[1] - a[1]
-        )[0];
-        q("#topServiceToday").textContent = topServiceToday
-          ? topServiceToday[0]
-          : "-";
-
-        // Display count of top service today
-        const topServiceCountValue = topServiceToday ? topServiceToday[1] : 0;
-        animateNum(q("#topServiceCount"), topServiceCountValue);
-
-        // Calculate occupancy rate (assuming 20 slots per day)
-        const maxSlotsPerDay = 20;
-        const occupancyRate = Math.round((todayCount / maxSlotsPerDay) * 100);
-        q("#occupancyRate").textContent = occupancyRate + "%";
-
-        // Display today's bookings count
-        animateNum(q("#todayBookingsCount"), todayCount);
-
-        // Most popular service overall (all time)
         const sc = {};
         d.forEach(
           (b) => b.service && (sc[b.service] = (sc[b.service] || 0) + 1)
@@ -350,9 +294,8 @@
         const top = Object.entries(sc).sort((a, b) => b[1] - a[1])[0];
         q("#popular").textContent = top ? top[0] : "N/A";
 
-        // Display count of most popular service
-        const popularCountValue = top ? top[1] : 0;
-        animateNum(q("#popularCount"), popularCountValue);
+        const revenue = todayCount * 75;
+        q("#revenue").textContent = "$" + revenue;
       }
 
       function drawCharts(d) {
