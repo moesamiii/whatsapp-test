@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clinic Dashboard - Analytics</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
+    <!-- Or for .ico file -->
+    <!-- <link rel="icon" type="image/x-icon" href="./favicon.ico" /> -->
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="./dashboard.css" />
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+
+  <body>
+    <div class="container">
+      <!-- SIDEBAR -->
+      <aside class="sidebar" id="sidebar">
+        <div class="logo">
+          <span>CONAN DASHBOARD</span>
+        </div>
+        <nav class="menu">
+          <a href="dashboard.html">
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
+          </a>
+
+          <a href="#">
+            <i class="fa-solid fa-bell"></i>
+            التنبيهات
+          </a>
+
+          <a href="analytics.html" class="active">
+            <i class="fa-solid fa-rocket"></i>
+            تحليلات
+          </a>
+
+          <a href="booking.html">
+            <i class="fa-solid fa-table"></i>
+            جدول الحجوزات
+          </a>
+
+          <a href="#">
+            <i class="fa-solid fa-user"></i>
+            ارسال رسالة جماعية
+          </a>
+        </nav>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="main-content" id="dashboardContent">
+        <header class="header">
+          <div class="header-left">
+            <button class="menu-toggle icon-btn" id="menuToggle">
+              <i class="fa-solid fa-bars"></i>
+            </button>
+            <h1>تحليلات</h1>
+          </div>
+          <div class="header-right">
+            <div class="search-box">
+              <input type="text" placeholder="اكتب هنا..." />
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            <button class="icon-btn" id="themeToggle">
+              <i class="fa-regular fa-moon"></i>
+            </button>
+          </div>
+        </header>
+
+        <!-- DASHBOARD GRID -->
+        <section class="dashboard-grid">
+          <div class="card">
+            <h3>توزيع الخدمات</h3>
+            <div class="chart-container">
+              <canvas id="bar"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>الاتجاه الأسبوعي</h3>
+            <div class="chart-container">
+              <canvas id="line"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>تفصيل الحجز</h3>
+            <div class="chart-container">
+              <canvas id="pie"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <footer>© 2025 Smile Clinic</footer>
+      </main>
+    </div>
+
+    <script>
+      // ======= SUPABASE LOGIN LOGIC =======
+      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      let bar, pie, line;
+      let allData = [];
+      const q = (s) => document.querySelector(s);
+
+      async function load() {
+        const res = await fetch("/api/bookings");
+        allData = await res.json();
+        drawCharts(allData);
+      }
+
+      function drawCharts(d) {
+        const sc = {};
+        d.forEach((b) => (sc[b.service] = (sc[b.service] || 0) + 1));
+        const labels = Object.keys(sc);
+        const vals = Object.values(sc);
+
+        if (bar) bar.destroy();
+        if (pie) pie.destroy();
+        if (line) line.destroy();
+
+        bar = new Chart(q("#bar"), {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              {
+                data: vals,
+                backgroundColor: "rgba(217, 70, 239, 0.8)",
+                borderRadius: 8,
+                borderWidth: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: "rgba(0,0,0,0.05)",
+                },
+              },
+              x: {
+                grid: { display: false },
+              },
+            },
+          },
+        });
+
+        pie = new Chart(q("#pie"), {
+          type: "doughnut",
+          data: {
+            labels,
+            datasets: [
+              {
+                data: vals,
+                backgroundColor: [
+                  "#d946ef",
+                  "#a855f7",
+                  "#ec4899",
+                  "#f97316",
+                  "#3b82f6",
+                ],
+                borderWidth: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  usePointStyle: true,
+                  padding: 20,
+                  font: {
+                    family: "'Cairo', sans-serif",
+                  },
+                },
+              },
+            },
+            cutout: "70%",
+          },
+        });
+
+        const weekData = getWeeklyData(d);
+        line = new Chart(q("#line"), {
+          type: "line",
+          data: {
+            labels: weekData.labels,
+            datasets: [
+              {
+                label: "الحجوزات",
+                data: weekData.values,
+                borderColor: "#d946ef",
+                backgroundColor: "rgba(217, 70, 239, 0.1)",
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3,
+                pointRadius: 5,
+                pointBackgroundColor: "#d946ef",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: "rgba(0,0,0,0.05)",
+                },
+              },
+              x: {
+                grid: { display: false },
+              },
+            },
+          },
+        });
+      }
+
+      function getWeeklyData(d) {
+        const days = [
+          "الأحد",
+          "الاثنين",
+          "الثلاثاء",
+          "الأربعاء",
+          "الخميس",
+          "الجمعة",
+          "السبت",
+        ];
+        const counts = [0, 0, 0, 0, 0, 0, 0];
+        d.forEach((b) => {
+          if (b.timestamp) {
+            const day = new Date(b.timestamp).getDay();
+            counts[day]++;
+          }
+        });
+        return { labels: days, values: counts };
+      }
+
+      // Theme toggle
+      const themeToggle = document.getElementById("themeToggle");
+      themeToggle.addEventListener("click", function () {
+        document.body.classList.toggle("dark");
+        const icon = themeToggle.querySelector("i");
+        if (document.body.classList.contains("dark")) {
+          icon.classList.remove("fa-moon");
+          icon.classList.add("fa-sun");
+          localStorage.setItem("clinic_theme", "dark");
+        } else {
+          icon.classList.remove("fa-sun");
+          icon.classList.add("fa-moon");
+          localStorage.setItem("clinic_theme", "light");
+        }
+      });
+
+      if (localStorage.getItem("clinic_theme") === "dark") {
+        document.body.classList.add("dark");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.remove("fa-moon");
+        icon.classList.add("fa-sun");
+      }
+
+      // Sidebar toggle
+      const menuToggle = document.getElementById("menuToggle");
+      const sidebar = document.getElementById("sidebar");
+      menuToggle.addEventListener("click", () => {
+        sidebar.classList.toggle("active");
+      });
+
+      // Load analytics data
+      load();
+      setInterval(load, 15000);
+    </script>
+  </body>
+</html>
