@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clinic Dashboard</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
+    <!-- Or for .ico file -->
+    <!-- <link rel="icon" type="image/x-icon" href="./favicon.ico" /> -->
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -13,6 +19,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
+
   <body>
     <!-- LOGIN SCREEN -->
     <div id="loginScreen">
@@ -53,6 +60,10 @@
             <i class="fa-solid fa-rocket"></i>
             تحليلات
           </a>
+          <a href="booking.html">
+            <i class="fa-solid fa-rocket"></i>
+            جدول الحجوزات
+          </a>
         </nav>
       </aside>
 
@@ -71,9 +82,9 @@
               <input type="text" placeholder="اكتب هنا..." />
               <i class="fa-solid fa-magnifying-glass"></i>
             </div>
-            <button class="rtl-toggle" title="RTL">
+            <!--<button class="rtl-toggle" title="RTL">
               <i class="fa-solid fa-align-right"></i>
-            </button>
+            </button>-->
             <button class="icon-btn" id="themeToggle">
               <i class="fa-regular fa-moon"></i>
             </button>
@@ -194,9 +205,7 @@
           </div>
         </section>
 
-        <footer>
-          © 2025 Smile Clinic • التحديث التلقائي كل 15 ثانية • صنع بـ 💜
-        </footer>
+        <footer>© 2025 Smile Clinic</footer>
       </main>
     </div>
 
