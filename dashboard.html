@@ -101,9 +101,9 @@
             </div>
             <h4>أكثر خدمة طلبًا اليوم</h4>
             <div class="metric-value" id="topServiceToday">-</div>
-            <div class="metric-change positive">
+            <div class="metric-change positive" id="topServiceChangeContainer">
               <i class="fa-solid fa-arrow-up"></i>
-              <span id="topServiceChange">+0%</span>
+              <span id="topServiceCount">0</span>
             </div>
           </div>
 
@@ -114,9 +114,9 @@
             </div>
             <h4>نسبة إشغال اليوم</h4>
             <div class="metric-value" id="occupancyRate">0%</div>
-            <div class="metric-change positive">
+            <div class="metric-change positive" id="occupancyChangeContainer">
               <i class="fa-solid fa-arrow-up"></i>
-              <span id="occupancyChange">+0%</span>
+              <span id="todayBookingsCount">0</span>
             </div>
           </div>
 
@@ -327,79 +327,17 @@
           ? topServiceToday[0]
           : "-";
 
-        // Calculate change for top service (compare with yesterday)
-        const yesterday = new Date(Date.now() - 86400000)
-          .toISOString()
-          .split("T")[0];
-        const yesterdayBookings = d.filter((b) =>
-          b.timestamp?.startsWith(yesterday)
-        );
-        const yesterdayServices = {};
-        yesterdayBookings.forEach((b) => {
-          if (b.service) {
-            yesterdayServices[b.service] =
-              (yesterdayServices[b.service] || 0) + 1;
-          }
-        });
-
-        if (topServiceToday) {
-          const todayServiceCount = topServiceToday[1];
-          const yesterdayServiceCount =
-            yesterdayServices[topServiceToday[0]] || 0;
-          const serviceChange =
-            yesterdayServiceCount > 0
-              ? Math.round(
-                  ((todayServiceCount - yesterdayServiceCount) /
-                    yesterdayServiceCount) *
-                    100
-                )
-              : todayServiceCount > 0
-              ? 100
-              : 0;
-
-          const changeEl = q("#topServiceChange");
-          const parentEl = changeEl.parentElement;
-
-          if (serviceChange >= 0) {
-            changeEl.textContent = `+${serviceChange}%`;
-            parentEl.classList.remove("negative");
-            parentEl.classList.add("positive");
-            parentEl.querySelector("i").className = "fa-solid fa-arrow-up";
-          } else {
-            changeEl.textContent = `${serviceChange}%`;
-            parentEl.classList.remove("positive");
-            parentEl.classList.add("negative");
-            parentEl.querySelector("i").className = "fa-solid fa-arrow-down";
-          }
-        }
+        // Display count of top service today
+        const topServiceCountValue = topServiceToday ? topServiceToday[1] : 0;
+        animateNum(q("#topServiceCount"), topServiceCountValue);
 
         // Calculate occupancy rate (assuming 20 slots per day)
         const maxSlotsPerDay = 20;
         const occupancyRate = Math.round((todayCount / maxSlotsPerDay) * 100);
         q("#occupancyRate").textContent = occupancyRate + "%";
 
-        // Calculate occupancy change (compare with yesterday)
-        const yesterdayCount = yesterdayBookings.length;
-        const yesterdayOccupancy = Math.round(
-          (yesterdayCount / maxSlotsPerDay) * 100
-        );
-        const occupancyChange = occupancyRate - yesterdayOccupancy;
-
-        const occupancyChangeEl = q("#occupancyChange");
-        const occupancyParent = occupancyChangeEl.parentElement;
-
-        if (occupancyChange >= 0) {
-          occupancyChangeEl.textContent = `+${occupancyChange}%`;
-          occupancyParent.classList.remove("negative");
-          occupancyParent.classList.add("positive");
-          occupancyParent.querySelector("i").className = "fa-solid fa-arrow-up";
-        } else {
-          occupancyChangeEl.textContent = `${occupancyChange}%`;
-          occupancyParent.classList.remove("positive");
-          occupancyParent.classList.add("negative");
-          occupancyParent.querySelector("i").className =
-            "fa-solid fa-arrow-down";
-        }
+        // Display today's bookings count
+        animateNum(q("#todayBookingsCount"), todayCount);
 
         // Most popular service overall
         const sc = {};
