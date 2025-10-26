@@ -7,8 +7,6 @@
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
-    <!-- Or for .ico file -->
-    <!-- <link rel="icon" type="image/x-icon" href="./favicon.ico" /> -->
 
     <link
       rel="stylesheet"
@@ -80,9 +78,6 @@
               <input type="text" placeholder="اكتب هنا..." />
               <i class="fa-solid fa-magnifying-glass"></i>
             </div>
-            <!--<button class="rtl-toggle" title="RTL">
-              <i class="fa-solid fa-align-right"></i>
-            </button>-->
             <button class="icon-btn" id="themeToggle">
               <i class="fa-regular fa-moon"></i>
             </button>
@@ -292,25 +287,26 @@
         tb.innerHTML = "";
         d.forEach((b) => {
           const r = document.createElement("tr");
-          r.innerHTML = `<td>${b.name || "-"}</td><td>${
-            b.phone || "-"
-          }</td><td>${b.service || "-"}</td><td>${
-            b.appointment || "-"
-          }</td><td>${
-            b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
-          }</td>`;
+          r.innerHTML = `<td>${b.name || "-"}</td><td>${b.phone || "-"}\
+</td><td>${b.service || "-"}\
+</td><td>${b.appointment || "-"}\
+</td><td>${b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"}\
+</td>`;
           tb.appendChild(r);
         });
       }
 
       function updateStats(d) {
         animateNum(q("#total"), d.length);
+
         const today = new Date().toISOString().split("T")[0];
         const todayCount = d.filter((b) =>
           b.timestamp?.startsWith(today)
         ).length;
-        animateNum(q("#today"), todayCount);
+        const revenue = todayCount * 75;
+        q("#revenue") && (q("#revenue").textContent = "$" + revenue);
 
+        // --- Existing top service (all time)
         const sc = {};
         d.forEach(
           (b) => b.service && (sc[b.service] = (sc[b.service] || 0) + 1)
@@ -318,8 +314,29 @@
         const top = Object.entries(sc).sort((a, b) => b[1] - a[1])[0];
         q("#popular").textContent = top ? top[0] : "N/A";
 
-        const revenue = todayCount * 75;
-        q("#revenue").textContent = "$" + revenue;
+        // === CARD 1: أكثر خدمة طلبًا اليوم ===
+        const todayBookings = d.filter((b) => b.timestamp?.startsWith(today));
+        const todayServices = {};
+        todayBookings.forEach((b) => {
+          if (b.service)
+            todayServices[b.service] = (todayServices[b.service] || 0) + 1;
+        });
+        const topToday = Object.entries(todayServices).sort(
+          (a, b) => b[1] - a[1]
+        )[0];
+        q("#topServiceToday").textContent = topToday ? topToday[0] : "N/A";
+
+        // === CARD 2: نسبة إشغال اليوم ===
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const weekBookings = d.filter(
+          (b) => b.timestamp && new Date(b.timestamp) >= weekAgo
+        );
+        const avgPerDay = weekBookings.length / 7;
+        const occupancyRate = avgPerDay
+          ? Math.round((todayBookings.length / avgPerDay) * 100)
+          : 0;
+        q("#occupancyRate").textContent = `${Math.min(occupancyRate, 100)}%`;
       }
 
       function drawCharts(d) {
@@ -352,15 +369,8 @@
               legend: { display: false },
             },
             scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: "rgba(0,0,0,0.05)",
-                },
-              },
-              x: {
-                grid: { display: false },
-              },
+              y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } },
+              x: { grid: { display: false } },
             },
           },
         });
@@ -392,9 +402,7 @@
                 labels: {
                   usePointStyle: true,
                   padding: 20,
-                  font: {
-                    family: "'Cairo', sans-serif",
-                  },
+                  font: { family: "'Cairo', sans-serif" },
                 },
               },
             },
@@ -424,19 +432,10 @@
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-            },
+            plugins: { legend: { display: false } },
             scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: "rgba(0,0,0,0.05)",
-                },
-              },
-              x: {
-                grid: { display: false },
-              },
+              y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } },
+              x: { grid: { display: false } },
             },
           },
         });
@@ -491,7 +490,6 @@
         }
       });
 
-      // Check for saved theme preference
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
         const icon = themeToggle.querySelector("i");
@@ -499,14 +497,12 @@
         icon.classList.add("fa-sun");
       }
 
-      // Sidebar toggle
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       menuToggle.addEventListener("click", () => {
         sidebar.classList.toggle("active");
       });
 
-      // Close sidebar when clicking outside on mobile
       document.addEventListener("click", (e) => {
         if (
           window.innerWidth <= 768 &&
@@ -519,38 +515,10 @@
         }
       });
 
-      // Auto-refresh if logged in
       if (localStorage.getItem("clinic_logged_in") === "true") {
         load();
         setInterval(load, 15000);
       }
-    </script>
-
-    <script>
-      // === الكرت الأول: أكثر خدمة طلبًا اليوم ===
-      const today = new Date().toISOString().split("T")[0];
-      const todayBookings = d.filter((b) => b.timestamp?.startsWith(today));
-      const todayServices = {};
-      todayBookings.forEach((b) => {
-        if (b.service)
-          todayServices[b.service] = (todayServices[b.service] || 0) + 1;
-      });
-      const topToday = Object.entries(todayServices).sort(
-        (a, b) => b[1] - a[1]
-      )[0];
-      q("#topServiceToday").textContent = topToday ? topToday[0] : "N/A";
-
-      // === الكرت الثاني: نسبة إشغال اليوم ===
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekBookings = d.filter(
-        (b) => b.timestamp && new Date(b.timestamp) >= weekAgo
-      );
-      const avgPerDay = weekBookings.length / 7;
-      const occupancyRate = avgPerDay
-        ? Math.round((todayBookings.length / avgPerDay) * 100)
-        : 0;
-      q("#occupancyRate").textContent = `${Math.min(occupancyRate, 100)}%`;
     </script>
   </body>
 </html>
