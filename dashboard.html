@@ -94,26 +94,30 @@
 
         <!-- METRICS -->
         <section class="metrics">
+          <!-- CARD 1 -->
           <div class="metric-card purple">
             <div class="metric-icon">
-              <i class="fa-solid fa-computer"></i>
+              <i class="fa-solid fa-star"></i>
             </div>
-            <h4>أموال اليوم</h4>
-            <div class="metric-value" id="revenue">$0</div>
+            <h4>أكثر خدمة طلبًا اليوم</h4>
+            <div class="metric-value" id="topServiceToday">-</div>
             <div class="metric-change positive">
-              <i class="fa-solid fa-arrow-up"></i> 55%+
+              <i class="fa-solid fa-arrow-up"></i> +8%
             </div>
           </div>
+
+          <!-- CARD 2 -->
           <div class="metric-card blue">
             <div class="metric-icon">
-              <i class="fa-solid fa-globe"></i>
+              <i class="fa-solid fa-chart-line"></i>
             </div>
-            <h4>مستخدمو اليوم</h4>
-            <div class="metric-value" id="today">0</div>
+            <h4>نسبة إشغال اليوم</h4>
+            <div class="metric-value" id="occupancyRate">0%</div>
             <div class="metric-change positive">
-              <i class="fa-solid fa-arrow-up"></i> 33%+
+              <i class="fa-solid fa-arrow-up"></i> +5%
             </div>
           </div>
+
           <div class="metric-card pink">
             <div class="metric-icon">
               <i class="fa-solid fa-file-invoice"></i>
@@ -520,6 +524,33 @@
         load();
         setInterval(load, 15000);
       }
+    </script>
+
+    <script>
+      // === الكرت الأول: أكثر خدمة طلبًا اليوم ===
+      const today = new Date().toISOString().split("T")[0];
+      const todayBookings = d.filter((b) => b.timestamp?.startsWith(today));
+      const todayServices = {};
+      todayBookings.forEach((b) => {
+        if (b.service)
+          todayServices[b.service] = (todayServices[b.service] || 0) + 1;
+      });
+      const topToday = Object.entries(todayServices).sort(
+        (a, b) => b[1] - a[1]
+      )[0];
+      q("#topServiceToday").textContent = topToday ? topToday[0] : "N/A";
+
+      // === الكرت الثاني: نسبة إشغال اليوم ===
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekBookings = d.filter(
+        (b) => b.timestamp && new Date(b.timestamp) >= weekAgo
+      );
+      const avgPerDay = weekBookings.length / 7;
+      const occupancyRate = avgPerDay
+        ? Math.round((todayBookings.length / avgPerDay) * 100)
+        : 0;
+      q("#occupancyRate").textContent = `${Math.min(occupancyRate, 100)}%`;
     </script>
   </body>
 </html>
