@@ -101,7 +101,7 @@
             </div>
             <h4>أكثر خدمة طلبًا اليوم</h4>
             <div class="metric-value" id="topServiceToday">-</div>
-            <div class="metric-change positive" id="topServiceChangeContainer">
+            <div class="metric-change positive">
               <i class="fa-solid fa-arrow-up"></i>
               <span id="topServiceCount">0</span>
             </div>
@@ -114,7 +114,7 @@
             </div>
             <h4>نسبة إشغال اليوم</h4>
             <div class="metric-value" id="occupancyRate">0%</div>
-            <div class="metric-change positive" id="occupancyChangeContainer">
+            <div class="metric-change positive">
               <i class="fa-solid fa-arrow-up"></i>
               <span id="todayBookingsCount">0</span>
             </div>
@@ -124,20 +124,22 @@
             <div class="metric-icon">
               <i class="fa-solid fa-file-invoice"></i>
             </div>
-            <h4>عملاء جدد</h4>
+            <h4>إجمالي الحجوزات</h4>
             <div class="metric-value" id="total">0</div>
-            <div class="metric-change negative">
-              <i class="fa-solid fa-arrow-down"></i> 2%-
+            <div class="metric-change positive">
+              <i class="fa-solid fa-arrow-up"></i>
+              <span id="totalChange">جميع الأوقات</span>
             </div>
           </div>
           <div class="metric-card orange">
             <div class="metric-icon">
               <i class="fa-solid fa-cart-shopping"></i>
             </div>
-            <h4>مبيعات</h4>
+            <h4>أكثر خدمة طلبًا</h4>
             <div class="metric-value" id="popular">-</div>
             <div class="metric-change positive">
-              <i class="fa-solid fa-arrow-up"></i> 5%+
+              <i class="fa-solid fa-arrow-up"></i>
+              <span id="popularCount">0</span>
             </div>
           </div>
         </section>
@@ -306,6 +308,7 @@
       }
 
       function updateStats(d) {
+        // Total bookings (all time)
         animateNum(q("#total"), d.length);
 
         // Get today's data
@@ -339,13 +342,17 @@
         // Display today's bookings count
         animateNum(q("#todayBookingsCount"), todayCount);
 
-        // Most popular service overall
+        // Most popular service overall (all time)
         const sc = {};
         d.forEach(
           (b) => b.service && (sc[b.service] = (sc[b.service] || 0) + 1)
         );
         const top = Object.entries(sc).sort((a, b) => b[1] - a[1])[0];
         q("#popular").textContent = top ? top[0] : "N/A";
+
+        // Display count of most popular service
+        const popularCountValue = top ? top[1] : 0;
+        animateNum(q("#popularCount"), popularCountValue);
       }
 
       function drawCharts(d) {
