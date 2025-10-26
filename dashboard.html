@@ -94,12 +94,35 @@
 
         <!-- METRICS -->
         <section class="metrics">
+          <div class="metric-card purple">
+            <div class="metric-icon">
+              <i class="fa-solid fa-computer"></i>
+            </div>
+            <h4>أموال اليوم</h4>
+            <div class="metric-value" id="revenue">$0</div>
+            <div class="metric-change positive">
+              <i class="fa-solid fa-arrow-up"></i> 55%+
+            </div>
+          </div>
+          <div class="metric-card blue">
+            <div class="metric-icon">
+              <i class="fa-solid fa-globe"></i>
+            </div>
+            <h4>مستخدمو اليوم</h4>
+            <div class="metric-value" id="today">0</div>
+            <div class="metric-change positive">
+              <i class="fa-solid fa-arrow-up"></i> 33%+
+            </div>
+          </div>
           <div class="metric-card pink">
             <div class="metric-icon">
               <i class="fa-solid fa-file-invoice"></i>
             </div>
             <h4>عملاء جدد</h4>
             <div class="metric-value" id="total">0</div>
+            <div class="metric-change negative">
+              <i class="fa-solid fa-arrow-down"></i> 2%-
+            </div>
           </div>
           <div class="metric-card orange">
             <div class="metric-icon">
@@ -107,6 +130,9 @@
             </div>
             <h4>مبيعات</h4>
             <div class="metric-value" id="popular">-</div>
+            <div class="metric-change positive">
+              <i class="fa-solid fa-arrow-up"></i> 5%+
+            </div>
           </div>
         </section>
 
@@ -152,34 +178,28 @@
 
           <div class="table-card">
             <h3>جدول الحجوزات</h3>
-            <div class="table-wrapper">
-              <table id="tbl">
-                <thead>
-                  <tr>
-                    <th onclick="sortTable(0)">
-                      الاسم <i class="fas fa-sort"></i>
-                    </th>
-
-                    <th onclick="sortTable(1)">
-                      الهاتف <i class="fas fa-sort"></i>
-                    </th>
-
-                    <th onclick="sortTable(2)">
-                      الخدمة <i class="fas fa-sort"></i>
-                    </th>
-
-                    <th onclick="sortTable(3)">
-                      الموعد <i class="fas fa-sort"></i>
-                    </th>
-
-                    <th onclick="sortTable(4)">
-                      الوقت <i class="fas fa-sort"></i>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
+            <table id="tbl">
+              <thead>
+                <tr>
+                  <th onclick="sortTable(0)">
+                    الاسم <i class="fas fa-sort"></i>
+                  </th>
+                  <th onclick="sortTable(1)">
+                    الهاتف <i class="fas fa-sort"></i>
+                  </th>
+                  <th onclick="sortTable(2)">
+                    الخدمة <i class="fas fa-sort"></i>
+                  </th>
+                  <th onclick="sortTable(3)">
+                    الموعد <i class="fas fa-sort"></i>
+                  </th>
+                  <th onclick="sortTable(4)">
+                    الوقت <i class="fas fa-sort"></i>
+                  </th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
           </div>
         </section>
 
