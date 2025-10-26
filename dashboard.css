@@ -459,6 +459,27 @@ tr:hover {
   background: var(--slate-50);
 }
 
+.table-wrapper {
+  max-height: 400px; /* adjust height as needed */
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-top: 1px solid #eee;
+  scrollbar-width: thin;
+  scrollbar-color: #d946ef #f5f5f5;
+}
+
+/* Optional: make the scrollbar prettier */
+.table-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+.table-wrapper::-webkit-scrollbar-thumb {
+  background-color: #d946ef;
+  border-radius: 10px;
+}
+.table-wrapper::-webkit-scrollbar-track {
+  background-color: #f5f5f5;
+}
+
 /* LOGIN SCREEN */
 #loginScreen {
   position: fixed;
@@ -598,11 +619,21 @@ footer {
   }
 }
 
+/* ================================================
+   🌙 DARK MODE STYLES
+   These styles activate automatically when the <body>
+   element has the class "dark" (added via JavaScript).
+   They invert background and text colors to create a
+   dark theme for the entire dashboard.
+   ================================================ */
+
 body.dark {
+  /* Main background and global text color */
   background-color: #121212;
   color: #f1f1f1;
 }
 
+/* Card elements and sidebar background adjustments */
 body.dark .card,
 body.dark .metric-card,
 body.dark .sidebar {
@@ -610,6 +641,7 @@ body.dark .sidebar {
   color: #f1f1f1;
 }
 
+/* Accent color for links in dark mode */
 body.dark a {
   color: #d946ef;
 }
