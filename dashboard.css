@@ -620,77 +620,131 @@ footer {
 }
 
 /* ================================================
-   🌙 IMPROVED DARK MODE STYLES
-   A modern, soft dark theme — less harsh than pure black.
-   Uses deep charcoal tones, subtle contrasts, and elegant
-   accent colors for better readability and comfort.
+   🌙 DARK MODE STYLES
+   These styles activate automatically when the <body>
+   element has the class "dark" (added via JavaScript).
+   They invert background and text colors to create a
+   dark theme for the entire dashboard.
+   ================================================ */
+
+/* ================================================
+   🌙 MODERN DARK MODE THEME
+   Elegant dark style with soft gradients, depth,
+   and vivid purple accents — no flat black.
    ================================================ */
 
 body.dark {
-  /* Gentle dark background with soft contrast text */
-  background-color: #18181b; /* Deep charcoal gray */
-  color: #e5e5e5; /* Soft off-white text */
-  transition: background-color 0.3s ease, color 0.3s ease;
+  background: radial-gradient(circle at top left, #202233 0%, #151621 100%);
+  color: #f5f5f7;
+  transition: all 0.4s ease;
 }
 
-/* Card elements and sidebar background adjustments */
-body.dark .card,
-body.dark .metric-card,
+/* Sidebar */
 body.dark .sidebar {
-  background-color: #232327; /* Slightly lighter panel tone */
-  color: #f2f2f2;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  background: linear-gradient(180deg, #26283a 0%, #1b1c29 100%);
+  color: #f5f5f7;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 20px rgba(130, 70, 255, 0.08);
 }
 
-/* Links and accent elements */
+/* Cards and metric cards */
+body.dark .card,
+body.dark .metric-card {
+  background: linear-gradient(145deg, #2a2c3e, #1f2030);
+  color: #ececf3;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+  transition: all 0.3s ease;
+}
+
+body.dark .card:hover,
+body.dark .metric-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(138, 80, 255, 0.25);
+}
+
+/* Headings and text */
+body.dark h1,
+body.dark h2,
+body.dark h3,
+body.dark h4 {
+  color: #ffffff;
+}
+
+/* Accent colors (links, icons, highlights) */
 body.dark a {
-  color: #c084fc; /* Soft violet accent */
+  color: #c084fc;
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 body.dark a:hover {
-  color: #d946ef; /* Brighter accent on hover */
+  color: #e879f9;
 }
 
-/* Input fields, buttons, etc. */
+/* Buttons */
+body.dark button,
+body.dark .btn {
+  background: linear-gradient(90deg, #7c3aed, #a855f7);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.6rem 1.2rem;
+  font-weight: 500;
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.3);
+  transition: all 0.3s ease;
+}
+
+body.dark button:hover,
+body.dark .btn:hover {
+  background: linear-gradient(90deg, #9333ea, #c084fc);
+  transform: translateY(-2px);
+  box-shadow: 0 0 16px rgba(147, 51, 234, 0.5);
+}
+
+/* Inputs & Search bar */
 body.dark input,
 body.dark select,
 body.dark textarea {
-  background-color: #2a2a2e;
-  color: #f5f5f5;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #2c2e42;
+  color: #f4f4f9;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  transition: border-color 0.3s ease, background 0.3s ease;
 }
 
-body.dark button {
-  background-color: #3b3b42;
-  color: #ffffff;
-  border: none;
-  transition: background-color 0.2s ease;
+body.dark input:focus,
+body.dark select:focus,
+body.dark textarea:focus {
+  border-color: #a855f7;
+  outline: none;
 }
 
-body.dark button:hover {
-  background-color: #4f46e5; /* Indigo hover effect */
-}
-
-/* Subtle highlight color for metrics or icons */
-body.dark .highlight {
-  color: #a78bfa; /* Soft purple highlight */
-}
-
-/* Optional: Scrollbar styling */
+/* Scrollbar */
 body.dark ::-webkit-scrollbar {
   width: 8px;
 }
 body.dark ::-webkit-scrollbar-track {
-  background: #1a1a1d;
+  background: #1e1f2e;
 }
 body.dark ::-webkit-scrollbar-thumb {
-  background-color: #4b4b52;
+  background: linear-gradient(180deg, #7c3aed, #a855f7);
   border-radius: 4px;
 }
-body.dark ::-webkit-scrollbar-thumb:hover {
-  background-color: #6b6b76;
+
+/* Small accents and badges */
+body.dark .highlight {
+  color: #a78bfa;
+  font-weight: 600;
+}
+
+/* Smooth transition for theme toggle */
+body,
+.card,
+.sidebar,
+.btn,
+input,
+select {
+  transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
