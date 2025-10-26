@@ -597,3 +597,19 @@ footer {
     padding: 30px 20px;
   }
 }
+
+body.dark {
+  background-color: #121212;
+  color: #f1f1f1;
+}
+
+body.dark .card,
+body.dark .metric-card,
+body.dark .sidebar {
+  background-color: #1e1e1e;
+  color: #f1f1f1;
+}
+
+body.dark a {
+  color: #d946ef;
+}
