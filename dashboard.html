@@ -123,6 +123,7 @@
               <i class="fa-solid fa-arrow-down"></i> 2%-
             </div>
           </div>
+
           <div class="metric-card orange">
             <div class="metric-icon">
               <i class="fa-solid fa-cart-shopping"></i>
@@ -184,19 +185,15 @@
                     <th onclick="sortTable(0)">
                       الاسم <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(1)">
                       الهاتف <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(2)">
                       الخدمة <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(3)">
                       الموعد <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(4)">
                       الوقت <i class="fas fa-sort"></i>
                     </th>
@@ -287,11 +284,13 @@
         tb.innerHTML = "";
         d.forEach((b) => {
           const r = document.createElement("tr");
-          r.innerHTML = `<td>${b.name || "-"}</td><td>${b.phone || "-"}\
-</td><td>${b.service || "-"}\
-</td><td>${b.appointment || "-"}\
-</td><td>${b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"}\
-</td>`;
+          r.innerHTML = `<td>${b.name || "-"}</td><td>${
+            b.phone || "-"
+          }</td><td>${b.service || "-"}</td><td>${
+            b.appointment || "-"
+          }</td><td>${
+            b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
+          }</td>`;
           tb.appendChild(r);
         });
       }
@@ -299,23 +298,26 @@
       function updateStats(d) {
         animateNum(q("#total"), d.length);
 
-        const today = new Date().toISOString().split("T")[0];
-        const todayCount = d.filter((b) =>
-          b.timestamp?.startsWith(today)
-        ).length;
+        // === CALCULATE TODAY BOOKINGS ===
+        const now = new Date();
+        const todayStart = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+        const tomorrowStart = new Date(todayStart);
+        tomorrowStart.setDate(todayStart.getDate() + 1);
+
+        const todayBookings = d.filter((b) => {
+          const t = new Date(b.timestamp);
+          return t >= todayStart && t < tomorrowStart;
+        });
+
+        const todayCount = todayBookings.length;
         const revenue = todayCount * 75;
         q("#revenue") && (q("#revenue").textContent = "$" + revenue);
 
-        // --- Existing top service (all time)
-        const sc = {};
-        d.forEach(
-          (b) => b.service && (sc[b.service] = (sc[b.service] || 0) + 1)
-        );
-        const top = Object.entries(sc).sort((a, b) => b[1] - a[1])[0];
-        q("#popular").textContent = top ? top[0] : "N/A";
-
         // === CARD 1: أكثر خدمة طلبًا اليوم ===
-        const todayBookings = d.filter((b) => b.timestamp?.startsWith(today));
         const todayServices = {};
         todayBookings.forEach((b) => {
           if (b.service)
@@ -337,6 +339,14 @@
           ? Math.round((todayBookings.length / avgPerDay) * 100)
           : 0;
         q("#occupancyRate").textContent = `${Math.min(occupancyRate, 100)}%`;
+
+        // === CARD 4: المبيعات (Overall Most Popular Service) ===
+        const sc = {};
+        d.forEach(
+          (b) => b.service && (sc[b.service] = (sc[b.service] || 0) + 1)
+        );
+        const top = Object.entries(sc).sort((a, b) => b[1] - a[1])[0];
+        q("#popular").textContent = top ? top[0] : "N/A";
       }
 
       function drawCharts(d) {
@@ -356,22 +366,14 @@
             datasets: [
               {
                 data: vals,
-                backgroundColor: "rgba(217, 70, 239, 0.8)",
+                backgroundColor: "rgba(217,70,239,0.8)",
                 borderRadius: 8,
-                borderWidth: 0,
               },
             ],
           },
           options: {
             responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-            },
-            scales: {
-              y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } },
-              x: { grid: { display: false } },
-            },
+            plugins: { legend: { display: false } },
           },
         });
 
@@ -420,23 +422,15 @@
                 label: "الحجوزات",
                 data: weekData.values,
                 borderColor: "#d946ef",
-                backgroundColor: "rgba(217, 70, 239, 0.1)",
                 fill: true,
                 tension: 0.4,
                 borderWidth: 3,
-                pointRadius: 5,
-                pointBackgroundColor: "#d946ef",
               },
             ],
           },
           options: {
             responsive: true,
-            maintainAspectRatio: false,
             plugins: { legend: { display: false } },
-            scales: {
-              y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } },
-              x: { grid: { display: false } },
-            },
           },
         });
       }
@@ -453,10 +447,7 @@
         ];
         const counts = [0, 0, 0, 0, 0, 0, 0];
         d.forEach((b) => {
-          if (b.timestamp) {
-            const day = new Date(b.timestamp).getDay();
-            counts[day]++;
-          }
+          if (b.timestamp) counts[new Date(b.timestamp).getDay()]++;
         });
         return { labels: days, values: counts };
       }
