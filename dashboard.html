@@ -15,6 +15,44 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+      .notification-badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        min-width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: bold;
+        padding: 2px 6px;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+      }
+
+      .menu a {
+        position: relative;
+      }
+
+      .notification-badge.hidden {
+        display: none;
+      }
+    </style>
   </head>
 
   <body>
@@ -41,9 +79,12 @@
             لوحة القيادة
           </a>
 
-          <a href="#">
+          <a href="#" id="notificationLink">
             <i class="fa-solid fa-bell"></i>
             التنبيهات
+            <span class="notification-badge hidden" id="notificationBadge"
+              >0</span
+            >
           </a>
 
           <a href="analytics.html">
@@ -294,6 +335,36 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
+      // ======= NOTIFICATION LOGIC =======
+      let notificationCount = 0;
+      let lastBookingCount = 0;
+      const notificationBadge = document.getElementById("notificationBadge");
+      const notificationLink = document.getElementById("notificationLink");
+
+      function updateNotificationBadge() {
+        if (notificationCount > 0) {
+          notificationBadge.textContent = notificationCount;
+          notificationBadge.classList.remove("hidden");
+        } else {
+          notificationBadge.classList.add("hidden");
+        }
+      }
+
+      function checkForNewBookings(currentCount) {
+        if (lastBookingCount > 0 && currentCount > lastBookingCount) {
+          const newBookings = currentCount - lastBookingCount;
+          notificationCount += newBookings;
+          updateNotificationBadge();
+        }
+        lastBookingCount = currentCount;
+      }
+
+      notificationLink.addEventListener("click", function (e) {
+        e.preventDefault();
+        notificationCount = 0;
+        updateNotificationBadge();
+      });
+
       // ======= DASHBOARD LOGIC =======
       let bar, pie, line;
       let allData = [];
@@ -304,6 +375,9 @@
         const res = await fetch("/api/bookings");
         const rawData = await res.json();
         allData = rawData.slice(1);
+
+        checkForNewBookings(allData.length);
+
         filterAndRender();
       }
 
