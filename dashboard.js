@@ -2,6 +2,7 @@
 const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
 const SUPABASE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function login() {
@@ -45,6 +46,7 @@ let bar, pie, line;
 let allData = [];
 let sortDirection = 1;
 const q = (s) => document.querySelector(s);
+
 const animateNum = (el, to) => {
   let n = 0;
   const s = to / 40;
@@ -58,8 +60,7 @@ const animateNum = (el, to) => {
 async function load() {
   const res = await fetch("/api/bookings");
   const rawData = await res.json();
-  // Filter out the first row (header)
-  allData = rawData.slice(1); // Skip first element
+  allData = rawData.slice(1);
   filterAndRender();
 }
 
@@ -124,19 +125,10 @@ function drawCharts(d) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-      },
+      plugins: { legend: { display: false } },
       scales: {
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: "rgba(0,0,0,0.05)",
-          },
-        },
-        x: {
-          grid: { display: false },
-        },
+        y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } },
+        x: { grid: { display: false } },
       },
     },
   });
@@ -168,9 +160,7 @@ function drawCharts(d) {
           labels: {
             usePointStyle: true,
             padding: 20,
-            font: {
-              family: "'Cairo', sans-serif",
-            },
+            font: { family: "'Cairo', sans-serif" },
           },
         },
       },
@@ -200,19 +190,10 @@ function drawCharts(d) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-      },
+      plugins: { legend: { display: false } },
       scales: {
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: "rgba(0,0,0,0.05)",
-          },
-        },
-        x: {
-          grid: { display: false },
-        },
+        y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } },
+        x: { grid: { display: false } },
       },
     },
   });
@@ -230,10 +211,7 @@ function getWeeklyData(d) {
   ];
   const counts = [0, 0, 0, 0, 0, 0, 0];
   d.forEach((b) => {
-    if (b.timestamp) {
-      const day = new Date(b.timestamp).getDay();
-      counts[day]++;
-    }
+    if (b.timestamp) counts[new Date(b.timestamp).getDay()]++;
   });
   return { labels: days, values: counts };
 }
@@ -267,7 +245,6 @@ themeToggle.addEventListener("click", function () {
   }
 });
 
-// Check for saved theme preference
 if (localStorage.getItem("clinic_theme") === "dark") {
   document.body.classList.add("dark");
   const icon = themeToggle.querySelector("i");
@@ -278,11 +255,9 @@ if (localStorage.getItem("clinic_theme") === "dark") {
 // Sidebar toggle
 const menuToggle = document.getElementById("menuToggle");
 const sidebar = document.getElementById("sidebar");
-menuToggle.addEventListener("click", () => {
-  sidebar.classList.toggle("active");
-});
+menuToggle.addEventListener("click", () => sidebar.classList.toggle("active"));
 
-// Close sidebar when clicking outside on mobile
+// Close sidebar on mobile when clicking outside
 document.addEventListener("click", (e) => {
   if (
     window.innerWidth <= 768 &&

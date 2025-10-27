@@ -6,19 +6,26 @@
     <title>Clinic Dashboard</title>
 
     <!-- Favicon -->
-
     <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
-    <!-- Or for .ico file -->
-    <!-- <link rel="icon" type="image/x-icon" href="./favicon.ico" /> -->
 
+    <!-- Font Awesome -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     />
+
+    <!-- Styles -->
     <link rel="stylesheet" href="./dashboard.css" />
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase + Chart.js -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    ></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Your JS (must load last!) -->
+    <script defer src="./dashboard.js"></script>
   </head>
 
   <body>
@@ -29,7 +36,9 @@
         <input type="email" id="email" placeholder="البريد الإلكتروني" />
         <input type="password" id="password" placeholder="كلمة المرور" />
         <button onclick="login()">تسجيل الدخول</button>
-        <p id="errorMsg">بريد إلكتروني أو كلمة مرور غير صالحة</p>
+        <p id="errorMsg" style="display: none">
+          بريد إلكتروني أو كلمة مرور غير صالحة
+        </p>
       </div>
     </div>
 
@@ -44,25 +53,12 @@
             <i class="fa-solid fa-gauge"></i>
             لوحة القيادة
           </a>
-
-          <a href="#">
-            <i class="fa-solid fa-bell"></i>
-            التنبيهات
-          </a>
-
-          <a href="analytics.html">
-            <i class="fa-solid fa-rocket"></i>
-            تحليلات
-          </a>
-          <a href="booking.html">
-            <i class="fa-solid fa-table"></i>
-            جدول الحجوزات
-          </a>
-
-          <a href="#">
-            <i class="fa-solid fa-user"></i>
-            ارسال رسالة جماعية
-          </a>
+          <a href="#"><i class="fa-solid fa-bell"></i>التنبيهات</a>
+          <a href="analytics.html"><i class="fa-solid fa-rocket"></i>تحليلات</a>
+          <a href="booking.html"
+            ><i class="fa-solid fa-table"></i>جدول الحجوزات</a
+          >
+          <a href="#"><i class="fa-solid fa-user"></i>ارسال رسالة جماعية</a>
         </nav>
       </aside>
 
@@ -81,9 +77,6 @@
               <input type="text" placeholder="اكتب هنا..." />
               <i class="fa-solid fa-magnifying-glass"></i>
             </div>
-            <!--<button class="rtl-toggle" title="RTL">
-              <i class="fa-solid fa-align-right"></i>
-            </button>-->
             <button class="icon-btn" id="themeToggle">
               <i class="fa-regular fa-moon"></i>
             </button>
@@ -96,16 +89,12 @@
         <!-- METRICS -->
         <section class="metrics">
           <div class="metric-card purple">
-            <div class="metric-icon">
-              <i class="fa-solid fa-computer"></i>
-            </div>
+            <div class="metric-icon"><i class="fa-solid fa-computer"></i></div>
             <h4>أموال اليوم</h4>
             <div class="metric-value" id="revenue">$0</div>
           </div>
           <div class="metric-card blue">
-            <div class="metric-icon">
-              <i class="fa-solid fa-globe"></i>
-            </div>
+            <div class="metric-icon"><i class="fa-solid fa-globe"></i></div>
             <h4>مستخدمو اليوم</h4>
             <div class="metric-value" id="today">0</div>
           </div>
@@ -126,34 +115,11 @@
         </section>
 
         <!-- HERO CARDS -->
-        <section
-          class="hero-cards"
-          style="
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            justify-content: center;
-            align-items: stretch;
-            padding: 20px;
-          "
-        >
-          <div
-            class="hero-card dark"
-            style="
-              flex: 1 1 400px;
-              background-color: #1e1e1e;
-              color: #fff;
-              padding: 40px;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-            "
-          >
+        <section class="hero-cards">
+          <div class="hero-card dark">
             <div>
-              <h3 style="margin-top: 0; font-size: 24px">
-                لوحة تحكم عيادة سمايلز
-              </h3>
-              <p style="line-height: 1.6; margin-bottom: 24px; font-size: 16px">
+              <h3>لوحة تحكم عيادة سمايلز</h3>
+              <p>
                 مرحبًا بكم في النظام الذكي لإدارة العيادة. من هنا يمكنكم متابعة
                 المواعيد، عرض أسماء الحجوزات، وإدارة سير العمل بسهولة ودقة.
               </p>
@@ -162,34 +128,11 @@
               href="booking.html"
               style="text-align: center; text-decoration: none"
             >
-              <button
-                style="
-                  background: linear-gradient(270deg, #7c3aed, #a855f7);
-                  color: #fff;
-                  border: none;
-                  padding: 12px 24px;
-                  cursor: pointer;
-                  font-size: 16px;
-                "
-              >
-                عرض الحجوزات
-              </button>
+              <button class="btn">عرض الحجوزات</button>
             </a>
           </div>
 
-          <div
-            class="hero-card gradient"
-            style="
-              flex: 1 1 400px;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              overflow: hidden;
-              padding: 0;
-              margin: 0;
-              background-color: #f5f5f5;
-            "
-          >
+          <div class="hero-card gradient">
             <img
               src="img/rocket.jpg"
               alt="Rocket Image"
@@ -202,23 +145,17 @@
         <section class="dashboard-grid">
           <div class="card">
             <h3>توزيع الخدمات</h3>
-            <div class="chart-container">
-              <canvas id="bar"></canvas>
-            </div>
+            <div class="chart-container"><canvas id="bar"></canvas></div>
           </div>
 
           <div class="card">
             <h3>الاتجاه الأسبوعي</h3>
-            <div class="chart-container">
-              <canvas id="line"></canvas>
-            </div>
+            <div class="chart-container"><canvas id="line"></canvas></div>
           </div>
 
           <div class="card">
             <h3>تفصيل الحجز</h3>
-            <div class="chart-container">
-              <canvas id="pie"></canvas>
-            </div>
+            <div class="chart-container"><canvas id="pie"></canvas></div>
           </div>
 
           <div class="table-card">
@@ -230,19 +167,15 @@
                     <th onclick="sortTable(0)">
                       الاسم <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(1)">
                       الهاتف <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(2)">
                       الخدمة <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(3)">
                       الموعد <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(4)">
                       الوقت <i class="fas fa-sort"></i>
                     </th>
@@ -257,6 +190,5 @@
         <footer>© 2025 Smile Clinic</footer>
       </main>
     </div>
-    <script src="dashboard.js"></script>
   </body>
 </html>
