@@ -265,7 +265,9 @@
 
       async function load() {
         const res = await fetch("/api/bookings");
-        allData = await res.json();
+        const rawData = await res.json();
+        // Filter out the first row (header)
+        allData = rawData.slice(1); // Skip first element
         filterAndRender();
       }
 
