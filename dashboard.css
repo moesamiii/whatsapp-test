@@ -574,6 +574,241 @@ footer {
 }
 
 /* ================================================
+   NOTIFICATIONS STYLES
+   ================================================ */
+
+.notifications-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.notifications-header h2 {
+  font-size: 28px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notification-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 8px 20px;
+  border: 2px solid #d946ef;
+  background: transparent;
+  color: #d946ef;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.filter-btn:hover {
+  background: #d946ef;
+  color: white;
+}
+
+.filter-btn.active {
+  background: linear-gradient(135deg, #d946ef, #a855f7);
+  color: white;
+  border-color: transparent;
+}
+
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.notification-item {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border-right: 4px solid transparent;
+  display: flex;
+  align-items: start;
+  gap: 15px;
+}
+
+.notification-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.notification-item.unread {
+  background: linear-gradient(
+    to left,
+    var(--card-bg) 0%,
+    rgba(217, 70, 239, 0.05) 100%
+  );
+  border-right-color: #d946ef;
+}
+
+.notification-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d946ef, #a855f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.notification-content {
+  flex: 1;
+}
+
+.notification-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notification-badge {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.notification-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.notification-detail {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.notification-detail i {
+  color: #d946ef;
+}
+
+.notification-time {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-secondary);
+}
+
+.empty-state i {
+  font-size: 80px;
+  color: #d946ef;
+  opacity: 0.3;
+  margin-bottom: 20px;
+}
+
+.empty-state h3 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.mark-all-read {
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #d946ef, #a855f7);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.mark-all-read:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(217, 70, 239, 0.4);
+}
+
+.mark-all-read:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .notifications-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .notification-filters {
+    justify-content: center;
+  }
+
+  .notification-item {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .notification-icon {
+    margin: 0 auto;
+  }
+}
+
+/* 🔔 Notification Counter Badge */
+.bell-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 50%;
+  padding: 3px 6px;
+  line-height: 1;
+  display: none;
+  min-width: 18px;
+  text-align: center;
+}
+
+.bell-badge {
+  transition: transform 0.2s ease;
+}
+
+.bell-badge.pulse {
+  transform: scale(1.3);
+}
+
+/* ================================================
    🌙 DARK MODE THEME
    ================================================ */
 
@@ -711,13 +946,6 @@ body.dark ::-webkit-scrollbar-thumb {
 body.dark .highlight {
   color: #a78bfa;
   font-weight: 600;
-}
-
-body.dark tr {
-  background-color: rgba(30, 30, 45, 0.95);
-}
-body.dark tr:hover {
-  background-color: rgba(217, 70, 239, 0.15);
 }
 
 body,

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clinic Dashboard - Notifications</title>
+
+    <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="./dashboard.css" />
+  </head>
+
+  <body>
+    <div class="container">
+      <!-- SIDEBAR -->
+      <aside class="sidebar" id="sidebar">
+        <div class="logo">
+          <span>CONAN DASHBOARD</span>
+        </div>
+        <nav class="menu">
+          <a href="dashboard.html">
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
+          </a>
+
+          <a
+            href="notifications.html"
+            class="active"
+            style="position: relative"
+          >
+            <i class="fa-solid fa-bell"></i>
+            <span id="bellBadge" class="bell-badge">0</span>
+            التنبيهات
+          </a>
+
+          <a href="analytics.html">
+            <i class="fa-solid fa-rocket"></i>
+            تحليلات
+          </a>
+          <a href="booking.html">
+            <i class="fa-solid fa-table"></i>
+            جدول الحجوزات
+          </a>
+
+          <a href="#">
+            <i class="fa-solid fa-user"></i>
+            ارسال رسالة جماعية
+          </a>
+        </nav>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="main-content">
+        <!-- HEADER -->
+        <header class="header">
+          <div class="header-left">
+            <button class="menu-toggle icon-btn" id="menuToggle">
+              <i class="fa-solid fa-bars"></i>
+            </button>
+            <h1>التنبيهات</h1>
+          </div>
+          <div class="header-right">
+            <div class="search-box">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="ابحث في التنبيهات..."
+              />
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            <button class="icon-btn" id="themeToggle">
+              <i class="fa-regular fa-moon"></i>
+            </button>
+            <button class="icon-btn" onclick="logout()">
+              <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+          </div>
+        </header>
+
+        <!-- NOTIFICATIONS CONTENT -->
+        <div class="notifications-container">
+          <div class="notifications-header">
+            <h2>
+              <i class="fa-solid fa-bell"></i>
+              جميع التنبيهات
+            </h2>
+            <div style="display: flex; gap: 10px; align-items: center">
+              <button class="mark-all-read" id="markAllReadBtn">
+                <i class="fa-solid fa-check-double"></i>
+                تعليم الكل كمقروء
+              </button>
+              <div class="notification-filters">
+                <button class="filter-btn active" data-filter="all">
+                  الكل
+                </button>
+                <button class="filter-btn" data-filter="unread">
+                  غير مقروءة
+                </button>
+                <button class="filter-btn" data-filter="read">مقروءة</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="notifications-list" id="notificationsList">
+            <!-- Notifications will be dynamically loaded here -->
+          </div>
+        </div>
+
+        <footer>© 2025 Smile Clinic</footer>
+      </main>
+    </div>
+
+    <script>
+      // Check if user is logged in
+      if (localStorage.getItem("clinic_logged_in") !== "true") {
+        window.location.href = "dashboard.html";
+      }
+
+      let allNotifications = [];
+      let currentFilter = "all";
+
+      async function loadNotifications() {
+        try {
+          const res = await fetch("/api/bookings");
+          const rawData = await res.json();
+          const bookings = rawData.slice(1);
+
+          const lastLoginTime = localStorage.getItem("last_login_time");
+          const readNotifications = JSON.parse(
+            localStorage.getItem("read_notifications") || "[]"
+          );
+
+          // Create notifications from bookings
+          allNotifications = bookings.map((booking) => {
+            const bookingTime = new Date(booking.timestamp);
+            const lastLogin = lastLoginTime
+              ? new Date(lastLoginTime)
+              : new Date(0);
+            const isNew = bookingTime > lastLogin;
+            const isRead = readNotifications.includes(booking.timestamp);
+
+            return {
+              ...booking,
+              isNew: isNew,
+              isRead: isRead,
+            };
+          });
+
+          // Sort by timestamp (newest first)
+          allNotifications.sort((a, b) => {
+            return new Date(b.timestamp) - new Date(a.timestamp);
+          });
+
+          renderNotifications();
+        } catch (error) {
+          console.error("Error loading notifications:", error);
+        }
+      }
+
+      function renderNotifications() {
+        const listContainer = document.getElementById("notificationsList");
+        const searchTerm = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+
+        let filteredNotifications = allNotifications.filter((notif) => {
+          // Apply filter
+          if (currentFilter === "unread" && notif.isRead) return false;
+          if (currentFilter === "read" && !notif.isRead) return false;
+
+          // Apply search
+          if (searchTerm) {
+            const searchableText =
+              `${notif.name} ${notif.phone} ${notif.service} ${notif.appointment}`.toLowerCase();
+            if (!searchableText.includes(searchTerm)) return false;
+          }
+
+          return true;
+        });
+
+        if (filteredNotifications.length === 0) {
+          listContainer.innerHTML = `
+            <div class="empty-state">
+              <i class="fa-solid fa-bell-slash"></i>
+              <h3>لا توجد تنبيهات</h3>
+              <p>لا توجد تنبيهات ${
+                currentFilter === "unread"
+                  ? "غير مقروءة"
+                  : currentFilter === "read"
+                  ? "مقروءة"
+                  : ""
+              } حالياً</p>
+            </div>
+          `;
+          return;
+        }
+
+        listContainer.innerHTML = filteredNotifications
+          .map(
+            (notif) => `
+          <div class="notification-item ${notif.isRead ? "" : "unread"}">
+            <div class="notification-icon">
+              <i class="fa-solid fa-calendar-check"></i>
+            </div>
+            <div class="notification-content">
+              <div class="notification-title">
+                حجز جديد
+                ${
+                  notif.isNew && !notif.isRead
+                    ? '<span class="notification-badge">جديد</span>'
+                    : ""
+                }
+              </div>
+              <div class="notification-details">
+                <div class="notification-detail">
+                  <i class="fa-solid fa-user"></i>
+                  <strong>الاسم:</strong> ${notif.name || "-"}
+                </div>
+                <div class="notification-detail">
+                  <i class="fa-solid fa-phone"></i>
+                  <strong>الهاتف:</strong> ${notif.phone || "-"}
+                </div>
+                <div class="notification-detail">
+                  <i class="fa-solid fa-stethoscope"></i>
+                  <strong>الخدمة:</strong> ${notif.service || "-"}
+                </div>
+                <div class="notification-detail">
+                  <i class="fa-solid fa-calendar"></i>
+                  <strong>الموعد:</strong> ${notif.appointment || "-"}
+                </div>
+              </div>
+              <div class="notification-time">
+                <i class="fa-regular fa-clock"></i>
+                ${formatTimestamp(notif.timestamp)}
+              </div>
+            </div>
+          </div>
+        `
+          )
+          .join("");
+
+        // Update mark all read button state
+        const hasUnread = allNotifications.some((n) => !n.isRead);
+        document.getElementById("markAllReadBtn").disabled = !hasUnread;
+      }
+
+      function formatTimestamp(timestamp) {
+        if (!timestamp) return "غير محدد";
+
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return "الآن";
+        if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
+        if (diffHours < 24) return `منذ ${diffHours} ساعة`;
+        if (diffDays < 7) return `منذ ${diffDays} يوم`;
+
+        return date.toLocaleDateString("ar-EG", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      function markAllAsRead() {
+        const readNotifications = allNotifications.map((n) => n.timestamp);
+        localStorage.setItem(
+          "read_notifications",
+          JSON.stringify(readNotifications)
+        );
+
+        // Mark all as read
+        allNotifications.forEach((n) => (n.isRead = true));
+
+        // Update last login time to current time
+        localStorage.setItem("last_login_time", new Date().toISOString());
+
+        // Clear unread count
+        localStorage.setItem("unread_notifications", "0");
+
+        renderNotifications();
+      }
+
+      function logout() {
+        localStorage.removeItem("clinic_logged_in");
+        window.location.href = "dashboard.html";
+      }
+
+      // Event Listeners
+      document
+        .getElementById("markAllReadBtn")
+        .addEventListener("click", markAllAsRead);
+
+      document.querySelectorAll(".filter-btn").forEach((btn) => {
+        btn.addEventListener("click", function () {
+          document
+            .querySelectorAll(".filter-btn")
+            .forEach((b) => b.classList.remove("active"));
+          this.classList.add("active");
+          currentFilter = this.dataset.filter;
+          renderNotifications();
+        });
+      });
+
+      document
+        .getElementById("searchInput")
+        .addEventListener("input", renderNotifications);
+
+      // Theme toggle
+      const themeToggle = document.getElementById("themeToggle");
+      themeToggle.addEventListener("click", function () {
+        document.body.classList.toggle("dark");
+        const icon = themeToggle.querySelector("i");
+        if (document.body.classList.contains("dark")) {
+          icon.classList.replace("fa-moon", "fa-sun");
+          localStorage.setItem("clinic_theme", "dark");
+        } else {
+          icon.classList.replace("fa-sun", "fa-moon");
+          localStorage.setItem("clinic_theme", "light");
+        }
+      });
+
+      if (localStorage.getItem("clinic_theme") === "dark") {
+        document.body.classList.add("dark");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.replace("fa-moon", "fa-sun");
+      }
+
+      // Menu toggle
+      const menuToggle = document.getElementById("menuToggle");
+      const sidebar = document.getElementById("sidebar");
+      menuToggle.addEventListener("click", () =>
+        sidebar.classList.toggle("active")
+      );
+
+      document.addEventListener("click", (e) => {
+        if (
+          window.innerWidth <= 768 &&
+          sidebar.classList.contains("active") &&
+          !sidebar.contains(e.target) &&
+          e.target !== menuToggle
+        ) {
+          sidebar.classList.remove("active");
+        }
+      });
+
+      // Mark notifications as opened when page loads
+      window.addEventListener("load", () => {
+        // Update last visit time to notifications page
+        localStorage.setItem("last_notif_visit", new Date().toISOString());
+      });
+
+      // Load notifications on page load
+      loadNotifications();
+
+      // Auto-refresh every 30 seconds
+      setInterval(loadNotifications, 30000);
+
+      // 🔔 Update bell badge
+      const unreadCount = allNotifications.filter((n) => !n.isRead).length;
+      const bellBadge = document.getElementById("bellBadge");
+      if (bellBadge) {
+        if (unreadCount > 0) {
+          bellBadge.style.display = "inline-block";
+          bellBadge.textContent = unreadCount > 99 ? "99+" : unreadCount;
+        } else {
+          bellBadge.style.display = "none";
+        }
+      }
+
+      bellBadge.classList.add("pulse");
+      setTimeout(() => bellBadge.classList.remove("pulse"), 200);
+    </script>
+  </body>
+</html>
