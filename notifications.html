@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>التنبيهات - Clinic Dashboard</title>
+    <title>Clinic Dashboard - Notifications</title>
 
     <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
 
@@ -12,6 +12,9 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     />
     <link rel="stylesheet" href="./dashboard.css" />
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="./analytics.js"></script>
   </head>
 
   <body>
@@ -122,39 +125,86 @@
         try {
           const res = await fetch("/api/bookings");
           const rawData = await res.json();
-          const bookings = rawData.slice(1);
+          const bookings = rawData.slice(1); // skip header row
 
-          const lastLoginTime = localStorage.getItem("last_login_time");
+          const knownTimestamps = JSON.parse(
+            localStorage.getItem("known_bookings") || "[]"
+          );
           const readNotifications = JSON.parse(
             localStorage.getItem("read_notifications") || "[]"
           );
 
-          // Create notifications from bookings
-          allNotifications = bookings.map((booking) => {
-            const bookingTime = new Date(booking.timestamp);
-            const lastLogin = lastLoginTime
-              ? new Date(lastLoginTime)
-              : new Date(0);
-            const isNew = bookingTime > lastLogin;
-            const isRead = readNotifications.includes(booking.timestamp);
+          // Detect new bookings
+          const newBookings = bookings.filter(
+            (b) => !knownTimestamps.includes(b.timestamp)
+          );
 
-            return {
-              ...booking,
-              isNew: isNew,
-              isRead: isRead,
-            };
-          });
+          // Send notification for new bookings
+          if (newBookings.length > 0) {
+            newBookings.forEach((b) => showBrowserNotification(b));
+          }
 
-          // Sort by timestamp (newest first)
-          allNotifications.sort((a, b) => {
-            return new Date(b.timestamp) - new Date(a.timestamp);
-          });
+          // Update known timestamps
+          localStorage.setItem(
+            "known_bookings",
+            JSON.stringify(bookings.map((b) => b.timestamp))
+          );
+
+          allNotifications = bookings.map((booking) => ({
+            ...booking,
+            isRead: readNotifications.includes(booking.timestamp),
+          }));
+
+          allNotifications.sort(
+            (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+          );
 
           renderNotifications();
-        } catch (error) {
-          console.error("Error loading notifications:", error);
+        } catch (err) {
+          console.error("Error loading notifications:", err);
         }
       }
+
+      // 🔔 Browser notification
+      function showBrowserNotification(booking) {
+        if (Notification.permission === "granted") {
+          new Notification("🦷 حجز جديد!", {
+            body: `${booking.name || "مريض"} - ${
+              booking.service || "خدمة غير معروفة"
+            }`,
+            icon: "/img/dummy-conan.jpeg",
+          });
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then((permission) => {
+            if (permission === "granted") showBrowserNotification(booking);
+          });
+        }
+      }
+
+      // Create notifications from bookings
+      allNotifications = bookings.map((booking) => {
+        const bookingTime = new Date(booking.timestamp);
+        const lastLogin = lastLoginTime ? new Date(lastLoginTime) : new Date(0);
+        const isNew = bookingTime > lastLogin;
+        const isRead = readNotifications.includes(booking.timestamp);
+
+        return {
+          ...booking,
+          isNew: isNew,
+          isRead: isRead,
+        };
+      });
+
+      // Sort by timestamp (newest first)
+      allNotifications.sort((a, b) => {
+        return new Date(b.timestamp) - new Date(a.timestamp);
+      });
+
+      renderNotifications({
+        catch(error) {
+          console.error("Error loading notifications:", error);
+        },
+      });
 
       function renderNotifications() {
         const listContainer = document.getElementById("notificationsList");
@@ -361,5 +411,7 @@
       // Auto-refresh every 30 seconds
       setInterval(loadNotifications, 30000);
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="./analytics.js"></script>
   </body>
 </html>
