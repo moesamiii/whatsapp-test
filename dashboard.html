@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clinic Dashboard</title>
 
-    <!-- Favicon -->
-
     <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
-    <!-- Or for .ico file -->
-    <!-- <link rel="icon" type="image/x-icon" href="./favicon.ico" /> -->
 
     <link
       rel="stylesheet"
@@ -81,9 +77,6 @@
               <input type="text" placeholder="اكتب هنا..." />
               <i class="fa-solid fa-magnifying-glass"></i>
             </div>
-            <!--<button class="rtl-toggle" title="RTL">
-              <i class="fa-solid fa-align-right"></i>
-            </button>-->
             <button class="icon-btn" id="themeToggle">
               <i class="fa-regular fa-moon"></i>
             </button>
@@ -93,22 +86,8 @@
           </div>
         </header>
 
-        <!-- METRICS -->
+        <!-- METRICS (2 cards removed) -->
         <section class="metrics">
-          <div class="metric-card purple">
-            <div class="metric-icon">
-              <i class="fa-solid fa-computer"></i>
-            </div>
-            <h4>أموال اليوم</h4>
-            <div class="metric-value" id="revenue">$0</div>
-          </div>
-          <div class="metric-card blue">
-            <div class="metric-icon">
-              <i class="fa-solid fa-globe"></i>
-            </div>
-            <h4>مستخدمو اليوم</h4>
-            <div class="metric-value" id="today">0</div>
-          </div>
           <div class="metric-card pink">
             <div class="metric-icon">
               <i class="fa-solid fa-file-invoice"></i>
@@ -116,6 +95,7 @@
             <h4>عملاء جدد</h4>
             <div class="metric-value" id="total">0</div>
           </div>
+
           <div class="metric-card orange">
             <div class="metric-icon">
               <i class="fa-solid fa-cart-shopping"></i>
@@ -306,21 +286,11 @@
       let allData = [];
       let sortDirection = 1;
       const q = (s) => document.querySelector(s);
-      const animateNum = (el, to) => {
-        let n = 0;
-        const s = to / 40;
-        const i = setInterval(() => {
-          n += s;
-          el.textContent = Math.min(Math.round(n), to);
-          if (n >= to) clearInterval(i);
-        }, 15);
-      };
 
       async function load() {
         const res = await fetch("/api/bookings");
         const rawData = await res.json();
-        // Filter out the first row (header)
-        allData = rawData.slice(1); // Skip first element
+        allData = rawData.slice(1);
         filterAndRender();
       }
 
@@ -347,22 +317,13 @@
       }
 
       function updateStats(d) {
-        animateNum(q("#total"), d.length);
-        const today = new Date().toISOString().split("T")[0];
-        const todayCount = d.filter((b) =>
-          b.timestamp?.startsWith(today)
-        ).length;
-        animateNum(q("#today"), todayCount);
-
+        q("#total").textContent = d.length;
         const sc = {};
         d.forEach(
           (b) => b.service && (sc[b.service] = (sc[b.service] || 0) + 1)
         );
         const top = Object.entries(sc).sort((a, b) => b[1] - a[1])[0];
         q("#popular").textContent = top ? top[0] : "N/A";
-
-        const revenue = todayCount * 75;
-        q("#revenue").textContent = "$" + revenue;
       }
 
       function drawCharts(d) {
@@ -394,17 +355,6 @@
             plugins: {
               legend: { display: false },
             },
-            scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: "rgba(0,0,0,0.05)",
-                },
-              },
-              x: {
-                grid: { display: false },
-              },
-            },
           },
         });
 
@@ -422,26 +372,15 @@
                   "#f97316",
                   "#3b82f6",
                 ],
-                borderWidth: 0,
               },
             ],
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
             plugins: {
               legend: {
                 position: "bottom",
-                labels: {
-                  usePointStyle: true,
-                  padding: 20,
-                  font: {
-                    family: "'Cairo', sans-serif",
-                  },
-                },
               },
             },
-            cutout: "70%",
           },
         });
 
@@ -452,35 +391,15 @@
             labels: weekData.labels,
             datasets: [
               {
-                label: "الحجوزات",
                 data: weekData.values,
                 borderColor: "#d946ef",
                 backgroundColor: "rgba(217, 70, 239, 0.1)",
                 fill: true,
-                tension: 0.4,
-                borderWidth: 3,
-                pointRadius: 5,
-                pointBackgroundColor: "#d946ef",
               },
             ],
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: "rgba(0,0,0,0.05)",
-                },
-              },
-              x: {
-                grid: { display: false },
-              },
-            },
+            plugins: { legend: { display: false } },
           },
         });
       }
@@ -497,10 +416,7 @@
         ];
         const counts = [0, 0, 0, 0, 0, 0, 0];
         d.forEach((b) => {
-          if (b.timestamp) {
-            const day = new Date(b.timestamp).getDay();
-            counts[day]++;
-          }
+          if (b.timestamp) counts[new Date(b.timestamp).getDay()]++;
         });
         return { labels: days, values: counts };
       }
@@ -518,51 +434,42 @@
         rows.forEach((r) => tb.appendChild(r));
       }
 
-      // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
         const icon = themeToggle.querySelector("i");
         if (document.body.classList.contains("dark")) {
-          icon.classList.remove("fa-moon");
-          icon.classList.add("fa-sun");
+          icon.classList.replace("fa-moon", "fa-sun");
           localStorage.setItem("clinic_theme", "dark");
         } else {
-          icon.classList.remove("fa-sun");
-          icon.classList.add("fa-moon");
+          icon.classList.replace("fa-sun", "fa-moon");
           localStorage.setItem("clinic_theme", "light");
         }
       });
 
-      // Check for saved theme preference
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
         const icon = themeToggle.querySelector("i");
-        icon.classList.remove("fa-moon");
-        icon.classList.add("fa-sun");
+        icon.classList.replace("fa-moon", "fa-sun");
       }
 
-      // Sidebar toggle
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
-      menuToggle.addEventListener("click", () => {
-        sidebar.classList.toggle("active");
-      });
+      menuToggle.addEventListener("click", () =>
+        sidebar.classList.toggle("active")
+      );
 
-      // Close sidebar when clicking outside on mobile
       document.addEventListener("click", (e) => {
         if (
           window.innerWidth <= 768 &&
           sidebar.classList.contains("active") &&
           !sidebar.contains(e.target) &&
-          e.target !== menuToggle &&
-          !menuToggle.contains(e.target)
+          e.target !== menuToggle
         ) {
           sidebar.classList.remove("active");
         }
       });
 
-      // Auto-refresh if logged in
       if (localStorage.getItem("clinic_logged_in") === "true") {
         load();
         setInterval(load, 15000);
