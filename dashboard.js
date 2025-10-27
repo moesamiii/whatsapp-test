@@ -45,7 +45,6 @@ let bar, pie, line;
 let allData = [];
 let sortDirection = 1;
 const q = (s) => document.querySelector(s);
-
 const animateNum = (el, to) => {
   let n = 0;
   const s = to / 40;
@@ -59,7 +58,8 @@ const animateNum = (el, to) => {
 async function load() {
   const res = await fetch("/api/bookings");
   const rawData = await res.json();
-  allData = rawData.slice(1); // skip header row
+  // Filter out the first row (header)
+  allData = rawData.slice(1); // Skip first element
   filterAndRender();
 }
 
@@ -74,13 +74,11 @@ function renderTable(d) {
   tb.innerHTML = "";
   d.forEach((b) => {
     const r = document.createElement("tr");
-    r.innerHTML = `<td>${b.name || "-"}</td>
-                   <td>${b.phone || "-"}</td>
-                   <td>${b.service || "-"}</td>
-                   <td>${b.appointment || "-"}</td>
-                   <td>${
-                     b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
-                   }</td>`;
+    r.innerHTML = `<td>${b.name || "-"}</td><td>${b.phone || "-"}</td><td>${
+      b.service || "-"
+    }</td><td>${b.appointment || "-"}</td><td>${
+      b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
+    }</td>`;
     tb.appendChild(r);
   });
 }
@@ -126,10 +124,19 @@ function drawCharts(d) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+      },
       scales: {
-        y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } },
-        x: { grid: { display: false } },
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: "rgba(0,0,0,0.05)",
+          },
+        },
+        x: {
+          grid: { display: false },
+        },
       },
     },
   });
@@ -161,7 +168,9 @@ function drawCharts(d) {
           labels: {
             usePointStyle: true,
             padding: 20,
-            font: { family: "'Cairo', sans-serif" },
+            font: {
+              family: "'Cairo', sans-serif",
+            },
           },
         },
       },
@@ -191,10 +200,19 @@ function drawCharts(d) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+      },
       scales: {
-        y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } },
-        x: { grid: { display: false } },
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: "rgba(0,0,0,0.05)",
+          },
+        },
+        x: {
+          grid: { display: false },
+        },
       },
     },
   });
@@ -249,7 +267,7 @@ themeToggle.addEventListener("click", function () {
   }
 });
 
-// Restore saved theme
+// Check for saved theme preference
 if (localStorage.getItem("clinic_theme") === "dark") {
   document.body.classList.add("dark");
   const icon = themeToggle.querySelector("i");

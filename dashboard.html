@@ -6,18 +6,17 @@
     <title>Clinic Dashboard</title>
 
     <!-- Favicon -->
-    <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
 
-    <!-- Font Awesome -->
+    <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
+    <!-- Or for .ico file -->
+    <!-- <link rel="icon" type="image/x-icon" href="./favicon.ico" /> -->
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     />
-
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="./dashboard.css" />
 
-    <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
@@ -55,7 +54,6 @@
             <i class="fa-solid fa-rocket"></i>
             تحليلات
           </a>
-
           <a href="booking.html">
             <i class="fa-solid fa-table"></i>
             جدول الحجوزات
@@ -83,6 +81,9 @@
               <input type="text" placeholder="اكتب هنا..." />
               <i class="fa-solid fa-magnifying-glass"></i>
             </div>
+            <!--<button class="rtl-toggle" title="RTL">
+              <i class="fa-solid fa-align-right"></i>
+            </button>-->
             <button class="icon-btn" id="themeToggle">
               <i class="fa-regular fa-moon"></i>
             </button>
@@ -101,7 +102,6 @@
             <h4>أموال اليوم</h4>
             <div class="metric-value" id="revenue">$0</div>
           </div>
-
           <div class="metric-card blue">
             <div class="metric-icon">
               <i class="fa-solid fa-globe"></i>
@@ -109,7 +109,6 @@
             <h4>مستخدمو اليوم</h4>
             <div class="metric-value" id="today">0</div>
           </div>
-
           <div class="metric-card pink">
             <div class="metric-icon">
               <i class="fa-solid fa-file-invoice"></i>
@@ -117,7 +116,6 @@
             <h4>عملاء جدد</h4>
             <div class="metric-value" id="total">0</div>
           </div>
-
           <div class="metric-card orange">
             <div class="metric-icon">
               <i class="fa-solid fa-cart-shopping"></i>
@@ -232,15 +230,19 @@
                     <th onclick="sortTable(0)">
                       الاسم <i class="fas fa-sort"></i>
                     </th>
+
                     <th onclick="sortTable(1)">
                       الهاتف <i class="fas fa-sort"></i>
                     </th>
+
                     <th onclick="sortTable(2)">
                       الخدمة <i class="fas fa-sort"></i>
                     </th>
+
                     <th onclick="sortTable(3)">
                       الموعد <i class="fas fa-sort"></i>
                     </th>
+
                     <th onclick="sortTable(4)">
                       الوقت <i class="fas fa-sort"></i>
                     </th>
@@ -256,7 +258,6 @@
       </main>
     </div>
 
-    <!-- External JS -->
     <script src="./dashboard.js"></script>
   </body>
 </html>
