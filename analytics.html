@@ -33,7 +33,7 @@
             لوحة القيادة
           </a>
 
-          <a href="notifications.html">
+          <a href="#">
             <i class="fa-solid fa-bell"></i>
             التنبيهات
           </a>
@@ -115,9 +115,8 @@
 
       async function load() {
         const res = await fetch("/api/bookings");
-        const rawData = await res.json();
-        allData = rawData.slice(1);
-        filterAndRender();
+        allData = await res.json();
+        drawCharts(allData);
       }
 
       function drawCharts(d) {
