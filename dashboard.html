@@ -15,6 +15,50 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+      /* Notification Badge Styles */
+      .notification-wrapper {
+        position: relative;
+        display: inline-block;
+      }
+
+      .notification-badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+        border-radius: 50%;
+        min-width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: bold;
+        padding: 2px 5px;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+        animation: pulse 2s infinite;
+        z-index: 10;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.1);
+          opacity: 0.9;
+        }
+      }
+
+      .notification-badge.hidden {
+        display: none;
+      }
+    </style>
   </head>
 
   <body>
@@ -41,9 +85,12 @@
             لوحة القيادة
           </a>
 
-          <a href="#">
+          <a href="notifications.html" class="notification-wrapper">
             <i class="fa-solid fa-bell"></i>
             التنبيهات
+            <span class="notification-badge hidden" id="sidebarNotifBadge"
+              >0</span
+            >
           </a>
 
           <a href="analytics.html">
@@ -273,6 +320,7 @@
           document.getElementById("loginScreen").style.display = "none";
           document.getElementById("dashboardContent").style.display = "block";
           localStorage.setItem("clinic_logged_in", "true");
+          localStorage.setItem("last_login_time", new Date().toISOString());
           load();
         } else {
           const msg = document.getElementById("errorMsg");
@@ -294,6 +342,31 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
+      // ======= NOTIFICATION SYSTEM =======
+      function updateNotificationBadge() {
+        const lastLoginTime = localStorage.getItem("last_login_time");
+        if (!lastLoginTime) return;
+
+        const lastLogin = new Date(lastLoginTime);
+        const newNotifications = allData.filter((booking) => {
+          if (!booking.timestamp) return false;
+          return new Date(booking.timestamp) > lastLogin;
+        });
+
+        const count = newNotifications.length;
+        const badge = document.getElementById("sidebarNotifBadge");
+
+        if (count > 0) {
+          badge.textContent = count > 99 ? "99+" : count;
+          badge.classList.remove("hidden");
+        } else {
+          badge.classList.add("hidden");
+        }
+
+        // Store notification count
+        localStorage.setItem("unread_notifications", count);
+      }
+
       // ======= DASHBOARD LOGIC =======
       let bar, pie, line;
       let allData = [];
@@ -305,6 +378,7 @@
         const rawData = await res.json();
         allData = rawData.slice(1);
         filterAndRender();
+        updateNotificationBadge();
       }
 
       function filterAndRender() {
