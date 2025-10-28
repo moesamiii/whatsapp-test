@@ -282,11 +282,19 @@
             />
           </div>
 
-          <div class="filter-buttons" id="filterBar">
-            <button class="filter-btn active" data-filter="all">الكل</button>
-            <button class="filter-btn" data-filter="today">اليوم</button>
-            <button class="filter-btn" data-filter="week">هذا الأسبوع</button>
-            <button class="filter-btn" data-filter="month">هذا الشهر</button>
+          <div class="filter-buttons">
+            <button class="filter-btn active" onclick="filterByStatus('all')">
+              الكل
+            </button>
+            <button class="filter-btn" onclick="filterByStatus('today')">
+              اليوم
+            </button>
+            <button class="filter-btn" onclick="filterByStatus('week')">
+              هذا الأسبوع
+            </button>
+            <button class="filter-btn" onclick="filterByStatus('month')">
+              هذا الشهر
+            </button>
           </div>
 
           <div id="notificationsList">
@@ -298,8 +306,8 @@
       </main>
     </div>
 
-    <!-- ================= SCRIPT ================= -->
     <script>
+      // ======= SUPABASE LOGIN LOGIC =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -320,8 +328,7 @@
           document.getElementById("loginScreen").style.display = "none";
           document.getElementById("dashboardContent").style.display = "block";
           localStorage.setItem("clinic_logged_in", "true");
-          loadNotifications(true);
-          startAutoRefresh();
+          loadNotifications();
         } else {
           const msg = document.getElementById("errorMsg");
           msg.style.display = "block";
@@ -342,124 +349,79 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
+      // ======= NOTIFICATIONS LOGIC =======
       let allBookings = [];
       let filteredBookings = [];
       let currentFilter = "all";
-      let searchTerm = "";
-      const seenStorageKey = "clinic_seen_bookings";
-      let seenKeys = new Set(
-        JSON.parse(localStorage.getItem(seenStorageKey) || "[]")
-      );
-      let newKeysThisLoad = new Set();
 
-      function bookingKey(b) {
-        return (
-          (b.id ?? "") +
-          "|" +
-          (b.name ?? "") +
-          "|" +
-          (b.phone ?? "") +
-          "|" +
-          (b.appointment ?? "") +
-          "|" +
-          (b.timestamp ?? "")
-        );
-      }
-
-      function parseDateSafe(v) {
-        if (!v) return null;
-        if (v instanceof Date) return v;
-        if (!isNaN(v)) return new Date(Number(v));
-        const d = new Date(v);
-        return isNaN(d.getTime()) ? null : d;
-      }
-
-      async function loadNotifications(isFirstLoad = false) {
+      async function loadNotifications() {
         try {
           const res = await fetch("/api/bookings");
           const rawData = await res.json();
-          const rows = rawData.slice(1).reverse();
-
-          newKeysThisLoad = new Set();
-          const currentKeys = [];
-
-          allBookings = rows.map((r) => {
-            const ts = parseDateSafe(r.timestamp);
-            const bk = {
-              ...r,
-              _ts: ts,
-              _key: bookingKey(r),
-            };
-            currentKeys.push(bk._key);
-            if (!isFirstLoad && !seenKeys.has(bk._key)) {
-              newKeysThisLoad.add(bk._key);
-            }
-            return bk;
-          });
-
-          if (isFirstLoad) {
-            seenKeys = new Set(currentKeys);
-            localStorage.setItem(
-              seenStorageKey,
-              JSON.stringify(Array.from(seenKeys))
-            );
-          }
-
-          applyFilterAndSearch();
-
-          for (const k of newKeysThisLoad) seenKeys.add(k);
-          localStorage.setItem(
-            seenStorageKey,
-            JSON.stringify(Array.from(seenKeys))
-          );
+          allBookings = rawData.slice(1).reverse(); // Reverse to show newest first
+          filteredBookings = allBookings;
+          renderNotifications();
         } catch (error) {
           console.error("Error loading notifications:", error);
+          // For demo purposes, create some sample data
+          createSampleData();
         }
       }
 
-      function applyFilterAndSearch() {
+      function createSampleData() {
+        // Create sample data for testing
         const now = new Date();
-        const startOfToday = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const thirtyDaysAgo = new Date(
-          now.getTime() - 30 * 24 * 60 * 60 * 1000
-        );
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+        const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
+        const fortyDaysAgo = new Date(now.getTime() - 40 * 24 * 60 * 60 * 1000);
 
-        let base = allBookings.filter(
-          (b) => b._ts instanceof Date && !isNaN(b._ts)
-        );
+        allBookings = [
+          {
+            name: "أحمد محمد",
+            phone: "0123456789",
+            service: "فحص دوري",
+            appointment: "2025-01-15",
+            timestamp: now.toISOString(),
+          },
+          {
+            name: "فاطمة علي",
+            phone: "0123456790",
+            service: "تنظيف أسنان",
+            appointment: "2025-01-16",
+            timestamp: oneDayAgo.toISOString(),
+          },
+          {
+            name: "محمد خالد",
+            phone: "0123456791",
+            service: "حشو أسنان",
+            appointment: "2025-01-10",
+            timestamp: threeDaysAgo.toISOString(),
+          },
+          {
+            name: "سارة عبدالله",
+            phone: "0123456792",
+            service: "تقويم",
+            appointment: "2024-12-25",
+            timestamp: tenDaysAgo.toISOString(),
+          },
+          {
+            name: "يوسف أحمد",
+            phone: "0123456793",
+            service: "خلع ضرس",
+            appointment: "2024-11-20",
+            timestamp: fortyDaysAgo.toISOString(),
+          },
+        ];
 
-        if (currentFilter === "today") {
-          base = base.filter((b) => b._ts >= startOfToday);
-        } else if (currentFilter === "week") {
-          base = base.filter((b) => b._ts >= sevenDaysAgo);
-        } else if (currentFilter === "month") {
-          base = base.filter((b) => b._ts >= thirtyDaysAgo);
-        }
-
-        const q = (searchTerm || "").toLowerCase();
-        if (q) {
-          base = base.filter((b) => {
-            const name = (b.name || "").toLowerCase();
-            const service = (b.service || "").toLowerCase();
-            const phone = b.phone || "";
-            return name.includes(q) || service.includes(q) || phone.includes(q);
-          });
-        }
-
-        base.sort((a, b) => b._ts - a._ts);
-        filteredBookings = base;
+        filteredBookings = allBookings;
         renderNotifications();
       }
 
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        if (!filteredBookings.length) {
+        if (filteredBookings.length === 0) {
           container.innerHTML = `
             <div class="empty-state">
               <i class="fa-solid fa-bell-slash"></i>
@@ -472,8 +434,7 @@
 
         container.innerHTML = filteredBookings
           .map((booking) => {
-            const timeAgo = getTimeAgo(booking._ts);
-            const isNew = newKeysThisLoad.has(booking._key);
+            const timeAgo = getTimeAgo(booking.timestamp);
             return `
             <div class="notification-item">
               <div class="notification-icon">
@@ -503,11 +464,7 @@
                 </div>
               </div>
               <div>
-                ${
-                  isNew
-                    ? '<span class="notification-badge-small">جديد</span>'
-                    : ""
-                }
+                <span class="notification-badge-small">جديد</span>
               </div>
             </div>
           `;
@@ -515,10 +472,12 @@
           .join("");
       }
 
-      function getTimeAgo(dateObj) {
-        if (!(dateObj instanceof Date) || isNaN(dateObj)) return "غير محدد";
+      function getTimeAgo(timestamp) {
+        if (!timestamp) return "غير محدد";
+
         const now = new Date();
-        const diffMs = now - dateObj;
+        const bookingDate = new Date(timestamp);
+        const diffMs = now - bookingDate;
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
@@ -528,40 +487,86 @@
         if (diffHours < 24) return `منذ ${diffHours} ساعة`;
         if (diffDays < 7) return `منذ ${diffDays} يوم`;
 
-        return new Intl.DateTimeFormat("ar-EG", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        }).format(dateObj);
+        return bookingDate.toLocaleDateString("ar-EG");
+      }
+
+      function filterByStatus(status) {
+        currentFilter = status;
+
+        // Update active button
+        document.querySelectorAll(".filter-btn").forEach((btn) => {
+          btn.classList.remove("active");
+        });
+        event.target.classList.add("active");
+
+        const now = new Date();
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+        if (status === "all") {
+          filteredBookings = allBookings;
+        } else if (status === "today") {
+          filteredBookings = allBookings.filter((b) => {
+            if (!b.timestamp) return false;
+            const bookingDate = new Date(b.timestamp);
+            // Set both dates to midnight for accurate day comparison
+            const bookingDay = new Date(
+              bookingDate.getFullYear(),
+              bookingDate.getMonth(),
+              bookingDate.getDate()
+            );
+            const todayMidnight = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate()
+            );
+            return bookingDay.getTime() === todayMidnight.getTime();
+          });
+        } else if (status === "week") {
+          filteredBookings = allBookings.filter((b) => {
+            if (!b.timestamp) return false;
+            const bookingDate = new Date(b.timestamp);
+            return bookingDate >= weekAgo;
+          });
+        } else if (status === "month") {
+          filteredBookings = allBookings.filter((b) => {
+            if (!b.timestamp) return false;
+            const bookingDate = new Date(b.timestamp);
+            return bookingDate >= monthAgo;
+          });
+        }
+
+        renderNotifications();
       }
 
       function filterNotifications() {
-        searchTerm = document.getElementById("searchInput").value;
-        applyFilterAndSearch();
-      }
+        const searchTerm = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
 
-      function initFilterBar() {
-        const bar = document.getElementById("filterBar");
-        if (!bar) return;
-        bar.addEventListener("click", (e) => {
-          const btn = e.target.closest("[data-filter]");
-          if (!btn) return;
-          currentFilter = btn.getAttribute("data-filter");
-          bar
-            .querySelectorAll(".filter-btn")
-            .forEach((b) => b.classList.remove("active"));
-          btn.classList.add("active");
-          applyFilterAndSearch();
+        if (searchTerm === "") {
+          filterByStatus(currentFilter);
+          return;
+        }
+
+        filteredBookings = allBookings.filter((booking) => {
+          return (
+            (booking.name && booking.name.toLowerCase().includes(searchTerm)) ||
+            (booking.service &&
+              booking.service.toLowerCase().includes(searchTerm)) ||
+            (booking.phone && booking.phone.includes(searchTerm))
+          );
         });
+
+        renderNotifications();
       }
 
-      function startAutoRefresh() {
-        if (!allBookings.length) loadNotifications(true);
-        setInterval(() => loadNotifications(false), 30000);
-      }
-
+      // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
@@ -581,11 +586,13 @@
         icon.classList.replace("fa-moon", "fa-sun");
       }
 
+      // Menu toggle
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       menuToggle.addEventListener("click", () =>
         sidebar.classList.toggle("active")
       );
+
       document.addEventListener("click", (e) => {
         if (
           window.innerWidth <= 768 &&
@@ -597,13 +604,11 @@
         }
       });
 
-      document.addEventListener("DOMContentLoaded", () => {
-        initFilterBar();
-        if (localStorage.getItem("clinic_logged_in") === "true") {
-          loadNotifications(true);
-          startAutoRefresh();
-        }
-      });
+      // Auto-load and refresh
+      if (localStorage.getItem("clinic_logged_in") === "true") {
+        loadNotifications();
+        setInterval(loadNotifications, 30000); // Refresh every 30 seconds
+      }
     </script>
   </body>
 </html>
