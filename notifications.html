@@ -382,21 +382,16 @@
         const weekAgo = new Date(today.getTime() - 7 * 86400000);
         const monthAgo = new Date(today.getTime() - 30 * 86400000);
 
-        if (status === "all") {
-          filteredBookings = allBookings;
-        } else if (status === "today") {
-          filteredBookings = allBookings.filter(
-            (b) => b.timestamp && new Date(b.timestamp) >= today
-          );
-        } else if (status === "week") {
-          filteredBookings = allBookings.filter(
-            (b) => b.timestamp && new Date(b.timestamp) >= weekAgo
-          );
-        } else if (status === "month") {
-          filteredBookings = allBookings.filter(
-            (b) => b.timestamp && new Date(b.timestamp) >= monthAgo
-          );
-        }
+        filteredBookings = allBookings.filter((b) => {
+          if (!b.timestamp) return false;
+          const bookingDate = new Date(b.timestamp);
+          if (status === "today")
+            return bookingDate.toDateString() === today.toDateString();
+          if (status === "week") return bookingDate >= weekAgo;
+          if (status === "month") return bookingDate >= monthAgo;
+          return true;
+        });
+
         renderNotifications();
       }
 
