@@ -75,31 +75,33 @@
         </header>
 
         <!-- BOOKING TABLE -->
-        <section class="dashboard-grid">
-          <div class="table-card" style="width: 100%">
+        <section class="dashboard-grid" style="padding: 0">
+          <div class="table-card" style="width: 100%; margin: 0">
             <h3>جدول الحجوزات</h3>
-            <table id="tbl">
-              <thead>
-                <tr>
-                  <th onclick="sortTable(0)">
-                    الاسم <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(1)">
-                    الهاتف <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(2)">
-                    الخدمة <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(3)">
-                    الموعد <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(4)">
-                    الوقت <i class="fas fa-sort"></i>
-                  </th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+            <div style="overflow-x: auto; width: 100%">
+              <table id="tbl" style="width: 100%; min-width: 100%">
+                <thead>
+                  <tr>
+                    <th onclick="sortTable(0)" style="width: 20%">
+                      الاسم <i class="fas fa-sort"></i>
+                    </th>
+                    <th onclick="sortTable(1)" style="width: 20%">
+                      الهاتف <i class="fas fa-sort"></i>
+                    </th>
+                    <th onclick="sortTable(2)" style="width: 20%">
+                      الخدمة <i class="fas fa-sort"></i>
+                    </th>
+                    <th onclick="sortTable(3)" style="width: 20%">
+                      الموعد <i class="fas fa-sort"></i>
+                    </th>
+                    <th onclick="sortTable(4)" style="width: 20%">
+                      الوقت <i class="fas fa-sort"></i>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
         </section>
 
