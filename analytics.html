@@ -1,4 +1,3 @@
-<!--ANALYTICS CODE-->
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
   <head>
@@ -8,8 +7,6 @@
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
-    <!-- Or for .ico file -->
-    <!-- <link rel="icon" type="image/x-icon" href="./favicon.ico" /> -->
 
     <link
       rel="stylesheet"
@@ -116,8 +113,11 @@
 
       async function load() {
         const res = await fetch("/api/bookings");
-        allData = await res.json();
+        const rawData = await res.json();
+
+        // Skip the first row (header row)
         allData = rawData.slice(1);
+
         drawCharts(allData);
       }
 
