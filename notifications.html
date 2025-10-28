@@ -96,21 +96,6 @@
         font-weight: bold;
       }
 
-      /* Notification Badge for Sidebar */
-      .notification-badge {
-        background: #ef4444;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: bold;
-        margin-right: 8px;
-      }
-
-      .notification-badge.hidden {
-        display: none;
-      }
-
       .notifications-header {
         background: linear-gradient(135deg, #d946ef, #a855f7);
         padding: 30px;
@@ -233,33 +218,23 @@
             لوحة القيادة
           </a>
 
-          <a href="notifications.html" class="active" id="notificationLink1">
+          <a href="notifications.html" class="active">
             <i class="fa-solid fa-bell"></i>
             التنبيهات
-            <span class="notification-badge hidden" id="notificationBadge1"
-              >0</span
-            >
           </a>
 
-          <a href="analytics.html" id="notificationLink2">
+          <a href="analytics.html">
             <i class="fa-solid fa-rocket"></i>
             تحليلات
-            <span class="notification-badge hidden" id="notificationBadge2"
-              >0</span
-            >
           </a>
-
           <a href="booking.html">
             <i class="fa-solid fa-table"></i>
             جدول الحجوزات
           </a>
 
-          <a href="#" id="notificationLink3">
+          <a href="#">
             <i class="fa-solid fa-user"></i>
             ارسال رسالة جماعية
-            <span class="notification-badge hidden" id="notificationBadge3"
-              >0</span
-            >
           </a>
         </nav>
       </aside>
@@ -275,6 +250,10 @@
             <h1>التنبيهات</h1>
           </div>
           <div class="header-right">
+            <div class="search-box">
+              <input type="text" placeholder="اكتب هنا..." />
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
             <button class="icon-btn" id="themeToggle">
               <i class="fa-regular fa-moon"></i>
             </button>
@@ -370,30 +349,6 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
-      // ======= NOTIFICATION BADGE LOGIC =======
-      function updateAllNotificationBadges(count) {
-        const badges = [
-          "notificationBadge1",
-          "notificationBadge2",
-          "notificationBadge3",
-        ];
-
-        badges.forEach((badgeId) => {
-          const badge = document.getElementById(badgeId);
-          if (badge) {
-            if (count > 0) {
-              badge.textContent = count;
-              badge.classList.remove("hidden");
-            } else {
-              badge.classList.add("hidden");
-            }
-          }
-        });
-
-        // Store in localStorage for other pages
-        localStorage.setItem("notificationCount", count);
-      }
-
       // ======= NOTIFICATIONS LOGIC =======
       let allBookings = [];
       let filteredBookings = [];
@@ -405,10 +360,6 @@
           const rawData = await res.json();
           allBookings = rawData.slice(1).reverse(); // Reverse to show newest first
           filteredBookings = allBookings;
-
-          // Update notification badges with total count
-          updateAllNotificationBadges(allBookings.length);
-
           renderNotifications();
         } catch (error) {
           console.error("Error loading notifications:", error);
