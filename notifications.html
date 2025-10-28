@@ -6,7 +6,6 @@
     <title>التنبيهات - Clinic Dashboard</title>
 
     <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
-
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -209,33 +208,21 @@
     <div class="container">
       <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
-        <div class="logo">
-          <span>CONAN DASHBOARD</span>
-        </div>
+        <div class="logo"><span>CONAN DASHBOARD</span></div>
         <nav class="menu">
-          <a href="dashboard.html">
-            <i class="fa-solid fa-gauge"></i>
-            لوحة القيادة
-          </a>
-
-          <a href="notifications.html" class="active">
-            <i class="fa-solid fa-bell"></i>
-            التنبيهات
-          </a>
-
-          <a href="analytics.html">
-            <i class="fa-solid fa-rocket"></i>
-            تحليلات
-          </a>
-          <a href="booking.html">
-            <i class="fa-solid fa-table"></i>
-            جدول الحجوزات
-          </a>
-
-          <a href="#">
-            <i class="fa-solid fa-user"></i>
-            ارسال رسالة جماعية
-          </a>
+          <a href="dashboard.html"
+            ><i class="fa-solid fa-gauge"></i> لوحة القيادة</a
+          >
+          <a href="notifications.html" class="active"
+            ><i class="fa-solid fa-bell"></i> التنبيهات</a
+          >
+          <a href="analytics.html"
+            ><i class="fa-solid fa-rocket"></i> تحليلات</a
+          >
+          <a href="booking.html"
+            ><i class="fa-solid fa-table"></i> جدول الحجوزات</a
+          >
+          <a href="#"><i class="fa-solid fa-user"></i> ارسال رسالة جماعية</a>
         </nav>
       </aside>
 
@@ -266,10 +253,7 @@
         <!-- NOTIFICATIONS CONTENT -->
         <div class="notifications-container">
           <div class="notifications-header">
-            <h2>
-              <i class="fa-solid fa-bell"></i>
-              إشعارات الحجوزات
-            </h2>
+            <h2><i class="fa-solid fa-bell"></i> إشعارات الحجوزات</h2>
             <p>جميع الحجوزات الجديدة والمواعيد القادمة</p>
           </div>
 
@@ -283,23 +267,24 @@
           </div>
 
           <div class="filter-buttons">
-            <button class="filter-btn active" onclick="filterByStatus('all')">
+            <button
+              class="filter-btn active"
+              onclick="filterByStatus('all', this)"
+            >
               الكل
             </button>
-            <button class="filter-btn" onclick="filterByStatus('today')">
+            <button class="filter-btn" onclick="filterByStatus('today', this)">
               اليوم
             </button>
-            <button class="filter-btn" onclick="filterByStatus('week')">
+            <button class="filter-btn" onclick="filterByStatus('week', this)">
               هذا الأسبوع
             </button>
-            <button class="filter-btn" onclick="filterByStatus('month')">
+            <button class="filter-btn" onclick="filterByStatus('month', this)">
               هذا الشهر
             </button>
           </div>
 
-          <div id="notificationsList">
-            <!-- Notifications will be loaded here -->
-          </div>
+          <div id="notificationsList"></div>
         </div>
 
         <footer>© 2025 Smile Clinic</footer>
@@ -340,8 +325,6 @@
         localStorage.removeItem("clinic_logged_in");
         document.getElementById("loginScreen").style.display = "flex";
         document.getElementById("dashboardContent").style.display = "none";
-        document.getElementById("email").value = "";
-        document.getElementById("password").value = "";
       }
 
       if (localStorage.getItem("clinic_logged_in") === "true") {
@@ -354,138 +337,75 @@
       let filteredBookings = [];
       let currentFilter = "all";
 
-      // robust date parser (ISO, "MM/DD/YYYY HH:mm", or numeric serial/ms)
-      function parseDateSafe(value) {
-        if (!value && value !== 0) return null;
-
-        // already a Date
-        if (value instanceof Date) return isNaN(value) ? null : value;
-
-        // numeric? could be Excel serial or epoch ms
-        if (!isNaN(value)) {
-          const num = Number(value);
-          // heuristic: Excel serials are ~ > 20k and < 100k; epoch ms are > 1e9
-          // try epoch ms first; if too small, treat as Excel serial (days since 1899-12-30)
-          if (num > 1e9) {
-            const dMs = new Date(num);
-            return isNaN(dMs) ? null : dMs;
-          }
-          // Excel serial -> JS date
-          const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // 1899-12-30
-          const dExcel = new Date(excelEpoch.getTime() + num * 86400000);
-          return isNaN(dExcel) ? null : dExcel;
-        }
-
-        // string
-        const d = new Date(value);
-        return isNaN(d) ? null : d;
-      }
-
-      function startOfToday() {
-        const now = new Date();
-        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      }
-      function daysAgo(n) {
-        const now = new Date();
-        return new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
-      }
-
-      // tiny helper to set the active button WITHOUT needing event.target
-      function setActiveButton(status) {
-        const btns = document.querySelectorAll(".filter-btn");
-        const index =
-          status === "all"
-            ? 0
-            : status === "today"
-            ? 1
-            : status === "week"
-            ? 2
-            : status === "month"
-            ? 3
-            : -1;
-
-        btns.forEach((b, i) => b.classList.toggle("active", i === index));
-      }
-
-      // load data
       async function loadNotifications() {
         try {
           const res = await fetch("/api/bookings");
           const rawData = await res.json();
-
-          // skip header row if present, newest first
-          const rows = rawData.slice(1).reverse();
-
-          // normalize timestamps once
-          allBookings = rows.map((r) => ({
-            ...r,
-            _ts: parseDateSafe(r.timestamp), // add parsed date
-          }));
-
-          // default view = all
-          filteredBookings = [...allBookings];
+          allBookings = rawData.slice(1).reverse();
+          filteredBookings = allBookings;
           renderNotifications();
         } catch (error) {
           console.error("Error loading notifications:", error);
         }
       }
 
-      // render UI
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        if (!filteredBookings || filteredBookings.length === 0) {
+        if (!filteredBookings.length) {
           container.innerHTML = `
-      <div class="empty-state">
-        <i class="fa-solid fa-bell-slash"></i>
-        <h3>لا توجد إشعارات</h3>
-        <p>لم يتم العثور على أي حجوزات</p>
-      </div>
-    `;
+            <div class="empty-state">
+              <i class="fa-solid fa-bell-slash"></i>
+              <h3>لا توجد إشعارات</h3>
+              <p>لم يتم العثور على أي حجوزات</p>
+            </div>`;
           return;
         }
 
         container.innerHTML = filteredBookings
           .map((booking) => {
-            const timeAgo = getTimeAgo(booking._ts);
+            const timeAgo = getTimeAgo(booking.timestamp);
             return `
-        <div class="notification-item">
-          <div class="notification-icon">
-            <i class="fa-solid fa-user-plus"></i>
-          </div>
-          <div class="notification-content">
-            <div class="notification-name">${booking.name || "غير محدد"}</div>
-            <div class="notification-details">
-              <i class="fa-solid fa-phone"></i> ${booking.phone || "غير محدد"}
-            </div>
-            <div class="notification-details">
-              <i class="fa-solid fa-stethoscope"></i> ${
-                booking.service || "غير محدد"
-              }
-            </div>
-            <div class="notification-details">
-              <i class="fa-solid fa-calendar"></i> ${
-                booking.appointment || "غير محدد"
-              }
-            </div>
-            <div class="notification-time">
-              <i class="fa-solid fa-clock"></i> ${timeAgo}
-            </div>
-          </div>
-          <div>
-            <span class="notification-badge-small">جديد</span>
-          </div>
-        </div>
-      `;
+              <div class="notification-item">
+                <div class="notification-icon">
+                  <i class="fa-solid fa-user-plus"></i>
+                </div>
+                <div class="notification-content">
+                  <div class="notification-name">${
+                    booking.name || "غير محدد"
+                  }</div>
+                  <div class="notification-details">
+                    <i class="fa-solid fa-phone"></i> ${
+                      booking.phone || "غير محدد"
+                    }
+                  </div>
+                  <div class="notification-details">
+                    <i class="fa-solid fa-stethoscope"></i> ${
+                      booking.service || "غير محدد"
+                    }
+                  </div>
+                  <div class="notification-details">
+                    <i class="fa-solid fa-calendar"></i> ${
+                      booking.appointment || "غير محدد"
+                    }
+                  </div>
+                  <div class="notification-time">
+                    <i class="fa-solid fa-clock"></i> ${timeAgo}
+                  </div>
+                </div>
+                <div>
+                  <span class="notification-badge-small">جديد</span>
+                </div>
+              </div>`;
           })
           .join("");
       }
 
-      // time-ago in AR
-      function getTimeAgo(dateObj) {
-        if (!(dateObj instanceof Date) || isNaN(dateObj)) return "غير محدد";
+      function getTimeAgo(timestamp) {
+        if (!timestamp) return "غير محدد";
         const now = new Date();
-        const diffMs = now - dateObj;
+        const bookingDate = new Date(timestamp);
+        const diffMs = now - bookingDate;
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
@@ -494,114 +414,70 @@
         if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
         if (diffHours < 24) return `منذ ${diffHours} ساعة`;
         if (diffDays < 7) return `منذ ${diffDays} يوم`;
-
-        try {
-          return new Intl.DateTimeFormat("ar-EG", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-          }).format(dateObj);
-        } catch {
-          return dateObj.toLocaleString("ar-EG");
-        }
+        return bookingDate.toLocaleDateString("ar-EG");
       }
 
-      // main filter (called by your inline onclick="filterByStatus('today')" etc.)
-      function filterByStatus(status) {
+      function filterByStatus(status, btn) {
         currentFilter = status;
-        setActiveButton(status); // updates active class safely
 
-        // base set
-        let base = [...allBookings];
+        document
+          .querySelectorAll(".filter-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
 
-        // apply date range if not 'all'
-        if (status !== "all") {
-          const sToday = startOfToday();
-          const sevenDays = daysAgo(7);
-          const thirtyDays = daysAgo(30);
+        const now = new Date();
+        const startOfToday = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - 7);
+        const startOfMonth = new Date(now);
+        startOfMonth.setDate(now.getDate() - 30);
 
-          base = base.filter((b) => {
-            const d = b._ts;
-            if (!(d instanceof Date) || isNaN(d)) return false; // exclude invalid dates for ranged filters
-            if (status === "today") return d >= sToday;
-            if (status === "week") return d >= sevenDays;
-            if (status === "month") return d >= thirtyDays;
-            return true;
+        if (status === "all") {
+          filteredBookings = allBookings;
+        } else if (status === "today") {
+          filteredBookings = allBookings.filter((b) => {
+            const d = new Date(b.timestamp);
+            return d >= startOfToday;
+          });
+        } else if (status === "week") {
+          filteredBookings = allBookings.filter((b) => {
+            const d = new Date(b.timestamp);
+            return d >= startOfWeek;
+          });
+        } else if (status === "month") {
+          filteredBookings = allBookings.filter((b) => {
+            const d = new Date(b.timestamp);
+            return d >= startOfMonth;
           });
         }
 
-        // keep newest first by timestamp when available
-        base.sort((a, b) => {
-          const at =
-            a._ts instanceof Date && !isNaN(a._ts)
-              ? a._ts.getTime()
-              : -Infinity;
-          const bt =
-            b._ts instanceof Date && !isNaN(b._ts)
-              ? b._ts.getTime()
-              : -Infinity;
-          return bt - at;
-        });
-
-        filteredBookings = base;
         renderNotifications();
       }
 
-      // search that respects the current date filter
       function filterNotifications() {
-        const q = (document.getElementById("searchInput").value || "")
-          .toLowerCase()
-          .trim();
-
-        // start from the currently filtered-by-date set
-        let base;
-        if (currentFilter === "all") {
-          base = [...allBookings];
-        } else {
-          // reuse same date logic to build the base
-          const sToday = startOfToday();
-          const sevenDays = daysAgo(7);
-          const thirtyDays = daysAgo(30);
-
-          base = allBookings.filter((b) => {
-            const d = b._ts;
-            if (!(d instanceof Date) || isNaN(d)) return false;
-            if (currentFilter === "today") return d >= sToday;
-            if (currentFilter === "week") return d >= sevenDays;
-            if (currentFilter === "month") return d >= thirtyDays;
-            return true;
-          });
+        const term = document.getElementById("searchInput").value.toLowerCase();
+        if (!term) {
+          filterByStatus(
+            currentFilter,
+            document.querySelector(".filter-btn.active")
+          );
+          return;
         }
 
-        if (q) {
-          base = base.filter((b) => {
-            const name = (b.name || "").toLowerCase();
-            const service = (b.service || "").toLowerCase();
-            const phone = b.phone || "";
-            return name.includes(q) || service.includes(q) || phone.includes(q);
-          });
-        }
-
-        // sort newest first
-        base.sort((a, b) => {
-          const at =
-            a._ts instanceof Date && !isNaN(a._ts)
-              ? a._ts.getTime()
-              : -Infinity;
-          const bt =
-            b._ts instanceof Date && !isNaN(b._ts)
-              ? b._ts.getTime()
-              : -Infinity;
-          return bt - at;
-        });
-
-        filteredBookings = base;
+        filteredBookings = allBookings.filter(
+          (b) =>
+            (b.name && b.name.toLowerCase().includes(term)) ||
+            (b.service && b.service.toLowerCase().includes(term)) ||
+            (b.phone && b.phone.includes(term))
+        );
         renderNotifications();
       }
 
-      // Theme toggle
+      // ======= THEME + MENU =======
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
@@ -617,11 +493,9 @@
 
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        const icon = themeToggle.querySelector("i");
-        icon.classList.replace("fa-moon", "fa-sun");
+        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
       }
 
-      // Menu toggle
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       menuToggle.addEventListener("click", () =>
@@ -642,7 +516,7 @@
       // Auto-load and refresh
       if (localStorage.getItem("clinic_logged_in") === "true") {
         loadNotifications();
-        setInterval(loadNotifications, 30000); // Refresh every 30 seconds
+        setInterval(loadNotifications, 30000);
       }
     </script>
   </body>
