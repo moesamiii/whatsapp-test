@@ -468,7 +468,11 @@
           filteredBookings = allBookings.filter((b) => {
             if (!b.timestamp) return false;
             const bookingDate = new Date(b.timestamp);
-            return bookingDate >= todayStart && bookingDate < tomorrowStart;
+            return (
+              bookingDate.getFullYear() === todayStart.getFullYear() &&
+              bookingDate.getMonth() === todayStart.getMonth() &&
+              bookingDate.getDate() === todayStart.getDate()
+            );
           });
         } else if (status === "week") {
           filteredBookings = allBookings.filter((b) => {
