@@ -327,7 +327,7 @@
         if (data) {
           document.getElementById("loginScreen").style.display = "none";
           document.getElementById("dashboardContent").style.display = "block";
-          sessionStorage.setItem("clinic_logged_in", "true");
+          localStorage.setItem("clinic_logged_in", "true");
           loadNotifications();
         } else {
           const msg = document.getElementById("errorMsg");
@@ -337,14 +337,14 @@
       }
 
       function logout() {
-        sessionStorage.removeItem("clinic_logged_in");
+        localStorage.removeItem("clinic_logged_in");
         document.getElementById("loginScreen").style.display = "flex";
         document.getElementById("dashboardContent").style.display = "none";
         document.getElementById("email").value = "";
         document.getElementById("password").value = "";
       }
 
-      if (sessionStorage.getItem("clinic_logged_in") === "true") {
+      if (localStorage.getItem("clinic_logged_in") === "true") {
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboardContent").style.display = "block";
       }
@@ -383,12 +383,6 @@
         container.innerHTML = filteredBookings
           .map((booking) => {
             const timeAgo = getTimeAgo(booking.timestamp);
-
-            // Check if booking is less than 24 hours old
-            const isNew =
-              booking.timestamp &&
-              new Date() - new Date(booking.timestamp) < 24 * 60 * 60 * 1000;
-
             return `
             <div class="notification-item">
               <div class="notification-icon">
@@ -418,11 +412,7 @@
                 </div>
               </div>
               <div>
-                ${
-                  isNew
-                    ? '<span class="notification-badge-small">جديد</span>'
-                    : ""
-                }
+                <span class="notification-badge-small">جديد</span>
               </div>
             </div>
           `;
@@ -463,7 +453,6 @@
           now.getMonth(),
           now.getDate()
         );
-        const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
         const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
         const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -473,7 +462,7 @@
           filteredBookings = allBookings.filter((b) => {
             if (!b.timestamp) return false;
             const bookingDate = new Date(b.timestamp);
-            return bookingDate >= today && bookingDate < tomorrow;
+            return bookingDate >= today;
           });
         } else if (status === "week") {
           filteredBookings = allBookings.filter((b) => {
@@ -521,14 +510,14 @@
         const icon = themeToggle.querySelector("i");
         if (document.body.classList.contains("dark")) {
           icon.classList.replace("fa-moon", "fa-sun");
-          sessionStorage.setItem("clinic_theme", "dark");
+          localStorage.setItem("clinic_theme", "dark");
         } else {
           icon.classList.replace("fa-sun", "fa-moon");
-          sessionStorage.setItem("clinic_theme", "light");
+          localStorage.setItem("clinic_theme", "light");
         }
       });
 
-      if (sessionStorage.getItem("clinic_theme") === "dark") {
+      if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
         const icon = themeToggle.querySelector("i");
         icon.classList.replace("fa-moon", "fa-sun");
@@ -553,7 +542,7 @@
       });
 
       // Auto-load and refresh
-      if (sessionStorage.getItem("clinic_logged_in") === "true") {
+      if (localStorage.getItem("clinic_logged_in") === "true") {
         loadNotifications();
         setInterval(loadNotifications, 30000); // Refresh every 30 seconds
       }
