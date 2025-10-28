@@ -1,3 +1,4 @@
+<!--ANALYTICS CODE-->
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
   <head>
@@ -116,6 +117,7 @@
       async function load() {
         const res = await fetch("/api/bookings");
         allData = await res.json();
+        allData = rawData.slice(1);
         drawCharts(allData);
       }
 
