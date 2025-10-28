@@ -79,7 +79,7 @@
             لوحة القيادة
           </a>
 
-          <a href="#" id="notificationLink">
+          <a href="notifications.html" id="notificationLink">
             <i class="fa-solid fa-bell"></i>
             التنبيهات
             <span class="notification-badge hidden" id="notificationBadge"
@@ -363,8 +363,10 @@
         e.preventDefault();
         notificationCount = 0;
         updateNotificationBadge();
-      });
 
+        // Navigate to notifications page after resetting count
+        window.location.href = "notifications.html";
+      });
       // ======= DASHBOARD LOGIC =======
       let bar, pie, line;
       let allData = [];
