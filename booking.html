@@ -7,14 +7,232 @@
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
-    <!-- Or for .ico file -->
-    <!-- <link rel="icon" type="image/x-icon" href="./favicon.ico" /> -->
 
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     />
     <link rel="stylesheet" href="./dashboard.css" />
+
+    <style>
+      /* === General Layout Fix === */
+      body {
+        margin: 0;
+        font-family: "Tajawal", sans-serif;
+        background-color: #f7f8fa;
+      }
+
+      .container {
+        display: flex;
+        min-height: 100vh;
+      }
+
+      aside.sidebar {
+        background: linear-gradient(180deg, #7b4bff, #8f65ff);
+        color: white;
+        width: 250px;
+        padding: 20px 0;
+        display: flex;
+        flex-direction: column;
+        transition: 0.3s;
+      }
+
+      aside.sidebar.active {
+        width: 70px;
+      }
+
+      aside .logo {
+        text-align: center;
+        font-weight: bold;
+        font-size: 18px;
+        margin-bottom: 30px;
+      }
+
+      aside .menu a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 20px;
+        color: white;
+        text-decoration: none;
+        font-size: 15px;
+        transition: 0.3s;
+      }
+
+      aside .menu a:hover,
+      aside .menu a.active {
+        background: rgba(255, 255, 255, 0.15);
+        border-right: 4px solid #fff;
+      }
+
+      main.main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #f9f9f9;
+        padding: 0 25px;
+      }
+
+      header.header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        padding: 15px 20px;
+        margin-top: 15px;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      }
+
+      .header-left h1 {
+        font-size: 20px;
+        margin: 0;
+      }
+
+      .search-box {
+        position: relative;
+      }
+
+      .search-box input {
+        padding: 8px 30px 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+      }
+
+      .search-box i {
+        position: absolute;
+        right: 10px;
+        top: 8px;
+        color: #666;
+      }
+
+      .dashboard-grid {
+        margin-top: 25px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+      }
+
+      .table-card {
+        width: 100%;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05);
+        padding: 20px;
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: center;
+      }
+
+      table th,
+      table td {
+        padding: 12px 8px;
+        border-bottom: 1px solid #eee;
+        font-size: 15px;
+      }
+
+      table th {
+        background: #f3f3f3;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      table tr:hover {
+        background: #fafafa;
+      }
+
+      footer {
+        text-align: center;
+        padding: 20px 0;
+        color: #777;
+        font-size: 14px;
+        margin-top: auto;
+      }
+
+      /* === Dark Mode === */
+      body.dark {
+        background-color: #1a1a1a;
+        color: #eee;
+      }
+
+      body.dark main.main-content {
+        background-color: #222;
+      }
+
+      body.dark table th {
+        background: #333;
+      }
+
+      body.dark table td {
+        border-color: #444;
+      }
+
+      /* === Responsive Fix === */
+      @media (max-width: 768px) {
+        aside.sidebar {
+          position: fixed;
+          left: -260px;
+          top: 0;
+          height: 100%;
+          z-index: 10;
+        }
+
+        aside.sidebar.active {
+          left: 0;
+          width: 250px;
+        }
+
+        main.main-content {
+          padding: 15px;
+        }
+
+        .dashboard-grid {
+          margin-top: 20px;
+        }
+
+        header.header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+
+        .search-box input {
+          width: 100%;
+        }
+
+        .table-card {
+          padding: 15px;
+          width: 100%;
+          box-shadow: none;
+        }
+
+        table th,
+        table td {
+          font-size: 13px;
+        }
+      }
+
+      /* === Desktop Full Width Fix === */
+      @media (min-width: 1024px) {
+        .main-content {
+          padding-right: 40px;
+          padding-left: 40px;
+        }
+
+        .dashboard-grid {
+          justify-content: stretch;
+        }
+
+        .table-card {
+          width: 100%;
+          max-width: none;
+        }
+      }
+    </style>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -29,28 +247,16 @@
         </div>
         <nav class="menu">
           <a href="dashboard.html">
-            <i class="fa-solid fa-gauge"></i>
-            لوحة القيادة
+            <i class="fa-solid fa-gauge"></i> لوحة القيادة
           </a>
-
-          <a href="#">
-            <i class="fa-solid fa-bell"></i>
-            التنبيهات
-          </a>
-
+          <a href="#"><i class="fa-solid fa-bell"></i> التنبيهات</a>
           <a href="analytics.html">
-            <i class="fa-solid fa-rocket"></i>
-            تحليلات
+            <i class="fa-solid fa-rocket"></i> تحليلات
           </a>
           <a href="booking.html" class="active">
-            <i class="fa-solid fa-table"></i>
-            جدول الحجوزات
+            <i class="fa-solid fa-table"></i> جدول الحجوزات
           </a>
-
-          <a href="#">
-            <i class="fa-solid fa-user"></i>
-            ارسال رسالة جماعية
-          </a>
+          <a href="#"><i class="fa-solid fa-user"></i> ارسال رسالة جماعية</a>
         </nav>
       </aside>
 
@@ -76,7 +282,7 @@
 
         <!-- BOOKING TABLE -->
         <section class="dashboard-grid">
-          <div class="table-card" style="width: 100%">
+          <div class="table-card">
             <h3>جدول الحجوزات</h3>
             <table id="tbl">
               <thead>
@@ -108,7 +314,6 @@
     </div>
 
     <script>
-      // ======= SUPABASE LOGIN LOGIC =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -129,13 +334,15 @@
         tb.innerHTML = "";
         d.forEach((b) => {
           const r = document.createElement("tr");
-          r.innerHTML = `<td>${b.name || "-"}</td><td>${
-            b.phone || "-"
-          }</td><td>${b.service || "-"}</td><td>${
-            b.appointment || "-"
-          }</td><td>${
-            b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
-          }</td>`;
+          r.innerHTML = `<td>${b.name || "-"}</td>
+                         <td>${b.phone || "-"}</td>
+                         <td>${b.service || "-"}</td>
+                         <td>${b.appointment || "-"}</td>
+                         <td>${
+                           b.timestamp
+                             ? new Date(b.timestamp).toLocaleString()
+                             : "-"
+                         }</td>`;
           tb.appendChild(r);
         });
       }
