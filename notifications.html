@@ -251,12 +251,7 @@
           </div>
           <div class="header-right">
             <div class="search-box">
-              <input
-                type="text"
-                placeholder="اكتب هنا..."
-                id="searchInput"
-                onkeyup="filterNotifications()"
-              />
+              <input type="text" placeholder="اكتب هنا..." />
               <i class="fa-solid fa-magnifying-glass"></i>
             </div>
             <button class="icon-btn" id="themeToggle">
@@ -278,20 +273,29 @@
             <p>جميع الحجوزات الجديدة والمواعيد القادمة</p>
           </div>
 
+          <div class="search-filter">
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="🔍 ابحث عن اسم المريض أو الخدمة..."
+              onkeyup="filterNotifications()"
+            />
+          </div>
+
           <div class="filter-buttons">
             <button
               class="filter-btn active"
-              onclick="filterByStatus('all', event)"
+              onclick="filterByStatus('all', this)"
             >
               الكل
             </button>
-            <button class="filter-btn" onclick="filterByStatus('today', event)">
+            <button class="filter-btn" onclick="filterByStatus('today', this)">
               اليوم
             </button>
-            <button class="filter-btn" onclick="filterByStatus('week', event)">
+            <button class="filter-btn" onclick="filterByStatus('week', this)">
               هذا الأسبوع
             </button>
-            <button class="filter-btn" onclick="filterByStatus('month', event)">
+            <button class="filter-btn" onclick="filterByStatus('month', this)">
               هذا الشهر
             </button>
           </div>
@@ -348,168 +352,316 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
-      // ======= NOTIFICATIONS LOGIC =======
+      // ======= NOTIFICATIONS LOGIC (RESILIENT SHEETS + OBJECTS, WORKING FILTERS) =======
       let allBookings = [];
       let filteredBookings = [];
       let currentFilter = "all";
 
-      async function loadNotifications() {
+      // Candidate fields to try as timestamp if objects:
+      const TIMESTAMP_FIELDS = [
+        "timestamp",
+        "Timestamp",
+        "createdAt",
+        "created_at",
+        "CreatedAt",
+        "Created_at",
+        "datetime",
+        "dateTime",
+        "DateTime",
+        "date",
+        "Date",
+        "time",
+        "Time",
+        "appointment_time",
+        "appointmentTime",
+        "AppointmentTime",
+        "created",
+        "Created",
+        "submittedAt",
+        "Submitted at",
+        "SubmittedAt",
+      ];
+
+      // --- Utils ---
+      function parseDateSafe(value) {
+        if (value === null || value === undefined || value === "") return null;
+        if (value instanceof Date) return isNaN(value) ? null : value;
+
+        // numeric? epoch ms or Excel serial days
+        if (!isNaN(value)) {
+          const num = Number(value);
+          if (num > 1e10) {
+            // epoch ms
+            const dMs = new Date(num);
+            return isNaN(dMs) ? null : dMs;
+          }
+          // Excel serial (days since 1899-12-30 UTC)
+          const excelEpoch = Date.UTC(1899, 11, 30);
+          const dExcel = new Date(excelEpoch + num * 86400000);
+          return isNaN(dExcel) ? null : dExcel;
+        }
+
+        // string parse
+        const d = new Date(String(value));
+        return isNaN(d) ? null : d;
+      }
+
+      function startOfToday() {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      }
+      function daysAgo(n) {
+        const now = new Date();
+        return new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
+      }
+
+      function getTimeAgo(dateObj) {
+        if (!(dateObj instanceof Date) || isNaN(dateObj)) return "غير محدد";
+        const now = new Date();
+        const diffMs = now - dateObj;
+        const mins = Math.floor(diffMs / 60000);
+        const hrs = Math.floor(diffMs / 3600000);
+        const days = Math.floor(diffMs / 86400000);
+        if (mins < 1) return "الآن";
+        if (mins < 60) return `منذ ${mins} دقيقة`;
+        if (hrs < 24) return `منذ ${hrs} ساعة`;
+        if (days < 7) return `منذ ${days} يوم`;
         try {
-          const res = await fetch("/api/bookings");
-          const rawData = await res.json();
-          allBookings = rawData.slice(1).reverse(); // Reverse to show newest first
-          filteredBookings = allBookings;
-          renderNotifications();
-        } catch (error) {
-          console.error("Error loading notifications:", error);
+          return new Intl.DateTimeFormat("ar-EG", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          }).format(dateObj);
+        } catch {
+          return dateObj.toLocaleString("ar-EG");
         }
       }
 
+      // --- Load & normalize ---
+      async function loadNotifications() {
+        try {
+          const res = await fetch("/api/bookings");
+          const raw = await res.json();
+
+          // Normalize to array of objects
+          let rowsAsObjects = [];
+
+          if (Array.isArray(raw) && raw.length > 0) {
+            if (Array.isArray(raw[0])) {
+              // 2D array from Sheets: first row is headers
+              const headers = raw[0].map((h) => String(h).trim());
+              const dataRows = raw.slice(1); // drop header row
+              rowsAsObjects = dataRows.map((r) => {
+                const obj = {};
+                headers.forEach((h, i) => {
+                  obj[h] = r[i];
+                });
+                return obj;
+              });
+            } else if (typeof raw[0] === "object") {
+              // Already objects
+              rowsAsObjects = raw.slice(1); // your original code dropped first row; keep that behavior
+            }
+          }
+
+          // Find a timestamp field name by checking which header/field parses to a Date most often
+          let chosenTsField = null;
+          const trialFields = new Set([
+            ...TIMESTAMP_FIELDS,
+            // also add all keys we actually see (for dynamic sheets headers)
+            ...Object.keys(rowsAsObjects[0] || {}),
+          ]);
+
+          // Score fields by valid date count
+          const fieldScore = {};
+          for (const f of trialFields) {
+            let ok = 0;
+            for (let i = 0; i < Math.min(rowsAsObjects.length, 50); i++) {
+              const d = parseDateSafe(rowsAsObjects[i]?.[f]);
+              if (d) ok++;
+            }
+            fieldScore[f] = ok;
+          }
+          chosenTsField =
+            Object.entries(fieldScore).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+            null;
+
+          // Build normalized rows with parsed _ts
+          allBookings = rowsAsObjects.map((r) => {
+            const tsValue = chosenTsField ? r[chosenTsField] : r.timestamp;
+            return {
+              ...r,
+              _ts: parseDateSafe(tsValue),
+            };
+          });
+
+          // Sort newest first, keep undated rows at bottom
+          allBookings.sort((a, b) => {
+            const at = a._ts ? a._ts.getTime() : -Infinity;
+            const bt = b._ts ? b._ts.getTime() : -Infinity;
+            return bt - at;
+          });
+
+          // Default view = ALL (include undated too so you see everything)
+          filteredBookings = [...allBookings];
+          renderNotifications();
+        } catch (err) {
+          console.error("Error loading notifications:", err);
+          const container = document.getElementById("notificationsList");
+          if (container) {
+            container.innerHTML = `
+        <div class="empty-state">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <h3>تعذّر تحميل الإشعارات</h3>
+          <p>تحقّق من /api/bookings أو الاتصال بالإنترنت.</p>
+        </div>
+      `;
+          }
+        }
+      }
+
+      // --- Render ---
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
+        if (!container) return;
 
-        if (filteredBookings.length === 0) {
+        if (!filteredBookings || filteredBookings.length === 0) {
           container.innerHTML = `
-            <div class="empty-state">
-              <i class="fa-solid fa-bell-slash"></i>
-              <h3>لا توجد إشعارات</h3>
-              <p>لم يتم العثور على أي حجوزات</p>
-            </div>
-          `;
+      <div class="empty-state">
+        <i class="fa-solid fa-bell-slash"></i>
+        <h3>لا توجد إشعارات</h3>
+        <p>لم يتم العثور على أي حجوزات</p>
+      </div>`;
           return;
         }
 
         container.innerHTML = filteredBookings
-          .map((booking) => {
-            const timeAgo = getTimeAgo(booking.timestamp);
+          .map((b) => {
+            const timeAgo = getTimeAgo(b._ts);
             return `
-            <div class="notification-item">
-              <div class="notification-icon">
-                <i class="fa-solid fa-user-plus"></i>
-              </div>
-              <div class="notification-content">
-                <div class="notification-name">${
-                  booking.name || "غير محدد"
-                }</div>
-                <div class="notification-details">
-                  <i class="fa-solid fa-phone"></i> ${
-                    booking.phone || "غير محدد"
-                  }
-                </div>
-                <div class="notification-details">
-                  <i class="fa-solid fa-stethoscope"></i> ${
-                    booking.service || "غير محدد"
-                  }
-                </div>
-                <div class="notification-details">
-                  <i class="fa-solid fa-calendar"></i> ${
-                    booking.appointment || "غير محدد"
-                  }
-                </div>
-                <div class="notification-time">
-                  <i class="fa-solid fa-clock"></i> ${timeAgo}
-                </div>
-              </div>
-              <div>
-                <span class="notification-badge-small">جديد</span>
-              </div>
-            </div>
-          `;
+      <div class="notification-item">
+        <div class="notification-icon">
+          <i class="fa-solid fa-user-plus"></i>
+        </div>
+        <div class="notification-content">
+          <div class="notification-name">${
+            b.name || b["name"] || "غير محدد"
+          }</div>
+          <div class="notification-details">
+            <i class="fa-solid fa-phone"></i> ${
+              b.phone || b["phone"] || "غير محدد"
+            }
+          </div>
+          <div class="notification-details">
+            <i class="fa-solid fa-stethoscope"></i> ${
+              b.service || b["service"] || "غير محدد"
+            }
+          </div>
+          <div class="notification-details">
+            <i class="fa-solid fa-calendar"></i> ${
+              b.appointment || b["appointment"] || "غير محدد"
+            }
+          </div>
+          <div class="notification-time">
+            <i class="fa-solid fa-clock"></i> ${timeAgo}
+          </div>
+        </div>
+      </div>`;
           })
           .join("");
       }
 
-      function getTimeAgo(timestamp) {
-        if (!timestamp) return "غير محدد";
-
-        const now = new Date();
-        const bookingDate = new Date(timestamp);
-        const diffMs = now - bookingDate;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-
-        if (diffMins < 1) return "الآن";
-        if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
-        if (diffHours < 24) return `منذ ${diffHours} ساعة`;
-        if (diffDays < 7) return `منذ ${diffDays} يوم`;
-
-        return bookingDate.toLocaleDateString("ar-EG");
-      }
-
-      function filterByStatus(status, event) {
+      // --- Filters ---
+      function filterByStatus(status) {
         currentFilter = status;
 
-        // Update active button
-        document.querySelectorAll(".filter-btn").forEach((btn) => {
-          btn.classList.remove("active");
-        });
-        if (event && event.target) event.target.classList.add("active");
+        // Update active button (no reliance on event)
+        const idx =
+          status === "all"
+            ? 0
+            : status === "today"
+            ? 1
+            : status === "week"
+            ? 2
+            : 3;
+        document
+          .querySelectorAll(".filter-btn")
+          .forEach((b, i) => b.classList.toggle("active", i === idx));
 
-        const now = new Date();
-        const todayStart = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const tomorrowStart = new Date(todayStart);
-        tomorrowStart.setDate(todayStart.getDate() + 1);
+        let base = [...allBookings];
 
-        const weekAgo = new Date(
-          todayStart.getTime() - 7 * 24 * 60 * 60 * 1000
-        );
-        const monthAgo = new Date(
-          todayStart.getTime() - 30 * 24 * 60 * 60 * 1000
-        );
+        if (status !== "all") {
+          const now = new Date();
+          const oneDay = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          const weekAgo = daysAgo(7);
+          const monthAgo = daysAgo(30);
 
-        if (status === "all") {
-          filteredBookings = allBookings;
-        } else if (status === "today") {
-          filteredBookings = allBookings.filter((b) => {
-            if (!b.timestamp) return false;
-            const bookingDate = new Date(b.timestamp);
-            return (
-              bookingDate.getFullYear() === todayStart.getFullYear() &&
-              bookingDate.getMonth() === todayStart.getMonth() &&
-              bookingDate.getDate() === todayStart.getDate()
-            );
-          });
-        } else if (status === "week") {
-          filteredBookings = allBookings.filter((b) => {
-            if (!b.timestamp) return false;
-            const bookingDate = new Date(b.timestamp);
-            return bookingDate >= weekAgo && bookingDate < tomorrowStart;
-          });
-        } else if (status === "month") {
-          filteredBookings = allBookings.filter((b) => {
-            if (!b.timestamp) return false;
-            const bookingDate = new Date(b.timestamp);
-            return bookingDate >= monthAgo && bookingDate < tomorrowStart;
+          base = base.filter((b) => {
+            const d = b._ts;
+            if (!(d instanceof Date) || isNaN(d)) return false; // exclude undated for ranged views
+            if (status === "today") return d >= oneDay; // last 24h to avoid timezone issues
+            if (status === "week") return d >= weekAgo;
+            if (status === "month") return d >= monthAgo;
+            return true;
           });
         }
 
+        // Keep newest first
+        base.sort((a, b) => {
+          const at = a._ts ? a._ts.getTime() : -Infinity;
+          const bt = b._ts ? b._ts.getTime() : -Infinity;
+          return bt - at;
+        });
+
+        filteredBookings = base;
         renderNotifications();
       }
 
       function filterNotifications() {
-        const searchTerm = document
-          .getElementById("searchInput")
-          .value.toLowerCase();
+        const q = (document.getElementById("searchInput")?.value || "")
+          .toLowerCase()
+          .trim();
 
-        if (searchTerm === "") {
-          filterByStatus(currentFilter);
-          return;
+        // First, apply current date filter logic to define base
+        let base;
+        if (currentFilter === "all") {
+          base = [...allBookings];
+        } else {
+          const now = new Date();
+          const oneDay = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          const weekAgo = daysAgo(7);
+          const monthAgo = daysAgo(30);
+
+          base = allBookings.filter((b) => {
+            const d = b._ts;
+            if (!(d instanceof Date) || isNaN(d)) return false;
+            if (currentFilter === "today") return d >= oneDay;
+            if (currentFilter === "week") return d >= weekAgo;
+            if (currentFilter === "month") return d >= monthAgo;
+            return true;
+          });
         }
 
-        filteredBookings = allBookings.filter((booking) => {
-          return (
-            (booking.name && booking.name.toLowerCase().includes(searchTerm)) ||
-            (booking.service &&
-              booking.service.toLowerCase().includes(searchTerm)) ||
-            (booking.phone && booking.phone.includes(searchTerm))
-          );
+        // Then, apply search
+        if (q) {
+          base = base.filter((b) => {
+            const name = (b.name || b["name"] || "").toLowerCase();
+            const service = (b.service || b["service"] || "").toLowerCase();
+            const phone = b.phone || b["phone"] || "";
+            return name.includes(q) || service.includes(q) || phone.includes(q);
+          });
+        }
+
+        // Sort newest first
+        base.sort((a, b) => {
+          const at = a._ts ? a._ts.getTime() : -Infinity;
+          const bt = b._ts ? b._ts.getTime() : -Infinity;
+          return bt - at;
         });
 
+        filteredBookings = base;
         renderNotifications();
       }
 
