@@ -6,6 +6,7 @@
     <title>التنبيهات - Clinic Dashboard</title>
 
     <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -27,14 +28,17 @@
         align-items: center;
         gap: 15px;
       }
+
       body.dark .notification-item {
         background: #2d2d2d;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
       }
+
       .notification-item:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(217, 70, 239, 0.2);
       }
+
       .notification-icon {
         width: 50px;
         height: 50px;
@@ -47,34 +51,42 @@
         font-size: 20px;
         flex-shrink: 0;
       }
+
       .notification-content {
         flex: 1;
       }
+
       .notification-name {
         font-size: 18px;
         font-weight: bold;
         color: #1e1e1e;
         margin-bottom: 5px;
       }
+
       body.dark .notification-name {
         color: #fff;
       }
+
       .notification-details {
         font-size: 14px;
         color: #666;
         margin-bottom: 3px;
       }
+
       body.dark .notification-details {
         color: #aaa;
       }
+
       .notification-time {
         font-size: 12px;
         color: #999;
         margin-top: 8px;
       }
+
       body.dark .notification-time {
         color: #888;
       }
+
       .notification-badge-small {
         background: #d946ef;
         color: white;
@@ -83,6 +95,7 @@
         font-size: 11px;
         font-weight: bold;
       }
+
       .notifications-header {
         background: linear-gradient(135deg, #d946ef, #a855f7);
         padding: 30px;
@@ -91,6 +104,7 @@
         margin-bottom: 30px;
         box-shadow: 0 4px 12px rgba(217, 70, 239, 0.3);
       }
+
       .notifications-header h2 {
         margin: 0;
         font-size: 28px;
@@ -98,12 +112,19 @@
         align-items: center;
         gap: 10px;
       }
+
+      .notifications-header p {
+        margin: 10px 0 0 0;
+        opacity: 0.9;
+      }
+
       .filter-buttons {
         display: flex;
         gap: 10px;
         margin-bottom: 20px;
         flex-wrap: wrap;
       }
+
       .filter-btn {
         padding: 10px 20px;
         border: none;
@@ -114,43 +135,61 @@
         font-size: 14px;
         transition: all 0.3s ease;
       }
+
       body.dark .filter-btn {
         background: #3d3d3d;
         color: #fff;
       }
-      .filter-btn:hover,
+
+      .filter-btn:hover {
+        background: #d946ef;
+        color: white;
+      }
+
       .filter-btn.active {
         background: #d946ef;
         color: white;
       }
+
       .empty-state {
         text-align: center;
         padding: 60px 20px;
         color: #999;
       }
+
       .empty-state i {
         font-size: 64px;
         margin-bottom: 20px;
         opacity: 0.5;
       }
+
       .notifications-container {
         max-width: 900px;
         margin: 0 auto;
       }
+
       .search-filter {
         margin-bottom: 20px;
       }
+
       .search-filter input {
         width: 100%;
         padding: 12px 20px;
         border: 2px solid #e0e0e0;
         border-radius: 8px;
         font-size: 14px;
+        transition: border-color 0.3s ease;
       }
+
       body.dark .search-filter input {
         background: #2d2d2d;
         border-color: #444;
         color: #fff;
+      }
+
+      .search-filter input:focus {
+        outline: none;
+        border-color: #d946ef;
       }
     </style>
   </head>
@@ -168,23 +207,41 @@
     </div>
 
     <div class="container">
+      <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
-        <div class="logo"><span>CONAN DASHBOARD</span></div>
+        <div class="logo">
+          <span>CONAN DASHBOARD</span>
+        </div>
         <nav class="menu">
-          <a href="dashboard.html"
-            ><i class="fa-solid fa-gauge"></i>لوحة القيادة</a
-          >
-          <a href="notifications.html" class="active"
-            ><i class="fa-solid fa-bell"></i>التنبيهات</a
-          >
-          <a href="analytics.html"><i class="fa-solid fa-rocket"></i>تحليلات</a>
-          <a href="booking.html"
-            ><i class="fa-solid fa-table"></i>جدول الحجوزات</a
-          >
+          <a href="dashboard.html">
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
+          </a>
+
+          <a href="notifications.html" class="active">
+            <i class="fa-solid fa-bell"></i>
+            التنبيهات
+          </a>
+
+          <a href="analytics.html">
+            <i class="fa-solid fa-rocket"></i>
+            تحليلات
+          </a>
+          <a href="booking.html">
+            <i class="fa-solid fa-table"></i>
+            جدول الحجوزات
+          </a>
+
+          <a href="#">
+            <i class="fa-solid fa-user"></i>
+            ارسال رسالة جماعية
+          </a>
         </nav>
       </aside>
 
+      <!-- MAIN CONTENT -->
       <main class="main-content" id="dashboardContent" style="display: none">
+        <!-- HEADER -->
         <header class="header">
           <div class="header-left">
             <button class="menu-toggle icon-btn" id="menuToggle">
@@ -193,6 +250,10 @@
             <h1>التنبيهات</h1>
           </div>
           <div class="header-right">
+            <div class="search-box">
+              <input type="text" placeholder="اكتب هنا..." />
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
             <button class="icon-btn" id="themeToggle">
               <i class="fa-regular fa-moon"></i>
             </button>
@@ -202,9 +263,13 @@
           </div>
         </header>
 
+        <!-- NOTIFICATIONS CONTENT -->
         <div class="notifications-container">
           <div class="notifications-header">
-            <h2><i class="fa-solid fa-bell"></i>إشعارات الحجوزات</h2>
+            <h2>
+              <i class="fa-solid fa-bell"></i>
+              إشعارات الحجوزات
+            </h2>
             <p>جميع الحجوزات الجديدة والمواعيد القادمة</p>
           </div>
 
@@ -218,21 +283,26 @@
           </div>
 
           <div class="filter-buttons">
-            <button class="filter-btn active" onclick="filterByStatus('all')">
+            <button
+              class="filter-btn active"
+              onclick="filterByStatus('all', this)"
+            >
               الكل
             </button>
-            <button class="filter-btn" onclick="filterByStatus('today')">
+            <button class="filter-btn" onclick="filterByStatus('today', this)">
               اليوم
             </button>
-            <button class="filter-btn" onclick="filterByStatus('week')">
+            <button class="filter-btn" onclick="filterByStatus('week', this)">
               هذا الأسبوع
             </button>
-            <button class="filter-btn" onclick="filterByStatus('month')">
+            <button class="filter-btn" onclick="filterByStatus('month', this)">
               هذا الشهر
             </button>
           </div>
 
-          <div id="notificationsList"></div>
+          <div id="notificationsList">
+            <!-- Notifications will be loaded here -->
+          </div>
         </div>
 
         <footer>© 2025 Smile Clinic</footer>
@@ -240,13 +310,16 @@
     </div>
 
     <script>
+      // ======= SUPABASE LOGIN LOGIC =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
-      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       async function login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
+
         const { data } = await supabase
           .from("admin_auth")
           .select("*")
@@ -270,6 +343,8 @@
         localStorage.removeItem("clinic_logged_in");
         document.getElementById("loginScreen").style.display = "flex";
         document.getElementById("dashboardContent").style.display = "none";
+        document.getElementById("email").value = "";
+        document.getElementById("password").value = "";
       }
 
       if (localStorage.getItem("clinic_logged_in") === "true") {
@@ -277,139 +352,303 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
-      // ========== GOOGLE SHEETS INTEGRATION ==========
-
-      const SHEET_ID = "1veVe9vz1R8UNf1dBQ3ayRV5Oae6Zy6Ze2tQn24qUueQ";
-
-      const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
-
+      // ======= NOTIFICATIONS LOGIC (ROBUST, WITH AUTO-DETECT TIMESTAMP) =======
       let allBookings = [];
       let filteredBookings = [];
       let currentFilter = "all";
 
+      // Candidate fields to try for the row timestamp (order matters)
+      const TIMESTAMP_FIELDS = [
+        "timestamp",
+        "Timestamp",
+        "createdAt",
+        "created_at",
+        "CreatedAt",
+        "Created_at",
+        "datetime",
+        "dateTime",
+        "DateTime",
+        "date",
+        "Date",
+        "time",
+        "Time",
+        "appointment_time",
+        "appointmentTime",
+        "AppointmentTime",
+        "created",
+        "Created",
+      ];
+
+      // Parse any reasonable date format, including Excel serials
+      function parseDateSafe(value) {
+        if (value === null || value === undefined || value === "") return null;
+        if (value instanceof Date) return isNaN(value) ? null : value;
+
+        // numeric? could be epoch ms or Excel serial
+        if (!isNaN(value)) {
+          const num = Number(value);
+          // epoch ms heuristic
+          if (num > 1e10) {
+            const dMs = new Date(num);
+            return isNaN(dMs) ? null : dMs;
+          }
+          // Excel serial (days since 1899-12-30) or seconds
+          const excelEpoch = Date.UTC(1899, 11, 30); // 1899-12-30
+          const dExcel = new Date(excelEpoch + num * 86400000);
+          if (!isNaN(dExcel)) return dExcel;
+        }
+
+        // try direct
+        const d = new Date(String(value));
+        return isNaN(d) ? null : d;
+      }
+
+      // Pick the first field on the object that parses to a valid date
+      function getRowDate(obj) {
+        for (const key of TIMESTAMP_FIELDS) {
+          if (key in obj) {
+            const d = parseDateSafe(obj[key]);
+            if (d) return d;
+          }
+        }
+        // fallback: if there's literally a 'timestamp' nested in meta etc., try common spots
+        if (obj?.meta?.timestamp) {
+          const d = parseDateSafe(obj.meta.timestamp);
+          if (d) return d;
+        }
+        return null;
+      }
+
+      // Utility ranges
+      function startOfToday() {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      }
+      function daysAgo(n) {
+        const now = new Date();
+        return new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
+      }
+
+      // Load data
       async function loadNotifications() {
         try {
-          const response = await fetch(SHEET_URL);
-          const text = await response.text();
-          const json = JSON.parse(text.substring(47, text.length - 2));
+          const res = await fetch("/api/bookings");
+          const raw = await res.json();
 
-          allBookings = json.table.rows
-            .map((r) => ({
-              name: r.c[0]?.v || "غير محدد",
-              phone: r.c[1]?.v || "غير محدد",
-              service: r.c[2]?.v || "غير محدد",
-              appointment: r.c[3]?.v || "غير محدد",
-              timestamp: r.c[4]?.v || null, // ← timestamp column
-            }))
-            .reverse();
+          // If the first row is header (arrays of strings), skip it
+          let rows = Array.isArray(raw) ? raw : [];
+          if (
+            rows.length &&
+            typeof rows[0] === "object" &&
+            !Array.isArray(rows[0])
+          ) {
+            // objects -> good
+          } else if (rows.length && Array.isArray(rows[0])) {
+            // sheet-like arrays -> drop header row
+            rows = rows.slice(1);
+          }
 
-          filteredBookings = allBookings;
+          // Normalize to objects (if they already are, leave them)
+          const asObjects = rows.map((r) => r);
+
+          // Attach parsed date to each row as _ts
+          allBookings = asObjects.map((r) => ({
+            ...r,
+            _ts: getRowDate(r),
+          }));
+
+          // Sort newest first but keep rows without dates at bottom
+          allBookings.sort((a, b) => {
+            const at = a._ts ? a._ts.getTime() : -Infinity;
+            const bt = b._ts ? b._ts.getTime() : -Infinity;
+            return bt - at;
+          });
+
+          filteredBookings = [...allBookings];
           renderNotifications();
-        } catch (error) {
-          console.error("Error loading data from sheet:", error);
+          updateCountBadge();
+        } catch (err) {
+          console.error("Error loading notifications:", err);
         }
       }
 
-      function getTimeAgo(timestamp) {
-        if (!timestamp) return "غير محدد";
-        const now = new Date();
-        const bookingDate = new Date(timestamp);
-        const diffMs = now - bookingDate;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-
-        if (diffMins < 1) return "الآن";
-        if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
-        if (diffHours < 24) return `منذ ${diffHours} ساعة`;
-        if (diffDays < 7) return `منذ ${diffDays} يوم`;
-
-        return bookingDate.toLocaleDateString("ar-EG");
-      }
-
+      // Render UI
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        if (filteredBookings.length === 0) {
+        if (!filteredBookings || filteredBookings.length === 0) {
           container.innerHTML = `
-            <div class="empty-state">
-              <i class="fa-solid fa-bell-slash"></i>
-              <h3>لا توجد إشعارات</h3>
-              <p>لم يتم العثور على أي حجوزات</p>
-            </div>`;
+      <div class="empty-state">
+        <i class="fa-solid fa-bell-slash"></i>
+        <h3>لا توجد إشعارات</h3>
+        <p>لم يتم العثور على أي حجوزات</p>
+      </div>
+    `;
           return;
         }
 
         container.innerHTML = filteredBookings
-          .map(
-            (b) => `
-            <div class="notification-item">
-              <div class="notification-icon"><i class="fa-solid fa-user-plus"></i></div>
-              <div class="notification-content">
-                <div class="notification-name">${b.name}</div>
-                <div class="notification-details"><i class="fa-solid fa-phone"></i> ${
-                  b.phone
-                }</div>
-                <div class="notification-details"><i class="fa-solid fa-stethoscope"></i> ${
-                  b.service
-                }</div>
-                <div class="notification-details"><i class="fa-solid fa-calendar"></i> ${
-                  b.appointment
-                }</div>
-                <div class="notification-time"><i class="fa-solid fa-clock"></i> ${getTimeAgo(
-                  b.timestamp
-                )}</div>
-              </div>
-              <div><span class="notification-badge-small">جديد</span></div>
-            </div>`
-          )
+          .map((b) => {
+            const timeAgo = getTimeAgo(b._ts);
+            return `
+        <div class="notification-item">
+          <div class="notification-icon">
+            <i class="fa-solid fa-user-plus"></i>
+          </div>
+          <div class="notification-content">
+            <div class="notification-name">${b.name || "غير محدد"}</div>
+            <div class="notification-details">
+              <i class="fa-solid fa-phone"></i> ${b.phone || "غير محدد"}
+            </div>
+            <div class="notification-details">
+              <i class="fa-solid fa-stethoscope"></i> ${b.service || "غير محدد"}
+            </div>
+            <div class="notification-details">
+              <i class="fa-solid fa-calendar"></i> ${
+                b.appointment || "غير محدد"
+              }
+            </div>
+            <div class="notification-time">
+              <i class="fa-solid fa-clock"></i> ${timeAgo}
+            </div>
+          </div>
+        </div>
+      `;
+          })
           .join("");
       }
 
+      // Time ago (Arabic)
+      function getTimeAgo(dateObj) {
+        if (!(dateObj instanceof Date) || isNaN(dateObj)) return "غير محدد";
+        const now = new Date();
+        const diffMs = now - dateObj;
+        const mins = Math.floor(diffMs / 60000);
+        const hrs = Math.floor(diffMs / 3600000);
+        const days = Math.floor(diffMs / 86400000);
+
+        if (mins < 1) return "الآن";
+        if (mins < 60) return `منذ ${mins} دقيقة`;
+        if (hrs < 24) return `منذ ${hrs} ساعة`;
+        if (days < 7) return `منذ ${days} يوم`;
+
+        try {
+          return new Intl.DateTimeFormat("ar-EG", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          }).format(dateObj);
+        } catch {
+          return dateObj.toLocaleString("ar-EG");
+        }
+      }
+
+      // Update count badge (optional small helper)
+      function updateCountBadge() {
+        // If you want to show counts somewhere, e.g., in the header
+        // Example: <h2>إشعارات الحجوزات <span id="countBadge"></span></h2>
+        const el = document.getElementById("countBadge");
+        if (el) el.textContent = `(${filteredBookings.length})`;
+      }
+
+      // MAIN filter by time
       function filterByStatus(status) {
         currentFilter = status;
+
+        // update active button safely (no event dependency)
         document
           .querySelectorAll(".filter-btn")
           .forEach((b) => b.classList.remove("active"));
-        event.target.classList.add("active");
+        const btnIndex =
+          status === "all"
+            ? 0
+            : status === "today"
+            ? 1
+            : status === "week"
+            ? 2
+            : status === "month"
+            ? 3
+            : -1;
+        if (btnIndex >= 0) {
+          const btns = document.querySelectorAll(".filter-btn");
+          if (btns[btnIndex]) btns[btnIndex].classList.add("active");
+        }
 
-        const now = new Date();
-        const today = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const weekAgo = new Date(today.getTime() - 7 * 86400000);
-        const monthAgo = new Date(today.getTime() - 30 * 86400000);
+        let base = [...allBookings];
 
-        filteredBookings = allBookings.filter((b) => {
-          if (!b.timestamp) return false;
-          const bookingDate = new Date(b.timestamp);
-          if (status === "today")
-            return bookingDate.toDateString() === today.toDateString();
-          if (status === "week") return bookingDate >= weekAgo;
-          if (status === "month") return bookingDate >= monthAgo;
-          return true;
+        if (status !== "all") {
+          const today = startOfToday();
+          const weekAgo = daysAgo(7);
+          const monthAgo = daysAgo(30);
+
+          base = base.filter((b) => {
+            const d = b._ts;
+            if (!(d instanceof Date) || isNaN(d)) return false; // exclude rows with no valid date in ranged views
+            if (status === "today") return d >= today;
+            if (status === "week") return d >= weekAgo;
+            if (status === "month") return d >= monthAgo;
+            return true;
+          });
+        }
+
+        // keep newest first
+        base.sort((a, b) => {
+          const at = a._ts ? a._ts.getTime() : -Infinity;
+          const bt = b._ts ? b._ts.getTime() : -Infinity;
+          return bt - at;
         });
 
+        filteredBookings = base;
         renderNotifications();
+        updateCountBadge();
       }
 
+      // Search that respects currentFilter
       function filterNotifications() {
-        const searchTerm = document
-          .getElementById("searchInput")
-          .value.toLowerCase();
-        if (!searchTerm) {
-          filterByStatus(currentFilter);
-          return;
+        const q = (document.getElementById("searchInput").value || "")
+          .toLowerCase()
+          .trim();
+
+        // Start from the date-filtered set
+        let base;
+        if (currentFilter === "all") {
+          base = [...allBookings];
+        } else {
+          const today = startOfToday();
+          const weekAgo = daysAgo(7);
+          const monthAgo = daysAgo(30);
+
+          base = allBookings.filter((b) => {
+            const d = b._ts;
+            if (!(d instanceof Date) || isNaN(d)) return false;
+            if (currentFilter === "today") return d >= today;
+            if (currentFilter === "week") return d >= weekAgo;
+            if (currentFilter === "month") return d >= monthAgo;
+            return true;
+          });
         }
-        filteredBookings = allBookings.filter(
-          (b) =>
-            b.name.toLowerCase().includes(searchTerm) ||
-            b.service.toLowerCase().includes(searchTerm) ||
-            b.phone.includes(searchTerm)
-        );
+
+        if (q) {
+          base = base.filter((b) => {
+            const name = (b.name || "").toLowerCase();
+            const service = (b.service || "").toLowerCase();
+            const phone = b.phone || "";
+            return name.includes(q) || service.includes(q) || phone.includes(q);
+          });
+        }
+
+        // Sort newest first
+        base.sort((a, b) => {
+          const at = a._ts ? a._ts.getTime() : -Infinity;
+          const bt = b._ts ? b._ts.getTime() : -Infinity;
+          return bt - at;
+        });
+
+        filteredBookings = base;
         renderNotifications();
+        updateCountBadge();
       }
 
       // Theme toggle
@@ -425,14 +664,35 @@
           localStorage.setItem("clinic_theme", "light");
         }
       });
+
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.replace("fa-moon", "fa-sun");
       }
 
+      // Menu toggle
+      const menuToggle = document.getElementById("menuToggle");
+      const sidebar = document.getElementById("sidebar");
+      menuToggle.addEventListener("click", () =>
+        sidebar.classList.toggle("active")
+      );
+
+      document.addEventListener("click", (e) => {
+        if (
+          window.innerWidth <= 768 &&
+          sidebar.classList.contains("active") &&
+          !sidebar.contains(e.target) &&
+          e.target !== menuToggle
+        ) {
+          sidebar.classList.remove("active");
+        }
+      });
+
+      // Auto-load and refresh
       if (localStorage.getItem("clinic_logged_in") === "true") {
         loadNotifications();
-        setInterval(loadNotifications, 30000);
+        setInterval(loadNotifications, 30000); // Refresh every 30 seconds
       }
     </script>
   </body>
