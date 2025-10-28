@@ -6,6 +6,7 @@
     <title>التنبيهات - Clinic Dashboard</title>
 
     <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -208,21 +209,33 @@
     <div class="container">
       <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
-        <div class="logo"><span>CONAN DASHBOARD</span></div>
+        <div class="logo">
+          <span>CONAN DASHBOARD</span>
+        </div>
         <nav class="menu">
-          <a href="dashboard.html"
-            ><i class="fa-solid fa-gauge"></i> لوحة القيادة</a
-          >
-          <a href="notifications.html" class="active"
-            ><i class="fa-solid fa-bell"></i> التنبيهات</a
-          >
-          <a href="analytics.html"
-            ><i class="fa-solid fa-rocket"></i> تحليلات</a
-          >
-          <a href="booking.html"
-            ><i class="fa-solid fa-table"></i> جدول الحجوزات</a
-          >
-          <a href="#"><i class="fa-solid fa-user"></i> ارسال رسالة جماعية</a>
+          <a href="dashboard.html">
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
+          </a>
+
+          <a href="notifications.html" class="active">
+            <i class="fa-solid fa-bell"></i>
+            التنبيهات
+          </a>
+
+          <a href="analytics.html">
+            <i class="fa-solid fa-rocket"></i>
+            تحليلات
+          </a>
+          <a href="booking.html">
+            <i class="fa-solid fa-table"></i>
+            جدول الحجوزات
+          </a>
+
+          <a href="#">
+            <i class="fa-solid fa-user"></i>
+            ارسال رسالة جماعية
+          </a>
         </nav>
       </aside>
 
@@ -253,7 +266,10 @@
         <!-- NOTIFICATIONS CONTENT -->
         <div class="notifications-container">
           <div class="notifications-header">
-            <h2><i class="fa-solid fa-bell"></i> إشعارات الحجوزات</h2>
+            <h2>
+              <i class="fa-solid fa-bell"></i>
+              إشعارات الحجوزات
+            </h2>
             <p>جميع الحجوزات الجديدة والمواعيد القادمة</p>
           </div>
 
@@ -267,24 +283,23 @@
           </div>
 
           <div class="filter-buttons">
-            <button
-              class="filter-btn active"
-              onclick="filterByStatus('all', this)"
-            >
+            <button class="filter-btn active" onclick="filterByStatus('all')">
               الكل
             </button>
-            <button class="filter-btn" onclick="filterByStatus('today', this)">
+            <button class="filter-btn" onclick="filterByStatus('today')">
               اليوم
             </button>
-            <button class="filter-btn" onclick="filterByStatus('week', this)">
+            <button class="filter-btn" onclick="filterByStatus('week')">
               هذا الأسبوع
             </button>
-            <button class="filter-btn" onclick="filterByStatus('month', this)">
+            <button class="filter-btn" onclick="filterByStatus('month')">
               هذا الشهر
             </button>
           </div>
 
-          <div id="notificationsList"></div>
+          <div id="notificationsList">
+            <!-- Notifications will be loaded here -->
+          </div>
         </div>
 
         <footer>© 2025 Smile Clinic</footer>
@@ -325,6 +340,8 @@
         localStorage.removeItem("clinic_logged_in");
         document.getElementById("loginScreen").style.display = "flex";
         document.getElementById("dashboardContent").style.display = "none";
+        document.getElementById("email").value = "";
+        document.getElementById("password").value = "";
       }
 
       if (localStorage.getItem("clinic_logged_in") === "true") {
@@ -341,7 +358,7 @@
         try {
           const res = await fetch("/api/bookings");
           const rawData = await res.json();
-          allBookings = rawData.slice(1).reverse();
+          allBookings = rawData.slice(1).reverse(); // Reverse to show newest first
           filteredBookings = allBookings;
           renderNotifications();
         } catch (error) {
@@ -352,13 +369,14 @@
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        if (!filteredBookings.length) {
+        if (filteredBookings.length === 0) {
           container.innerHTML = `
             <div class="empty-state">
               <i class="fa-solid fa-bell-slash"></i>
               <h3>لا توجد إشعارات</h3>
               <p>لم يتم العثور على أي حجوزات</p>
-            </div>`;
+            </div>
+          `;
           return;
         }
 
@@ -366,43 +384,45 @@
           .map((booking) => {
             const timeAgo = getTimeAgo(booking.timestamp);
             return `
-              <div class="notification-item">
-                <div class="notification-icon">
-                  <i class="fa-solid fa-user-plus"></i>
+            <div class="notification-item">
+              <div class="notification-icon">
+                <i class="fa-solid fa-user-plus"></i>
+              </div>
+              <div class="notification-content">
+                <div class="notification-name">${
+                  booking.name || "غير محدد"
+                }</div>
+                <div class="notification-details">
+                  <i class="fa-solid fa-phone"></i> ${
+                    booking.phone || "غير محدد"
+                  }
                 </div>
-                <div class="notification-content">
-                  <div class="notification-name">${
-                    booking.name || "غير محدد"
-                  }</div>
-                  <div class="notification-details">
-                    <i class="fa-solid fa-phone"></i> ${
-                      booking.phone || "غير محدد"
-                    }
-                  </div>
-                  <div class="notification-details">
-                    <i class="fa-solid fa-stethoscope"></i> ${
-                      booking.service || "غير محدد"
-                    }
-                  </div>
-                  <div class="notification-details">
-                    <i class="fa-solid fa-calendar"></i> ${
-                      booking.appointment || "غير محدد"
-                    }
-                  </div>
-                  <div class="notification-time">
-                    <i class="fa-solid fa-clock"></i> ${timeAgo}
-                  </div>
+                <div class="notification-details">
+                  <i class="fa-solid fa-stethoscope"></i> ${
+                    booking.service || "غير محدد"
+                  }
                 </div>
-                <div>
-                  <span class="notification-badge-small">جديد</span>
+                <div class="notification-details">
+                  <i class="fa-solid fa-calendar"></i> ${
+                    booking.appointment || "غير محدد"
+                  }
                 </div>
-              </div>`;
+                <div class="notification-time">
+                  <i class="fa-solid fa-clock"></i> ${timeAgo}
+                </div>
+              </div>
+              <div>
+                <span class="notification-badge-small">جديد</span>
+              </div>
+            </div>
+          `;
           })
           .join("");
       }
 
       function getTimeAgo(timestamp) {
         if (!timestamp) return "غير محدد";
+
         const now = new Date();
         const bookingDate = new Date(timestamp);
         const diffMs = now - bookingDate;
@@ -414,44 +434,85 @@
         if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
         if (diffHours < 24) return `منذ ${diffHours} ساعة`;
         if (diffDays < 7) return `منذ ${diffDays} يوم`;
+
         return bookingDate.toLocaleDateString("ar-EG");
       }
 
-      function filterByStatus(status, btn) {
+      // Parse appointment date string to Date object
+      function parseAppointmentDate(appointmentStr) {
+        if (!appointmentStr) return null;
+
+        // Handle formats like "2025-01-15" or "15/01/2025" or "January 15, 2025"
+        try {
+          // Try ISO format first
+          let date = new Date(appointmentStr);
+          if (!isNaN(date.getTime())) return date;
+
+          // Try parsing common formats
+          const parts = appointmentStr.split(/[-/\s,]+/);
+          if (parts.length >= 3) {
+            // Try different orders
+            const formats = [
+              [parts[0], parts[1], parts[2]], // Year-Month-Day
+              [parts[2], parts[1], parts[0]], // Day-Month-Year
+              [parts[2], parts[0], parts[1]], // Year-Day-Month
+            ];
+
+            for (let format of formats) {
+              date = new Date(format[0], format[1] - 1, format[2]);
+              if (!isNaN(date.getTime())) return date;
+            }
+          }
+        } catch (e) {
+          console.error("Error parsing date:", appointmentStr, e);
+        }
+
+        return null;
+      }
+
+      function filterByStatus(status) {
         currentFilter = status;
 
-        document
-          .querySelectorAll(".filter-btn")
-          .forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
+        // Update active button
+        document.querySelectorAll(".filter-btn").forEach((btn) => {
+          btn.classList.remove("active");
+        });
+        event.target.classList.add("active");
 
         const now = new Date();
-        const startOfToday = new Date(
+        const today = new Date(
           now.getFullYear(),
           now.getMonth(),
           now.getDate()
         );
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - 7);
-        const startOfMonth = new Date(now);
-        startOfMonth.setDate(now.getDate() - 30);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const weekFromNow = new Date(today);
+        weekFromNow.setDate(weekFromNow.getDate() + 7);
+
+        const monthFromNow = new Date(today);
+        monthFromNow.setMonth(monthFromNow.getMonth() + 1);
 
         if (status === "all") {
           filteredBookings = allBookings;
         } else if (status === "today") {
           filteredBookings = allBookings.filter((b) => {
-            const d = new Date(b.timestamp);
-            return d >= startOfToday;
+            const appointmentDate = parseAppointmentDate(b.appointment);
+            if (!appointmentDate) return false;
+            return appointmentDate >= today && appointmentDate < tomorrow;
           });
         } else if (status === "week") {
           filteredBookings = allBookings.filter((b) => {
-            const d = new Date(b.timestamp);
-            return d >= startOfWeek;
+            const appointmentDate = parseAppointmentDate(b.appointment);
+            if (!appointmentDate) return false;
+            return appointmentDate >= today && appointmentDate <= weekFromNow;
           });
         } else if (status === "month") {
           filteredBookings = allBookings.filter((b) => {
-            const d = new Date(b.timestamp);
-            return d >= startOfMonth;
+            const appointmentDate = parseAppointmentDate(b.appointment);
+            if (!appointmentDate) return false;
+            return appointmentDate >= today && appointmentDate <= monthFromNow;
           });
         }
 
@@ -459,25 +520,39 @@
       }
 
       function filterNotifications() {
-        const term = document.getElementById("searchInput").value.toLowerCase();
-        if (!term) {
-          filterByStatus(
-            currentFilter,
-            document.querySelector(".filter-btn.active")
-          );
+        const searchTerm = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+
+        if (searchTerm === "") {
+          // Re-apply current time filter
+          const dummyEvent = {
+            target: document.querySelector(".filter-btn.active"),
+          };
+          const originalEvent = window.event;
+          window.event = dummyEvent;
+          filterByStatus(currentFilter);
+          window.event = originalEvent;
           return;
         }
 
-        filteredBookings = allBookings.filter(
-          (b) =>
-            (b.name && b.name.toLowerCase().includes(term)) ||
-            (b.service && b.service.toLowerCase().includes(term)) ||
-            (b.phone && b.phone.includes(term))
-        );
+        // Apply search on top of current filter
+        const baseBookings =
+          currentFilter === "all" ? allBookings : filteredBookings;
+
+        filteredBookings = baseBookings.filter((booking) => {
+          return (
+            (booking.name && booking.name.toLowerCase().includes(searchTerm)) ||
+            (booking.service &&
+              booking.service.toLowerCase().includes(searchTerm)) ||
+            (booking.phone && booking.phone.includes(searchTerm))
+          );
+        });
+
         renderNotifications();
       }
 
-      // ======= THEME + MENU =======
+      // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
@@ -493,9 +568,11 @@
 
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.replace("fa-moon", "fa-sun");
       }
 
+      // Menu toggle
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       menuToggle.addEventListener("click", () =>
@@ -516,7 +593,7 @@
       // Auto-load and refresh
       if (localStorage.getItem("clinic_logged_in") === "true") {
         loadNotifications();
-        setInterval(loadNotifications, 30000);
+        setInterval(loadNotifications, 30000); // Refresh every 30 seconds
       }
     </script>
   </body>
