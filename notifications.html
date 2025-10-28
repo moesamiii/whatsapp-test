@@ -192,24 +192,6 @@
         outline: none;
         border-color: #d946ef;
       }
-
-      .notification-wrapper {
-        position: relative;
-        display: inline-block;
-      }
-
-      .notification-popup {
-        position: absolute;
-        top: -10px; /* start slightly above the button */
-        right: -15px; /* move a bit to the right */
-        transform: translateY(-100%);
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        padding: 15px 20px;
-        min-width: 250px;
-        z-index: 9999;
-      }
     </style>
   </head>
 
@@ -263,15 +245,10 @@
         <!-- HEADER -->
         <header class="header">
           <div class="header-left">
-            <div class="notification-wrapper">
-              <button class="icon-btn">
-                <i class="fa-solid fa-bell"></i>
-              </button>
-
-              <div class="notification-popup">
-                <p>إشعارات جديدة</p>
-              </div>
-            </div>
+            <button class="menu-toggle icon-btn" id="menuToggle">
+              <i class="fa-solid fa-bars"></i>
+            </button>
+            <h1>التنبيهات</h1>
           </div>
           <div class="header-right">
             <div class="search-box">
