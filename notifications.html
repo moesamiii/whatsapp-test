@@ -415,47 +415,41 @@
         renderNotifications();
       }
 
-      // ✅ FIXED FILTER — LOCAL TIMEZONE (REAL TODAY SUPPORT)
+      // ✅ NEW ADVANCED TIME FILTER (today + next 24h)
       function filterByTime(period) {
         console.log("🕒 Applying filter:", period);
         const now = new Date();
 
         filteredBookings = allBookings.filter((booking) => {
           if (!booking.time) return false;
+
           let raw = booking.time;
           if (typeof raw === "string" && !raw.endsWith("Z")) raw += "Z";
           const date = new Date(raw);
           if (isNaN(date.getTime())) return false;
 
-          // convert to local timezone correctly
           const localNow = new Date(
-            now.getTime() + now.getTimezoneOffset() * 60000
+            now.getTime() - now.getTimezoneOffset() * 60000
           );
           const localDate = new Date(
-            date.getTime() + date.getTimezoneOffset() * 60000
+            date.getTime() - date.getTimezoneOffset() * 60000
           );
-
-          const diffDays = (localNow - localDate) / (1000 * 60 * 60 * 24);
-
-          console.log(
-            "📅",
-            booking.name,
-            "| Local:",
-            localDate.toLocaleString(),
-            "| Today:",
-            localNow.toLocaleString()
-          );
+          const diffHours = (localDate - localNow) / (1000 * 60 * 60);
 
           if (period === "day") {
             const sameDay =
               localDate.getFullYear() === localNow.getFullYear() &&
               localDate.getMonth() === localNow.getMonth() &&
               localDate.getDate() === localNow.getDate();
-            console.log("👉 sameDay:", sameDay);
-            return sameDay;
+            const next24h = diffHours >= 0 && diffHours <= 24;
+            return sameDay || next24h;
           }
 
-          if (period === "week") return diffDays >= -7 && diffDays <= 7;
+          if (period === "week") {
+            const diffDays = (localNow - localDate) / (1000 * 60 * 60 * 24);
+            return diffDays >= -7 && diffDays <= 7;
+          }
+
           if (period === "month")
             return (
               localDate.getFullYear() === localNow.getFullYear() &&
