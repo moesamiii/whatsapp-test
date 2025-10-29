@@ -6,6 +6,7 @@
     <title>التنبيهات - Clinic Dashboard</title>
 
     <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -117,6 +118,39 @@
         opacity: 0.9;
       }
 
+      .filter-buttons {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .filter-btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        background: #f0f0f0;
+        color: #333;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s ease;
+      }
+
+      body.dark .filter-btn {
+        background: #3d3d3d;
+        color: #fff;
+      }
+
+      .filter-btn:hover {
+        background: #d946ef;
+        color: white;
+      }
+
+      .filter-btn.active {
+        background: #d946ef;
+        color: white;
+      }
+
       .empty-state {
         text-align: center;
         padding: 60px 20px;
@@ -157,40 +191,6 @@
         outline: none;
         border-color: #d946ef;
       }
-
-      /* ==== Filter Buttons ==== */
-      .time-filters {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
-      }
-
-      .filter-btn {
-        padding: 8px 14px;
-        background: #f3e8ff;
-        border: none;
-        border-radius: 20px;
-        color: #6b21a8;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-
-      .filter-btn:hover {
-        background: #d946ef;
-        color: white;
-      }
-
-      .filter-btn.reset {
-        background: #e5e7eb;
-        color: #374151;
-      }
-
-      .filter-btn.reset:hover {
-        background: #9ca3af;
-        color: white;
-      }
     </style>
   </head>
 
@@ -214,18 +214,28 @@
         </div>
         <nav class="menu">
           <a href="dashboard.html">
-            <i class="fa-solid fa-gauge"></i> لوحة القيادة
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
           </a>
+
           <a href="notifications.html" class="active">
-            <i class="fa-solid fa-bell"></i> التنبيهات
+            <i class="fa-solid fa-bell"></i>
+            التنبيهات
           </a>
-          <a href="analytics.html"
-            ><i class="fa-solid fa-rocket"></i> تحليلات</a
-          >
-          <a href="booking.html"
-            ><i class="fa-solid fa-table"></i> جدول الحجوزات</a
-          >
-          <a href="#"><i class="fa-solid fa-user"></i> ارسال رسالة جماعية</a>
+
+          <a href="analytics.html">
+            <i class="fa-solid fa-rocket"></i>
+            تحليلات
+          </a>
+          <a href="booking.html">
+            <i class="fa-solid fa-table"></i>
+            جدول الحجوزات
+          </a>
+
+          <a href="#">
+            <i class="fa-solid fa-user"></i>
+            ارسال رسالة جماعية
+          </a>
         </nav>
       </aside>
 
@@ -256,24 +266,11 @@
         <!-- NOTIFICATIONS CONTENT -->
         <div class="notifications-container">
           <div class="notifications-header">
-            <h2><i class="fa-solid fa-bell"></i> إشعارات الحجوزات</h2>
+            <h2>
+              <i class="fa-solid fa-bell"></i>
+              إشعارات الحجوزات
+            </h2>
             <p>جميع الحجوزات الجديدة والمواعيد القادمة</p>
-          </div>
-
-          <!-- Filter Buttons -->
-          <div class="time-filters">
-            <button onclick="filterByTime('day')" class="filter-btn">
-              اليوم
-            </button>
-            <button onclick="filterByTime('week')" class="filter-btn">
-              هذا الأسبوع
-            </button>
-            <button onclick="filterByTime('month')" class="filter-btn">
-              هذا الشهر
-            </button>
-            <button onclick="resetTimeFilter()" class="filter-btn reset">
-              الكل
-            </button>
           </div>
 
           <div class="search-filter">
@@ -285,7 +282,24 @@
             />
           </div>
 
-          <div id="notificationsList"></div>
+          <div class="filter-buttons">
+            <button class="filter-btn active" onclick="filterByStatus('all')">
+              الكل
+            </button>
+            <button class="filter-btn" onclick="filterByStatus('today')">
+              اليوم
+            </button>
+            <button class="filter-btn" onclick="filterByStatus('week')">
+              هذا الأسبوع
+            </button>
+            <button class="filter-btn" onclick="filterByStatus('month')">
+              هذا الشهر
+            </button>
+          </div>
+
+          <div id="notificationsList">
+            <!-- Notifications will be loaded here -->
+          </div>
         </div>
 
         <footer>© 2025 Smile Clinic</footer>
@@ -293,7 +307,7 @@
     </div>
 
     <script>
-      // ======= SUPABASE LOGIN =======
+      // ======= SUPABASE LOGIN LOGIC =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -302,6 +316,7 @@
       async function login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
+
         const { data } = await supabase
           .from("admin_auth")
           .select("*")
@@ -325,6 +340,8 @@
         localStorage.removeItem("clinic_logged_in");
         document.getElementById("loginScreen").style.display = "flex";
         document.getElementById("dashboardContent").style.display = "none";
+        document.getElementById("email").value = "";
+        document.getElementById("password").value = "";
       }
 
       if (localStorage.getItem("clinic_logged_in") === "true") {
@@ -332,25 +349,194 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
-      // ======= NOTIFICATIONS =======
+      // ======= NOTIFICATIONS LOGIC (FIXED FILTERS) =======
       let allBookings = [];
       let filteredBookings = [];
+      let currentFilter = "all";
 
-      async function loadNotifications() {
+      // Candidate fields to try as timestamp
+      const TIMESTAMP_FIELDS = [
+        "timestamp",
+        "Timestamp",
+        "createdAt",
+        "created_at",
+        "CreatedAt",
+        "Created_at",
+        "datetime",
+        "dateTime",
+        "DateTime",
+        "date",
+        "Date",
+        "time",
+        "Time",
+        "appointment_time",
+        "appointmentTime",
+        "AppointmentTime",
+        "created",
+        "Created",
+        "submittedAt",
+        "Submitted at",
+        "SubmittedAt",
+      ];
+
+      // --- Date Utilities (FIXED) ---
+      function parseDateSafe(value) {
+        if (value === null || value === undefined || value === "") return null;
+        if (value instanceof Date) return isNaN(value) ? null : value;
+
+        // numeric? epoch ms or Excel serial days
+        if (!isNaN(value)) {
+          const num = Number(value);
+          if (num > 1e10) {
+            // epoch ms
+            const dMs = new Date(num);
+            return isNaN(dMs) ? null : dMs;
+          }
+          // Excel serial (days since 1899-12-30 UTC)
+          const excelEpoch = Date.UTC(1899, 11, 30);
+          const dExcel = new Date(excelEpoch + num * 86400000);
+          return isNaN(dExcel) ? null : dExcel;
+        }
+
+        // string parse
+        const d = new Date(String(value));
+        return isNaN(d) ? null : d;
+      }
+
+      // Get start of today (00:00:00) in local timezone
+      function getStartOfToday() {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      }
+
+      // Get start of current week (Sunday at 00:00:00)
+      function getStartOfWeek() {
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+        const startOfWeek = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - dayOfWeek
+        );
+        return startOfWeek;
+      }
+
+      // Get start of current month (1st day at 00:00:00)
+      function getStartOfMonth() {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+
+      function getTimeAgo(dateObj) {
+        if (!(dateObj instanceof Date) || isNaN(dateObj)) return "غير محدد";
+        const now = new Date();
+        const diffMs = now - dateObj;
+        const mins = Math.floor(diffMs / 60000);
+        const hrs = Math.floor(diffMs / 3600000);
+        const days = Math.floor(diffMs / 86400000);
+        if (mins < 1) return "الآن";
+        if (mins < 60) return `منذ ${mins} دقيقة`;
+        if (hrs < 24) return `منذ ${hrs} ساعة`;
+        if (days < 7) return `منذ ${days} يوم`;
         try {
-          const res = await fetch("/api/bookings");
-          const rawData = await res.json();
-          allBookings = rawData.slice(1).reverse();
-          filteredBookings = allBookings;
-          renderNotifications();
-        } catch (error) {
-          console.error("Error loading notifications:", error);
+          return new Intl.DateTimeFormat("ar-EG", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          }).format(dateObj);
+        } catch {
+          return dateObj.toLocaleString("ar-EG");
         }
       }
 
+      // --- Load & normalize ---
+      async function loadNotifications() {
+        try {
+          const res = await fetch("/api/bookings");
+          const raw = await res.json();
+
+          // Normalize to array of objects
+          let rowsAsObjects = [];
+
+          if (Array.isArray(raw) && raw.length > 0) {
+            if (Array.isArray(raw[0])) {
+              // 2D array from Sheets: first row is headers
+              const headers = raw[0].map((h) => String(h).trim());
+              const dataRows = raw.slice(1); // drop header row
+              rowsAsObjects = dataRows.map((r) => {
+                const obj = {};
+                headers.forEach((h, i) => {
+                  obj[h] = r[i];
+                });
+                return obj;
+              });
+            } else if (typeof raw[0] === "object") {
+              // Already objects
+              rowsAsObjects = raw.slice(1); // keep original behavior
+            }
+          }
+
+          // Find timestamp field by checking which parses to Date most often
+          let chosenTsField = null;
+          const trialFields = new Set([
+            ...TIMESTAMP_FIELDS,
+            ...Object.keys(rowsAsObjects[0] || {}),
+          ]);
+
+          const fieldScore = {};
+          for (const f of trialFields) {
+            let ok = 0;
+            for (let i = 0; i < Math.min(rowsAsObjects.length, 50); i++) {
+              const d = parseDateSafe(rowsAsObjects[i]?.[f]);
+              if (d) ok++;
+            }
+            fieldScore[f] = ok;
+          }
+          chosenTsField =
+            Object.entries(fieldScore).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+            null;
+
+          // Build normalized rows with parsed _ts
+          allBookings = rowsAsObjects.map((r) => {
+            const tsValue = chosenTsField ? r[chosenTsField] : r.timestamp;
+            return {
+              ...r,
+              _ts: parseDateSafe(tsValue),
+            };
+          });
+
+          // Sort newest first
+          allBookings.sort((a, b) => {
+            const at = a._ts ? a._ts.getTime() : -Infinity;
+            const bt = b._ts ? b._ts.getTime() : -Infinity;
+            return bt - at;
+          });
+
+          // Apply current filter (default is 'all')
+          applyFilters();
+        } catch (err) {
+          console.error("Error loading notifications:", err);
+          const container = document.getElementById("notificationsList");
+          if (container) {
+            container.innerHTML = `
+              <div class="empty-state">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <h3>تعذّر تحميل الإشعارات</h3>
+                <p>تحقّق من /api/bookings أو الاتصال بالإنترنت.</p>
+              </div>
+            `;
+          }
+        }
+      }
+
+      // --- Render ---
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
-        if (filteredBookings.length === 0) {
+        if (!container) return;
+
+        if (!filteredBookings || filteredBookings.length === 0) {
           container.innerHTML = `
             <div class="empty-state">
               <i class="fa-solid fa-bell-slash"></i>
@@ -362,112 +548,140 @@
 
         container.innerHTML = filteredBookings
           .map((b) => {
-            const timeAgo = getTimeAgo(b.timestamp);
+            const timeAgo = getTimeAgo(b._ts);
             return `
             <div class="notification-item">
-              <div class="notification-icon"><i class="fa-solid fa-user-plus"></i></div>
-              <div class="notification-content">
-                <div class="notification-name">${b.name || "غير محدد"}</div>
-                <div class="notification-details"><i class="fa-solid fa-phone"></i> ${
-                  b.phone || "غير محدد"
-                }</div>
-                <div class="notification-details"><i class="fa-solid fa-stethoscope"></i> ${
-                  b.service || "غير محدد"
-                }</div>
-                <div class="notification-details"><i class="fa-solid fa-calendar"></i> ${
-                  b.appointment || "غير محدد"
-                }</div>
-                <div class="notification-time"><i class="fa-solid fa-clock"></i> ${timeAgo}</div>
+              <div class="notification-icon">
+                <i class="fa-solid fa-user-plus"></i>
               </div>
-              <div><span class="notification-badge-small">جديد</span></div>
+              <div class="notification-content">
+                <div class="notification-name">${
+                  b.name || b["name"] || "غير محدد"
+                }</div>
+                <div class="notification-details">
+                  <i class="fa-solid fa-phone"></i> ${
+                    b.phone || b["phone"] || "غير محدد"
+                  }
+                </div>
+                <div class="notification-details">
+                  <i class="fa-solid fa-stethoscope"></i> ${
+                    b.service || b["service"] || "غير محدد"
+                  }
+                </div>
+                <div class="notification-details">
+                  <i class="fa-solid fa-calendar"></i> ${
+                    b.appointment || b["appointment"] || "غير محدد"
+                  }
+                </div>
+                <div class="notification-time">
+                  <i class="fa-solid fa-clock"></i> ${timeAgo}
+                </div>
+              </div>
             </div>`;
           })
           .join("");
       }
 
-      function getTimeAgo(ts) {
-        if (!ts) return "غير محدد";
-        const now = new Date();
-        const date = new Date(ts);
-        const diffMs = now - date;
-        const mins = Math.floor(diffMs / 60000);
-        const hrs = Math.floor(diffMs / 3600000);
-        const days = Math.floor(diffMs / 86400000);
-        if (mins < 1) return "الآن";
-        if (mins < 60) return `منذ ${mins} دقيقة`;
-        if (hrs < 24) return `منذ ${hrs} ساعة`;
-        if (days < 7) return `منذ ${days} يوم`;
-        return date.toLocaleDateString("ar-EG");
-      }
+      // --- FIXED: Unified filtering logic ---
+      function applyFilters() {
+        const searchQuery = (
+          document.getElementById("searchInput")?.value || ""
+        )
+          .toLowerCase()
+          .trim();
 
-      function filterNotifications() {
-        const term = document.getElementById("searchInput").value.toLowerCase();
-        filteredBookings =
-          term === ""
-            ? allBookings
-            : allBookings.filter(
-                (b) =>
-                  (b.name && b.name.toLowerCase().includes(term)) ||
-                  (b.service && b.service.toLowerCase().includes(term)) ||
-                  (b.phone && b.phone.includes(term))
-              );
-        renderNotifications();
-      }
+        // Step 1: Apply date filter
+        let dateFiltered = [];
 
-      // ======= TIME FILTERS (Fixed) =======
-      function filterByTime(period) {
-        const now = new Date();
-        filteredBookings = allBookings.filter((b) => {
-          if (!b.timestamp) return false;
-          const date = new Date(b.timestamp);
-          if (isNaN(date.getTime())) return false;
+        if (currentFilter === "all") {
+          // Include ALL bookings (even those without dates)
+          dateFiltered = [...allBookings];
+        } else {
+          // Filter by date range
+          let cutoffDate;
 
-          const diffDays = (now - date) / (1000 * 60 * 60 * 24);
+          if (currentFilter === "today") {
+            cutoffDate = getStartOfToday();
+          } else if (currentFilter === "week") {
+            cutoffDate = getStartOfWeek();
+          } else if (currentFilter === "month") {
+            cutoffDate = getStartOfMonth();
+          }
 
-          if (period === "day") {
+          dateFiltered = allBookings.filter((b) => {
+            const d = b._ts;
+            // Exclude bookings without valid dates in time-based filters
+            if (!(d instanceof Date) || isNaN(d)) return false;
+            return d >= cutoffDate;
+          });
+        }
+
+        // Step 2: Apply search filter on top of date filter
+        if (searchQuery) {
+          dateFiltered = dateFiltered.filter((b) => {
+            const name = (b.name || b["name"] || "").toLowerCase();
+            const service = (b.service || b["service"] || "").toLowerCase();
+            const phone = b.phone || b["phone"] || "";
             return (
-              date.getDate() === now.getDate() &&
-              date.getMonth() === now.getMonth() &&
-              date.getFullYear() === now.getFullYear()
+              name.includes(searchQuery) ||
+              service.includes(searchQuery) ||
+              phone.includes(searchQuery)
             );
-          }
-          if (period === "week") {
-            return diffDays >= 0 && diffDays <= 7;
-          }
-          if (period === "month") {
-            return (
-              date.getMonth() === now.getMonth() &&
-              date.getFullYear() === now.getFullYear()
-            );
-          }
-          return true;
+          });
+        }
+
+        // Step 3: Sort by date (newest first)
+        dateFiltered.sort((a, b) => {
+          const at = a._ts ? a._ts.getTime() : -Infinity;
+          const bt = b._ts ? b._ts.getTime() : -Infinity;
+          return bt - at;
         });
+
+        filteredBookings = dateFiltered;
         renderNotifications();
       }
 
-      function resetTimeFilter() {
-        filteredBookings = allBookings;
-        renderNotifications();
+      // --- Filter by status (date range) ---
+      function filterByStatus(status) {
+        currentFilter = status;
+
+        // Update active button
+        document.querySelectorAll(".filter-btn").forEach((btn) => {
+          btn.classList.remove("active");
+        });
+        event.target.classList.add("active");
+
+        // Apply filters
+        applyFilters();
       }
 
-      // ======= THEME & MENU =======
+      // --- Search filter ---
+      function filterNotifications() {
+        // Simply re-apply all filters with new search query
+        applyFilters();
+      }
+
+      // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
-      themeToggle.addEventListener("click", () => {
+      themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
         const icon = themeToggle.querySelector("i");
-        icon.classList.toggle("fa-sun");
-        icon.classList.toggle("fa-moon");
-        localStorage.setItem(
-          "clinic_theme",
-          document.body.classList.contains("dark") ? "dark" : "light"
-        );
+        if (document.body.classList.contains("dark")) {
+          icon.classList.replace("fa-moon", "fa-sun");
+          localStorage.setItem("clinic_theme", "dark");
+        } else {
+          icon.classList.replace("fa-sun", "fa-moon");
+          localStorage.setItem("clinic_theme", "light");
+        }
       });
 
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.replace("fa-moon", "fa-sun");
       }
 
+      // Menu toggle
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       menuToggle.addEventListener("click", () =>
@@ -485,10 +699,10 @@
         }
       });
 
-      // ======= AUTO REFRESH =======
+      // Auto-load and refresh
       if (localStorage.getItem("clinic_logged_in") === "true") {
         loadNotifications();
-        setInterval(loadNotifications, 30000);
+        setInterval(loadNotifications, 30000); // Refresh every 30 seconds
       }
     </script>
   </body>
