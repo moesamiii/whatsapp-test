@@ -331,7 +331,7 @@
 
       async function loadNotifications() {
         try {
-          console.log("Fetching /api/bookings ...");
+          console.log("📡 Fetching /api/bookings ...");
           const res = await fetch("/api/bookings");
           const rawData = await res.json();
           allBookings = rawData.slice(1).reverse();
@@ -339,7 +339,7 @@
           filteredBookings = allBookings;
           renderNotifications();
         } catch (error) {
-          console.error("Error loading notifications:", error);
+          console.error("❌ Error loading notifications:", error);
         }
       }
 
@@ -415,45 +415,48 @@
         renderNotifications();
       }
 
-      // ✅ FIXED FILTER (using booking.time instead of booking.timestamp)
+      // ✅ FIXED FILTER — LOCAL TIMEZONE + FUTURE TODAY SUPPORT
       function filterByTime(period) {
-        console.log("Applying filter:", period);
+        console.log("🕒 Applying filter:", period);
         const now = new Date();
-        filteredBookings = allBookings.filter((booking) => {
-          if (!booking.time) {
-            console.warn("⏭️ Skipping no time field:", booking);
-            return false;
-          }
 
+        filteredBookings = allBookings.filter((booking) => {
+          if (!booking.time) return false;
           let raw = booking.time;
           if (typeof raw === "string" && !raw.endsWith("Z")) raw += "Z";
           const date = new Date(raw);
-          if (isNaN(date.getTime())) {
-            console.warn("⚠️ Invalid date:", booking.time);
-            return false;
-          }
+          if (isNaN(date.getTime())) return false;
 
-          const diffDays = (now - date) / (1000 * 60 * 60 * 24);
+          // Convert UTC to local
+          const localNow = new Date(
+            now.getTime() - now.getTimezoneOffset() * 60000
+          );
+          const localDate = new Date(
+            date.getTime() - date.getTimezoneOffset() * 60000
+          );
+          const diffDays = (localNow - localDate) / (1000 * 60 * 60 * 24);
 
           if (period === "day") {
             const sameDay =
-              date.getFullYear() === now.getFullYear() &&
-              date.getMonth() === now.getMonth() &&
-              date.getDate() === now.getDate();
+              localDate.getFullYear() === localNow.getFullYear() &&
+              localDate.getMonth() === localNow.getMonth() &&
+              localDate.getDate() === localNow.getDate();
+            console.log(
+              "📅 Today:",
+              booking.name,
+              localDate.toISOString(),
+              "→",
+              sameDay
+            );
             return sameDay;
           }
 
-          if (period === "week") {
-            return diffDays >= -7 && diffDays <= 7; // includes future and past 7 days
-          }
-
-          if (period === "month") {
+          if (period === "week") return diffDays >= -7 && diffDays <= 7;
+          if (period === "month")
             return (
-              date.getFullYear() === now.getFullYear() &&
-              date.getMonth() === now.getMonth()
+              localDate.getFullYear() === localNow.getFullYear() &&
+              localDate.getMonth() === localNow.getMonth()
             );
-          }
-
           return true;
         });
 
@@ -463,7 +466,7 @@
 
       function resetTimeFilter() {
         filteredBookings = allBookings;
-        console.log("Reset filter — showing all bookings");
+        console.log("🔄 Reset filter — showing all bookings");
         renderNotifications();
       }
 
