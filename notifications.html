@@ -188,6 +188,13 @@
         background: #9ca3af;
         color: white;
       }
+
+      /* ✅ ACTIVE STATE STYLING */
+      .filter-btn.active {
+        background: linear-gradient(135deg, #d946ef, #a855f7);
+        color: white;
+        box-shadow: 0 3px 10px rgba(217, 70, 239, 0.3);
+      }
     </style>
   </head>
 
@@ -252,16 +259,16 @@
           </div>
 
           <div class="time-filters">
-            <button onclick="filterByTime('day')" class="filter-btn">
+            <button onclick="filterByTime('day', this)" class="filter-btn">
               اليوم
             </button>
-            <button onclick="filterByTime('week')" class="filter-btn">
+            <button onclick="filterByTime('week', this)" class="filter-btn">
               هذا الأسبوع
             </button>
-            <button onclick="filterByTime('month')" class="filter-btn">
+            <button onclick="filterByTime('month', this)" class="filter-btn">
               هذا الشهر
             </button>
-            <button onclick="resetTimeFilter()" class="filter-btn reset">
+            <button onclick="resetTimeFilter(this)" class="filter-btn reset">
               الكل
             </button>
           </div>
@@ -411,8 +418,9 @@
       }
 
       // ✅ NEW ADVANCED TIME FILTER (today + next 24h)
-      function filterByTime(period) {
+      function filterByTime(period, btn) {
         console.log("🕒 Applying filter:", period);
+        setActiveButton(btn);
         const now = new Date();
 
         filteredBookings = allBookings.filter((booking) => {
@@ -458,10 +466,21 @@
         renderNotifications();
       }
 
-      function resetTimeFilter() {
+      function resetTimeFilter(btn) {
         filteredBookings = allBookings;
         console.log("🔄 Reset filter — showing all bookings");
         renderNotifications();
+        setActiveButton(btn);
+      }
+
+      // ✅ Highlight active filter button
+      function setActiveButton(selectedBtn) {
+        document
+          .querySelectorAll(".filter-btn")
+          .forEach((b) => b.classList.remove("active"));
+        if (!selectedBtn.classList.contains("reset")) {
+          selectedBtn.classList.add("active");
+        }
       }
 
       const themeToggle = document.getElementById("themeToggle");
