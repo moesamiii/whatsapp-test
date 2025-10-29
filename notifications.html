@@ -415,7 +415,7 @@
         renderNotifications();
       }
 
-      // ✅ FIXED FILTER — LOCAL TIMEZONE + FUTURE TODAY SUPPORT
+      // ✅ FIXED FILTER — LOCAL TIMEZONE (REAL TODAY SUPPORT)
       function filterByTime(period) {
         console.log("🕒 Applying filter:", period);
         const now = new Date();
@@ -427,27 +427,31 @@
           const date = new Date(raw);
           if (isNaN(date.getTime())) return false;
 
-          // Convert UTC to local
+          // convert to local timezone correctly
           const localNow = new Date(
-            now.getTime() - now.getTimezoneOffset() * 60000
+            now.getTime() + now.getTimezoneOffset() * 60000
           );
           const localDate = new Date(
-            date.getTime() - date.getTimezoneOffset() * 60000
+            date.getTime() + date.getTimezoneOffset() * 60000
           );
+
           const diffDays = (localNow - localDate) / (1000 * 60 * 60 * 24);
+
+          console.log(
+            "📅",
+            booking.name,
+            "| Local:",
+            localDate.toLocaleString(),
+            "| Today:",
+            localNow.toLocaleString()
+          );
 
           if (period === "day") {
             const sameDay =
               localDate.getFullYear() === localNow.getFullYear() &&
               localDate.getMonth() === localNow.getMonth() &&
               localDate.getDate() === localNow.getDate();
-            console.log(
-              "📅 Today:",
-              booking.name,
-              localDate.toISOString(),
-              "→",
-              sameDay
-            );
+            console.log("👉 sameDay:", sameDay);
             return sameDay;
           }
 
@@ -457,6 +461,7 @@
               localDate.getFullYear() === localNow.getFullYear() &&
               localDate.getMonth() === localNow.getMonth()
             );
+
           return true;
         });
 
