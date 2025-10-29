@@ -105,14 +105,41 @@ Your job is to help clients with:
   }
 }
 
-// 🔹 التحقق من الاسم بالذكاء الاصطناعي
+// 🔹 Enhanced AI-based name validation (multilingual + fallback safe)
 async function validateNameWithAI(name) {
   try {
+    const cleanName = name.trim();
+
+    // Basic quick checks first (cheap and fast)
+    const hasLetters = /[A-Za-z\u0600-\u06FF]/.test(cleanName); // Arabic + Latin
+    const hasDigits = /\d/.test(cleanName);
+    const tooLong = cleanName.length > 40;
+    if (!hasLetters || hasDigits || tooLong) return false;
+
+    // Normalize spacing and remove punctuation
+    const normalized = cleanName
+      .replace(/[^\p{L}\s'-]/gu, "")
+      .replace(/\s+/g, " ");
+
+    // Build a smarter AI prompt
     const prompt = `
-الاسم المدخل هو: "${name}"
-هل هذا يبدو كاسم شخص حقيقي بالعربية مثل أحمد، محمد، علي، ريم، سارة؟
-أجب فقط بـ "نعم" أو "لا".
+أنت مساعد يتحقق من الأسماء ضمن نظام حجز.
+الاسم المدخل: "${normalized}"
+
+قواعد القرار:
+✅ أجب "نعم" إذا:
+- يبدو الاسم مثل اسم شخص أو لقب أو اسم عائلة (حتى لو كان بلغة أجنبية أو نادرًا)
+- الاسم قصير نسبيًا (كلمتان أو ثلاث)
+- لا يحتوي على كلمات غير محترمة أو هجومية
+
+❌ أجب "لا" إذا:
+- يحتوي على شتائم، عبارات مسيئة، أو كلمات غير لائقة بأي لغة
+- يبدو ككلام عشوائي أو حروف مكررة بلا معنى (مثل "هههه" أو "asdf")
+- يحتوي على أرقام أو رموز أو روابط أو نص غير بشري
+
+أجب فقط بـ "نعم" أو "لا" بدون أي تفسير.
 `;
+
     const completion = await client.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: prompt }],
@@ -120,12 +147,24 @@ async function validateNameWithAI(name) {
       max_completion_tokens: 10,
     });
 
-    const reply = completion.choices[0]?.message?.content?.trim();
+    const reply =
+      completion.choices?.[0]?.message?.content?.trim()?.toLowerCase() || "";
     console.log("🤖 DEBUG => Name validation reply:", reply);
-    return reply && reply.startsWith("نعم");
+
+    // Decision logic
+    if (reply.includes("نعم") || reply.includes("yes")) return true;
+
+    // Fallback: accept if looks like a reasonable name (1–3 words, all letters)
+    const isLikelyName =
+      /^[A-Za-z\u0600-\u06FF\s'-]{2,40}$/.test(normalized) &&
+      normalized.split(" ").length <= 3;
+    if (isLikelyName) return true;
+
+    return false;
   } catch (err) {
     console.error("❌ DEBUG => Name validation error:", err.message);
-    return false;
+    // Fallback: don't block users just because AI failed
+    return true;
   }
 }
 
