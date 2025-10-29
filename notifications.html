@@ -410,6 +410,29 @@
         }
       }
 
+      function parseTimestamp(timestampStr) {
+        if (!timestampStr) return null;
+
+        // Handle format: "2025-10-23T13:47:59.242Z"
+        try {
+          const date = new Date(timestampStr);
+          if (!isNaN(date.getTime())) {
+            return date;
+          }
+        } catch (e) {
+          console.error("Error parsing timestamp:", timestampStr);
+        }
+        return null;
+      }
+
+      function isSameDay(date1, date2) {
+        return (
+          date1.getFullYear() === date2.getFullYear() &&
+          date1.getMonth() === date2.getMonth() &&
+          date1.getDate() === date2.getDate()
+        );
+      }
+
       function filterByTime(period) {
         currentTimeFilter = period;
 
@@ -424,40 +447,34 @@
 
       function applyFilters() {
         const now = new Date();
-        const today = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
 
         // First filter by time
         let timeFiltered = allBookings;
 
         if (currentTimeFilter === "today") {
           timeFiltered = allBookings.filter((booking) => {
-            if (!booking.timestamp) return false;
-            const bookingDate = new Date(booking.timestamp);
-            const bookingDay = new Date(
-              bookingDate.getFullYear(),
-              bookingDate.getMonth(),
-              bookingDate.getDate()
-            );
-            return bookingDay.getTime() === today.getTime();
+            const bookingDate = parseTimestamp(booking.timestamp);
+            if (!bookingDate) return false;
+            return isSameDay(bookingDate, now);
           });
         } else if (currentTimeFilter === "week") {
-          const weekAgo = new Date(today);
+          const weekAgo = new Date(now);
           weekAgo.setDate(weekAgo.getDate() - 7);
+          weekAgo.setHours(0, 0, 0, 0);
+
           timeFiltered = allBookings.filter((booking) => {
-            if (!booking.timestamp) return false;
-            const bookingDate = new Date(booking.timestamp);
+            const bookingDate = parseTimestamp(booking.timestamp);
+            if (!bookingDate) return false;
             return bookingDate >= weekAgo;
           });
         } else if (currentTimeFilter === "month") {
-          const monthAgo = new Date(today);
-          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          const monthAgo = new Date(now);
+          monthAgo.setDate(monthAgo.getDate() - 30);
+          monthAgo.setHours(0, 0, 0, 0);
+
           timeFiltered = allBookings.filter((booking) => {
-            if (!booking.timestamp) return false;
-            const bookingDate = new Date(booking.timestamp);
+            const bookingDate = parseTimestamp(booking.timestamp);
+            if (!bookingDate) return false;
             return bookingDate >= monthAgo;
           });
         }
@@ -565,10 +582,10 @@
       }
 
       function getTimeAgo(timestamp) {
-        if (!timestamp) return "غير محدد";
+        const bookingDate = parseTimestamp(timestamp);
+        if (!bookingDate) return "غير محدد";
 
         const now = new Date();
-        const bookingDate = new Date(timestamp);
         const diffMs = now - bookingDate;
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
