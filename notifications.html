@@ -6,7 +6,6 @@
     <title>التنبيهات - Clinic Dashboard</title>
 
     <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
-
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -215,28 +214,18 @@
         </div>
         <nav class="menu">
           <a href="dashboard.html">
-            <i class="fa-solid fa-gauge"></i>
-            لوحة القيادة
+            <i class="fa-solid fa-gauge"></i> لوحة القيادة
           </a>
-
           <a href="notifications.html" class="active">
-            <i class="fa-solid fa-bell"></i>
-            التنبيهات
+            <i class="fa-solid fa-bell"></i> التنبيهات
           </a>
-
-          <a href="analytics.html">
-            <i class="fa-solid fa-rocket"></i>
-            تحليلات
-          </a>
-          <a href="booking.html">
-            <i class="fa-solid fa-table"></i>
-            جدول الحجوزات
-          </a>
-
-          <a href="#">
-            <i class="fa-solid fa-user"></i>
-            ارسال رسالة جماعية
-          </a>
+          <a href="analytics.html"
+            ><i class="fa-solid fa-rocket"></i> تحليلات</a
+          >
+          <a href="booking.html"
+            ><i class="fa-solid fa-table"></i> جدول الحجوزات</a
+          >
+          <a href="#"><i class="fa-solid fa-user"></i> ارسال رسالة جماعية</a>
         </nav>
       </aside>
 
@@ -267,10 +256,7 @@
         <!-- NOTIFICATIONS CONTENT -->
         <div class="notifications-container">
           <div class="notifications-header">
-            <h2>
-              <i class="fa-solid fa-bell"></i>
-              إشعارات الحجوزات
-            </h2>
+            <h2><i class="fa-solid fa-bell"></i> إشعارات الحجوزات</h2>
             <p>جميع الحجوزات الجديدة والمواعيد القادمة</p>
           </div>
 
@@ -299,9 +285,7 @@
             />
           </div>
 
-          <div id="notificationsList">
-            <!-- Notifications will be loaded here -->
-          </div>
+          <div id="notificationsList"></div>
         </div>
 
         <footer>© 2025 Smile Clinic</footer>
@@ -309,7 +293,7 @@
     </div>
 
     <script>
-      // ======= SUPABASE LOGIN LOGIC =======
+      // ======= SUPABASE LOGIN =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -318,7 +302,6 @@
       async function login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
-
         const { data } = await supabase
           .from("admin_auth")
           .select("*")
@@ -342,8 +325,6 @@
         localStorage.removeItem("clinic_logged_in");
         document.getElementById("loginScreen").style.display = "flex";
         document.getElementById("dashboardContent").style.display = "none";
-        document.getElementById("email").value = "";
-        document.getElementById("password").value = "";
       }
 
       if (localStorage.getItem("clinic_logged_in") === "true") {
@@ -351,7 +332,7 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
-      // ======= NOTIFICATIONS LOGIC =======
+      // ======= NOTIFICATIONS =======
       let allBookings = [];
       let filteredBookings = [];
 
@@ -369,7 +350,6 @@
 
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
-
         if (filteredBookings.length === 0) {
           container.innerHTML = `
             <div class="empty-state">
@@ -381,25 +361,21 @@
         }
 
         container.innerHTML = filteredBookings
-          .map((booking) => {
-            const timeAgo = getTimeAgo(booking.timestamp);
+          .map((b) => {
+            const timeAgo = getTimeAgo(b.timestamp);
             return `
             <div class="notification-item">
-              <div class="notification-icon">
-                <i class="fa-solid fa-user-plus"></i>
-              </div>
+              <div class="notification-icon"><i class="fa-solid fa-user-plus"></i></div>
               <div class="notification-content">
-                <div class="notification-name">${
-                  booking.name || "غير محدد"
-                }</div>
+                <div class="notification-name">${b.name || "غير محدد"}</div>
                 <div class="notification-details"><i class="fa-solid fa-phone"></i> ${
-                  booking.phone || "غير محدد"
+                  b.phone || "غير محدد"
                 }</div>
                 <div class="notification-details"><i class="fa-solid fa-stethoscope"></i> ${
-                  booking.service || "غير محدد"
+                  b.service || "غير محدد"
                 }</div>
                 <div class="notification-details"><i class="fa-solid fa-calendar"></i> ${
-                  booking.appointment || "غير محدد"
+                  b.appointment || "غير محدد"
                 }</div>
                 <div class="notification-time"><i class="fa-solid fa-clock"></i> ${timeAgo}</div>
               </div>
@@ -409,49 +385,44 @@
           .join("");
       }
 
-      function getTimeAgo(timestamp) {
-        if (!timestamp) return "غير محدد";
+      function getTimeAgo(ts) {
+        if (!ts) return "غير محدد";
         const now = new Date();
-        const bookingDate = new Date(timestamp);
-        const diffMs = now - bookingDate;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-        if (diffMins < 1) return "الآن";
-        if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
-        if (diffHours < 24) return `منذ ${diffHours} ساعة`;
-        if (diffDays < 7) return `منذ ${diffDays} يوم`;
-        return bookingDate.toLocaleDateString("ar-EG");
+        const date = new Date(ts);
+        const diffMs = now - date;
+        const mins = Math.floor(diffMs / 60000);
+        const hrs = Math.floor(diffMs / 3600000);
+        const days = Math.floor(diffMs / 86400000);
+        if (mins < 1) return "الآن";
+        if (mins < 60) return `منذ ${mins} دقيقة`;
+        if (hrs < 24) return `منذ ${hrs} ساعة`;
+        if (days < 7) return `منذ ${days} يوم`;
+        return date.toLocaleDateString("ar-EG");
       }
 
       function filterNotifications() {
-        const searchTerm = document
-          .getElementById("searchInput")
-          .value.toLowerCase();
-        if (searchTerm === "") {
-          filteredBookings = allBookings;
-          renderNotifications();
-          return;
-        }
-
-        filteredBookings = allBookings.filter((booking) => {
-          return (
-            (booking.name && booking.name.toLowerCase().includes(searchTerm)) ||
-            (booking.service &&
-              booking.service.toLowerCase().includes(searchTerm)) ||
-            (booking.phone && booking.phone.includes(searchTerm))
-          );
-        });
-
+        const term = document.getElementById("searchInput").value.toLowerCase();
+        filteredBookings =
+          term === ""
+            ? allBookings
+            : allBookings.filter(
+                (b) =>
+                  (b.name && b.name.toLowerCase().includes(term)) ||
+                  (b.service && b.service.toLowerCase().includes(term)) ||
+                  (b.phone && b.phone.includes(term))
+              );
         renderNotifications();
       }
 
-      // ====== TIME FILTERS ======
+      // ======= TIME FILTERS (Fixed) =======
       function filterByTime(period) {
         const now = new Date();
-        filteredBookings = allBookings.filter((booking) => {
-          if (!booking.timestamp) return false;
-          const date = new Date(booking.timestamp);
+        filteredBookings = allBookings.filter((b) => {
+          if (!b.timestamp) return false;
+          const date = new Date(b.timestamp);
+          if (isNaN(date.getTime())) return false;
+
+          const diffDays = (now - date) / (1000 * 60 * 60 * 24);
 
           if (period === "day") {
             return (
@@ -459,10 +430,11 @@
               date.getMonth() === now.getMonth() &&
               date.getFullYear() === now.getFullYear()
             );
-          } else if (period === "week") {
-            const diffDays = (now - date) / (1000 * 60 * 60 * 24);
-            return diffDays <= 7;
-          } else if (period === "month") {
+          }
+          if (period === "week") {
+            return diffDays >= 0 && diffDays <= 7;
+          }
+          if (period === "month") {
             return (
               date.getMonth() === now.getMonth() &&
               date.getFullYear() === now.getFullYear()
@@ -478,27 +450,24 @@
         renderNotifications();
       }
 
-      // ====== THEME TOGGLE ======
+      // ======= THEME & MENU =======
       const themeToggle = document.getElementById("themeToggle");
-      themeToggle.addEventListener("click", function () {
+      themeToggle.addEventListener("click", () => {
         document.body.classList.toggle("dark");
         const icon = themeToggle.querySelector("i");
-        if (document.body.classList.contains("dark")) {
-          icon.classList.replace("fa-moon", "fa-sun");
-          localStorage.setItem("clinic_theme", "dark");
-        } else {
-          icon.classList.replace("fa-sun", "fa-moon");
-          localStorage.setItem("clinic_theme", "light");
-        }
+        icon.classList.toggle("fa-sun");
+        icon.classList.toggle("fa-moon");
+        localStorage.setItem(
+          "clinic_theme",
+          document.body.classList.contains("dark") ? "dark" : "light"
+        );
       });
 
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        const icon = themeToggle.querySelector("i");
-        icon.classList.replace("fa-moon", "fa-sun");
+        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
       }
 
-      // ====== MENU TOGGLE ======
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       menuToggle.addEventListener("click", () =>
@@ -516,7 +485,7 @@
         }
       });
 
-      // ====== AUTO REFRESH ======
+      // ======= AUTO REFRESH =======
       if (localStorage.getItem("clinic_logged_in") === "true") {
         loadNotifications();
         setInterval(loadNotifications, 30000);
