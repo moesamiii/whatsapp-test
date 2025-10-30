@@ -118,7 +118,7 @@
     <!-- MAIN DASHBOARD -->
     <div class="container">
       <!-- SIDEBAR -->
-    <aside class="sidebar" id="sidebar">
+      <aside class="sidebar" id="sidebar">
         <div class="logo">
           <span>CONAN DASHBOARD</span>
         </div>
@@ -143,7 +143,7 @@
             جدول الحجوزات
           </a>
 
-          <a href="offers.html" >
+          <a href="offers.html">
             <i class="fa-solid fa-gift"></i>
             إرسال العروض المخصصة
           </a>
@@ -182,39 +182,6 @@
             </div>
             <label class="switch">
               <input type="checkbox" id="aiAssistant" />
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <div class="setting-card">
-            <div class="setting-info">
-              <h4>تقارير ذكية</h4>
-              <p>تفعيل التحليلات التلقائية وتقارير الأداء الأسبوعية.</p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="smartReports" />
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <div class="setting-card">
-            <div class="setting-info">
-              <h4>الردود التلقائية</h4>
-              <p>تمكين خاصية الرد التلقائي على الرسائل المتكررة.</p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="autoReplies" />
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <div class="setting-card">
-            <div class="setting-info">
-              <h4>التوصيات الذكية</h4>
-              <p>تفعيل اقتراحات الذكاء الاصطناعي لخدمات العملاء.</p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="aiRecommendations" />
               <span class="slider"></span>
             </label>
           </div>
@@ -333,15 +300,13 @@
       });
 
       // Save on button click
-      document
-        .getElementById("saveSettings")
-        .addEventListener("click", () => {
-          switches.forEach((id) => {
-            const state = document.getElementById(id).checked;
-            localStorage.setItem(id, state);
-          });
-          alert("✅ تم حفظ الإعدادات بنجاح!");
+      document.getElementById("saveSettings").addEventListener("click", () => {
+        switches.forEach((id) => {
+          const state = document.getElementById(id).checked;
+          localStorage.setItem(id, state);
         });
+        alert("✅ تم حفظ الإعدادات بنجاح!");
+      });
     </script>
   </body>
 </html>
