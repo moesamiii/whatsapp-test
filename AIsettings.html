@@ -30,7 +30,9 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
         transition: background 0.3s;
+        gap: 15px;
       }
 
       body.dark .setting-card {
@@ -47,6 +49,20 @@
         margin: 6px 0 0;
         color: #777;
         font-size: 14px;
+      }
+
+      select {
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        font-size: 15px;
+        cursor: pointer;
+      }
+
+      body.dark select {
+        background: #3a3a3a;
+        color: #fff;
+        border-color: #555;
       }
 
       .switch {
@@ -175,13 +191,40 @@
         </header>
 
         <section class="settings-container">
+          <!-- Reminder Count -->
           <div class="setting-card">
             <div class="setting-info">
-              <h4>تشغيل المساعد الذكي</h4>
-              <p>تفعيل أو إيقاف نظام المحادثة الذكي في لوحة التحكم.</p>
+              <h4>كم مرة تذكير</h4>
+              <p>حدد عدد مرات التذكير في اليوم.</p>
+            </div>
+            <select id="reminderCount">
+              <option value="1">مرة واحدة</option>
+              <option value="2">مرتين</option>
+              <option value="3">ثلاث مرات</option>
+            </select>
+          </div>
+
+          <!-- Reminder Interval -->
+          <div class="setting-card">
+            <div class="setting-info">
+              <h4>الوقت بين كل تذكير و تذكير</h4>
+              <p>اختر الفاصل الزمني بين التذكيرات.</p>
+            </div>
+            <select id="reminderInterval">
+              <option value="15">كل 15 دقيقة</option>
+              <option value="30">كل 30 دقيقة</option>
+              <option value="60">كل ساعة</option>
+            </select>
+          </div>
+
+          <!-- Enable / Disable Reminders -->
+          <div class="setting-card">
+            <div class="setting-info">
+              <h4>تشغيل التذكيرات</h4>
+              <p>تفعيل أو إيقاف إرسال التذكيرات.</p>
             </div>
             <label class="switch">
-              <input type="checkbox" id="aiAssistant" />
+              <input type="checkbox" id="reminderToggle" />
               <span class="slider"></span>
             </label>
           </div>
@@ -210,7 +253,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // ======= LOGIN LOGIC (same as dashboard) =======
+      // ======= LOGIN LOGIC =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -286,25 +329,21 @@
       });
 
       // ======= SETTINGS STORAGE =======
-      const switches = [
-        "aiAssistant",
-        "smartReports",
-        "autoReplies",
-        "aiRecommendations",
-      ];
+      const reminderCount = document.getElementById("reminderCount");
+      const reminderInterval = document.getElementById("reminderInterval");
+      const reminderToggle = document.getElementById("reminderToggle");
 
       // Load saved settings
-      switches.forEach((id) => {
-        const saved = localStorage.getItem(id) === "true";
-        document.getElementById(id).checked = saved;
-      });
+      reminderCount.value = localStorage.getItem("reminderCount") || "1";
+      reminderInterval.value = localStorage.getItem("reminderInterval") || "30";
+      reminderToggle.checked =
+        localStorage.getItem("reminderToggle") === "true";
 
-      // Save on button click
+      // Save settings
       document.getElementById("saveSettings").addEventListener("click", () => {
-        switches.forEach((id) => {
-          const state = document.getElementById(id).checked;
-          localStorage.setItem(id, state);
-        });
+        localStorage.setItem("reminderCount", reminderCount.value);
+        localStorage.setItem("reminderInterval", reminderInterval.value);
+        localStorage.setItem("reminderToggle", reminderToggle.checked);
         alert("✅ تم حفظ الإعدادات بنجاح!");
       });
     </script>
