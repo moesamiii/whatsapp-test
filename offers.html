@@ -25,11 +25,12 @@
       .offer-card {
         background: var(--card-bg, #fff);
         border-radius: 12px;
-        padding: 20px;
+        padding: 25px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
         display: flex;
         flex-direction: column;
-        gap: 15px;
+        gap: 18px;
+        transition: background 0.3s;
       }
 
       body.dark .offer-card {
@@ -39,7 +40,7 @@
 
       label {
         font-weight: bold;
-        margin-bottom: 5px;
+        font-size: 15px;
       }
 
       input,
@@ -93,7 +94,7 @@
     <!-- LOGIN SCREEN -->
     <div id="loginScreen">
       <div id="loginBox">
-        <h2><i class="fas fa-lock"></i>تسجيل دخول المسؤول</h2>
+        <h2><i class="fas fa-lock"></i> تسجيل دخول المسؤول</h2>
         <input type="email" id="email" placeholder="البريد الإلكتروني" />
         <input type="password" id="password" placeholder="كلمة المرور" />
         <button onclick="login()">تسجيل الدخول</button>
@@ -110,40 +111,33 @@
         </div>
         <nav class="menu">
           <a href="dashboard.html">
-            <i class="fa-solid fa-gauge"></i>
-            لوحة القيادة
+            <i class="fa-solid fa-gauge"></i> لوحة القيادة
           </a>
 
           <a href="notifications.html">
-            <i class="fa-solid fa-bell"></i>
-            التنبيهات
+            <i class="fa-solid fa-bell"></i> التنبيهات
           </a>
 
           <a href="analytics.html">
-            <i class="fa-solid fa-rocket"></i>
-            تحليلات
+            <i class="fa-solid fa-rocket"></i> تحليلات
           </a>
 
           <a href="booking.html">
-            <i class="fa-solid fa-table"></i>
-            جدول الحجوزات
+            <i class="fa-solid fa-table"></i> جدول الحجوزات
           </a>
 
           <a href="offers.html" class="active">
-            <i class="fa-solid fa-gift"></i>
-            إرسال العروض المخصصة
+            <i class="fa-solid fa-gift"></i> إرسال العروض المخصصة
           </a>
 
           <a href="AIsettings.html">
-            <i class="fa-solid fa-robot"></i>
-            إعدادات الذكاء الاصطناعي
+            <i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي
           </a>
         </nav>
       </aside>
 
       <!-- MAIN CONTENT -->
       <main class="main-content" id="dashboardContent" style="display: none">
-        <!-- HEADER -->
         <header class="header">
           <div class="header-left">
             <button class="menu-toggle icon-btn" id="menuToggle">
@@ -269,20 +263,7 @@
         sidebar.classList.toggle("active")
       );
 
-      document.addEventListener("click", (e) => {
-        if (
-          window.innerWidth <= 768 &&
-          sidebar.classList.contains("active") &&
-          !sidebar.contains(e.target) &&
-          e.target !== menuToggle
-        ) {
-          sidebar.classList.remove("active");
-        }
-      });
-
-      // ======= GOOGLE SHEETS SETTINGS =======
-      // Example published sheet URL:
-      // https://docs.google.com/spreadsheets/d/<SHEET_ID>/gviz/tq?tqx=out:json
+      // ======= GOOGLE SHEET URL =======
       const SHEET_URL =
         "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/gviz/tq?tqx=out:json";
 
@@ -298,12 +279,11 @@
           return;
         }
 
-        // 1️⃣ Fetch clients from Google Sheet
         let clients = [];
         try {
           const res = await fetch(SHEET_URL);
           const text = await res.text();
-          const json = JSON.parse(text.substring(47).slice(0, -2)); // Google Sheets JSONP cleanup
+          const json = JSON.parse(text.substring(47).slice(0, -2));
 
           clients = json.table.rows.map((row) => ({
             name: row.c[0]?.v || "بدون اسم",
@@ -311,17 +291,10 @@
             visit_count: parseInt(row.c[2]?.v || "0"),
           }));
         } catch (err) {
-          console.error(err);
           alert("❌ لم يتمكن النظام من قراءة بيانات Google Sheet.");
           return;
         }
 
-        if (clients.length === 0) {
-          alert("⚠️ لا يوجد عملاء في الجدول.");
-          return;
-        }
-
-        // 2️⃣ Categorize clients
         const categorized = {
           new: [],
           returning: [],
@@ -330,28 +303,25 @@
         };
 
         clients.forEach((c) => {
-          if (!c.visit_count || c.visit_count <= 1) {
-            categorized.new.push(c);
-          } else if (c.visit_count > 1 && c.visit_count < 5) {
-            categorized.returning.push(c);
-          } else if (c.visit_count >= 5) {
-            categorized.vip.push(c);
-          }
+          if (!c.visit_count || c.visit_count <= 1) categorized.new.push(c);
+          else if (c.visit_count < 5) categorized.returning.push(c);
+          else categorized.vip.push(c);
         });
 
-        // 3️⃣ Choose recipients based on audience
-        let recipients = [];
-        if (audience === "all") recipients = categorized.all;
-        if (audience === "new") recipients = categorized.new;
-        if (audience === "returning") recipients = categorized.returning;
-        if (audience === "vip") recipients = categorized.vip;
+        let recipients =
+          audience === "new"
+            ? categorized.new
+            : audience === "returning"
+            ? categorized.returning
+            : audience === "vip"
+            ? categorized.vip
+            : categorized.all;
 
         if (recipients.length === 0) {
           alert("⚠️ لا يوجد عملاء في هذه الفئة.");
           return;
         }
 
-        // 4️⃣ Save offer to Supabase
         const { error: insertError } = await supabase.from("offers").insert([
           {
             title,
@@ -363,38 +333,40 @@
         ]);
 
         if (insertError) {
-          console.error(insertError);
           alert("❌ لم يتم حفظ العرض في قاعدة البيانات.");
           return;
         }
 
-        // 5️⃣ Simulate sending messages
-        for (const client of recipients) {
-          console.log(
-            `📩 إرسال العرض إلى ${client.name} (${client.phone}) → ${title}`
-          );
+        for (let i = 0; i < recipients.length; i++) {
+          const client = recipients[i];
+          if (!client.phone) continue;
 
-          // Example (for future integration with WhatsApp API):
-          /*
-      await fetch("https://your-server.com/sendWhatsApp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: client.name,
-          phone: client.phone,
-          message: `${title}\n\n${desc}\nصالح حتى: ${expiry}`,
-        }),
-      });
-      */
+          try {
+            const payload = {
+              name: client.name,
+              phone: client.phone.toString().replace(/\s+/g, ""),
+              service: title,
+              appointment: `${desc}\n⏰ صالح حتى: ${expiry}`,
+            };
+
+            const res = await fetch(
+              "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              }
+            );
+
+            const data = await res.json();
+            console.log(`📬 تم إرسال العرض رقم ${i + 1}:`, data);
+            await new Promise((r) => setTimeout(r, 2000)); // delay 2 seconds
+          } catch (err) {
+            console.error("❌ خطأ في الإرسال:", err);
+          }
         }
 
         alert(`✅ تم إرسال العرض إلى ${recipients.length} عميل بنجاح!`);
-
-        // 6️⃣ Clear form
-        document.getElementById("offerTitle").value = "";
-        document.getElementById("offerDescription").value = "";
-        document.getElementById("offerAudience").value = "all";
-        document.getElementById("offerExpiry").value = "";
       }
     </script>
   </body>
