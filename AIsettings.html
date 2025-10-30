@@ -139,35 +139,24 @@
           <span>CONAN DASHBOARD</span>
         </div>
         <nav class="menu">
-          <a href="dashboard.html">
-            <i class="fa-solid fa-gauge"></i>
-            لوحة القيادة
-          </a>
-
-          <a href="notifications.html">
-            <i class="fa-solid fa-bell"></i>
-            التنبيهات
-          </a>
-
-          <a href="analytics.html">
-            <i class="fa-solid fa-rocket"></i>
-            تحليلات
-          </a>
-
-          <a href="booking.html">
-            <i class="fa-solid fa-table"></i>
-            جدول الحجوزات
-          </a>
-
-          <a href="offers.html">
-            <i class="fa-solid fa-gift"></i>
-            إرسال العروض المخصصة
-          </a>
-
-          <a href="AIsettings.html" class="active">
-            <i class="fa-solid fa-robot"></i>
-            إعدادات الذكاء الاصطناعي
-          </a>
+          <a href="dashboard.html"
+            ><i class="fa-solid fa-gauge"></i> لوحة القيادة</a
+          >
+          <a href="notifications.html"
+            ><i class="fa-solid fa-bell"></i> التنبيهات</a
+          >
+          <a href="analytics.html"
+            ><i class="fa-solid fa-rocket"></i> تحليلات</a
+          >
+          <a href="booking.html"
+            ><i class="fa-solid fa-table"></i> جدول الحجوزات</a
+          >
+          <a href="offers.html"
+            ><i class="fa-solid fa-gift"></i> إرسال العروض المخصصة</a
+          >
+          <a href="AIsettings.html" class="active"
+            ><i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي</a
+          >
         </nav>
       </aside>
 
@@ -191,7 +180,6 @@
         </header>
 
         <section class="settings-container">
-          <!-- Reminder Count -->
           <div class="setting-card">
             <div class="setting-info">
               <h4>كم مرة تذكير</h4>
@@ -204,20 +192,20 @@
             </select>
           </div>
 
-          <!-- Reminder Interval -->
           <div class="setting-card">
             <div class="setting-info">
               <h4>الوقت بين كل تذكير و تذكير</h4>
               <p>اختر الفاصل الزمني بين التذكيرات.</p>
             </div>
             <select id="reminderInterval">
+              <option value="2">كل دقيقتين</option>
+              <option value="5">كل 5 دقائق</option>
               <option value="15">كل 15 دقيقة</option>
               <option value="30">كل 30 دقيقة</option>
               <option value="60">كل ساعة</option>
             </select>
           </div>
 
-          <!-- Enable / Disable Reminders -->
           <div class="setting-card">
             <div class="setting-info">
               <h4>تشغيل التذكيرات</h4>
@@ -253,7 +241,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // ======= LOGIN LOGIC =======
+      // ===== LOGIN LOGIC =====
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -290,7 +278,7 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
-      // ======= THEME TOGGLE =======
+      // ===== THEME TOGGLE =====
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
@@ -310,7 +298,7 @@
         icon.classList.replace("fa-moon", "fa-sun");
       }
 
-      // ======= MENU TOGGLE =======
+      // ===== MENU TOGGLE =====
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       menuToggle.addEventListener("click", () =>
@@ -328,57 +316,60 @@
         }
       });
 
-      // ======= SETTINGS STORAGE =======
+      // ===== SETTINGS STORAGE + WHATSAPP REMINDERS =====
       const reminderCount = document.getElementById("reminderCount");
       const reminderInterval = document.getElementById("reminderInterval");
       const reminderToggle = document.getElementById("reminderToggle");
 
-      // Load saved settings
       reminderCount.value = localStorage.getItem("reminderCount") || "1";
-      reminderInterval.value = localStorage.getItem("reminderInterval") || "30";
+      reminderInterval.value = localStorage.getItem("reminderInterval") || "15";
       reminderToggle.checked =
         localStorage.getItem("reminderToggle") === "true";
 
-      // ======= SAVE SETTINGS + SEND WHATSAPP =======
       document
         .getElementById("saveSettings")
         .addEventListener("click", async () => {
           localStorage.setItem("reminderCount", reminderCount.value);
           localStorage.setItem("reminderInterval", reminderInterval.value);
           localStorage.setItem("reminderToggle", reminderToggle.checked);
-
           alert("✅ تم حفظ الإعدادات بنجاح!");
 
-          // ✅ Only send WhatsApp message if reminders are ON
           if (reminderToggle.checked) {
-            try {
-              const payload = {
-                name: "Smile Clinic",
-                phone: "962785050875",
-                service: "تذكير تلقائي",
-                appointment: "الآن",
-              };
+            const count = parseInt(reminderCount.value);
+            const interval = parseInt(reminderInterval.value);
+            alert(`⏳ سيتم إرسال ${count} تذكير كل ${interval} دقيقة.`);
 
-              const res = await fetch(
-                "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(payload),
+            for (let i = 0; i < count; i++) {
+              setTimeout(async () => {
+                try {
+                  const payload = {
+                    name: "Smile Clinic",
+                    phone: "962785050875",
+                    service: "تذكير تلقائي",
+                    appointment: `بعد ${interval * i} دقيقة`,
+                  };
+
+                  const res = await fetch(
+                    "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(payload),
+                    }
+                  );
+
+                  const data = await res.json();
+                  console.log(`📬 تذكير رقم ${i + 1}:`, data);
+
+                  if (data.success) {
+                    console.log(`✅ تم إرسال التذكير رقم ${i + 1}`);
+                  } else {
+                    console.error(`⚠️ فشل التذكير رقم ${i + 1}`);
+                  }
+                } catch (err) {
+                  console.error("❌ WhatsApp Send Error:", err);
                 }
-              );
-
-              const data = await res.json();
-              console.log("📬 WhatsApp Response:", data);
-
-              if (data.success) {
-                alert("📱 تم إرسال تذكير واتساب بنجاح!");
-              } else {
-                alert("⚠️ فشل إرسال رسالة واتساب. تحقق من الخادم.");
-              }
-            } catch (err) {
-              console.error("❌ WhatsApp Send Error:", err);
-              alert("🚨 حدث خطأ أثناء إرسال رسالة واتساب.");
+              }, i * interval * 60 * 1000);
             }
           }
         });
