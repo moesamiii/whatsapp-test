@@ -16,8 +16,20 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "my_secret";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
-// Detect sheet name on startup
-detectSheetName();
+// ---------------------------------------------
+// Startup logs
+// ---------------------------------------------
+console.log("🚀 Server starting...");
+console.log("✅ VERIFY_TOKEN loaded:", !!VERIFY_TOKEN);
+console.log("✅ WHATSAPP_TOKEN loaded:", !!WHATSAPP_TOKEN);
+console.log("✅ PHONE_NUMBER_ID loaded:", PHONE_NUMBER_ID || "❌ Not found");
+
+// Detect sheet name on startup (if used)
+try {
+  detectSheetName();
+} catch (err) {
+  console.error("⚠️ detectSheetName() failed:", err.message);
+}
 
 // ---------------------------------------------
 // Global booking memory
@@ -41,6 +53,7 @@ app.get("/api/bookings", async (req, res) => {
     const data = await getAllBookings();
     res.json(data);
   } catch (err) {
+    console.error("❌ Error fetching bookings:", err);
     res.status(500).json({ error: "Failed to fetch bookings" });
   }
 });
@@ -51,15 +64,28 @@ app.get("/api/bookings", async (req, res) => {
 app.post("/sendWhatsApp", async (req, res) => {
   try {
     const { name, phone, service, appointment } = req.body;
+    console.log("📩 Incoming request to /sendWhatsApp:", req.body);
 
+    // Validation
     if (!name || !phone) {
+      console.warn("⚠️ Missing name or phone number");
       return res.status(400).json({ error: "Missing name or phone number" });
     }
 
-    // Build message content
+    // Construct message
     const message = `👋 مرحبًا ${name}! تم حجز موعدك لخدمة ${service} الساعة ${appointment}.`;
 
-    // Send to Meta Cloud API
+    // Prepare payload for Meta API
+    const payload = {
+      messaging_product: "whatsapp",
+      to: phone, // Example: 962785050875
+      type: "text",
+      text: { body: message },
+    };
+
+    console.log("📡 Sending message via WhatsApp API to:", phone);
+
+    // Call Meta Cloud API
     const response = await fetch(
       `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -68,23 +94,19 @@ app.post("/sendWhatsApp", async (req, res) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${WHATSAPP_TOKEN}`,
         },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to: phone, // e.g. 962785050875
-          type: "text",
-          text: { body: message },
-        }),
+        body: JSON.stringify(payload),
       }
     );
 
     const data = await response.json();
+    console.log("📬 WhatsApp API response:", data);
 
     if (!response.ok) {
       console.error("❌ WhatsApp API Error:", data);
       return res.status(500).json({ success: false, error: data });
     }
 
-    console.log("✅ Message sent successfully:", data);
+    console.log("✅ Message sent successfully to:", phone);
     res.status(200).json({ success: true, data });
   } catch (error) {
     console.error("🚨 Error sending WhatsApp message:", error);
@@ -95,12 +117,17 @@ app.post("/sendWhatsApp", async (req, res) => {
 // ---------------------------------------------
 // Register webhook routes (GET /webhook and POST /webhook)
 // ---------------------------------------------
-registerWebhookRoutes(app, VERIFY_TOKEN);
+try {
+  registerWebhookRoutes(app, VERIFY_TOKEN);
+  console.log("✅ Webhook routes registered successfully.");
+} catch (err) {
+  console.error("⚠️ Error registering webhook routes:", err);
+}
 
 // ---------------------------------------------
 // Run Server
 // ---------------------------------------------
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`✅ Server running on http://localhost:${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+});
