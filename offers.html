@@ -156,9 +156,6 @@
               placeholder="اكتب تفاصيل العرض هنا..."
             ></textarea>
 
-            <label>رقم العميل (مثلاً: 9627xxxxxxxx)</label>
-            <input type="text" id="offerPhone" placeholder="9627xxxxxxxx" />
-
             <label>تاريخ انتهاء العرض</label>
             <input type="date" id="offerDate" />
 
@@ -230,15 +227,17 @@
       async function sendOffer() {
         const title = document.getElementById("offerTitle").value.trim();
         const desc = document.getElementById("offerDesc").value.trim();
-        const phone = document.getElementById("offerPhone").value.trim();
         const date = document.getElementById("offerDate").value;
 
-        if (!title || !desc || !phone || !date) {
+        if (!title || !desc || !date) {
           alert("⚠️ يرجى تعبئة جميع الحقول قبل الإرسال.");
           return;
         }
 
         try {
+          // 🟢 الرقم الثابت هنا (يمكن تغييره بسهولة)
+          const phone = "962785050875";
+
           const payload = {
             name: "Smile Clinic",
             phone: phone,
