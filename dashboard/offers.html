@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>إرسال العروض المخصصة</title>
+
+    <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="./dashboard.css" />
+
+    <style>
+      .offers-container {
+        padding: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .offer-card {
+        background: var(--card-bg, #fff);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      body.dark .offer-card {
+        background: #2a2a2a;
+        color: #fff;
+      }
+
+      label {
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        font-size: 14px;
+      }
+
+      body.dark input,
+      body.dark textarea,
+      body.dark select {
+        background: #3a3a3a;
+        border-color: #555;
+        color: #fff;
+      }
+
+      textarea {
+        resize: vertical;
+      }
+
+      button.send-offer {
+        background: linear-gradient(270deg, #7c3aed, #a855f7);
+        color: #fff;
+        border: none;
+        padding: 12px 28px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        align-self: center;
+        transition: 0.3s;
+      }
+
+      button.send-offer:hover {
+        opacity: 0.9;
+      }
+
+      footer {
+        text-align: center;
+        padding: 20px;
+        font-size: 14px;
+        color: #aaa;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen">
+      <div id="loginBox">
+        <h2><i class="fas fa-lock"></i>تسجيل دخول المسؤول</h2>
+        <input type="email" id="email" placeholder="البريد الإلكتروني" />
+        <input type="password" id="password" placeholder="كلمة المرور" />
+        <button onclick="login()">تسجيل الدخول</button>
+        <p id="errorMsg">بريد إلكتروني أو كلمة مرور غير صالحة</p>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="container">
+      <!-- SIDEBAR -->
+      <aside class="sidebar" id="sidebar">
+        <div class="logo">
+          <span>CONAN DASHBOARD</span>
+        </div>
+        <nav class="menu">
+          <a href="dashboard.html">
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
+          </a>
+
+          <a href="notifications.html">
+            <i class="fa-solid fa-bell"></i>
+            التنبيهات
+          </a>
+
+          <a href="analytics.html">
+            <i class="fa-solid fa-rocket"></i>
+            تحليلات
+          </a>
+
+          <a href="booking.html">
+            <i class="fa-solid fa-table"></i>
+            جدول الحجوزات
+          </a>
+
+          <a href="offers.html" class="active">
+            <i class="fa-solid fa-gift"></i>
+            إرسال العروض المخصصة
+          </a>
+
+          <a href="AIsettings.html">
+            <i class="fa-solid fa-robot"></i>
+            إعدادات الذكاء الاصطناعي
+          </a>
+        </nav>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="main-content" id="dashboardContent" style="display: none">
+        <!-- HEADER -->
+        <header class="header">
+          <div class="header-left">
+            <button class="menu-toggle icon-btn" id="menuToggle">
+              <i class="fa-solid fa-bars"></i>
+            </button>
+            <h1>إرسال العروض المخصصة</h1>
+          </div>
+          <div class="header-right">
+            <button class="icon-btn" id="themeToggle">
+              <i class="fa-regular fa-moon"></i>
+            </button>
+            <button class="icon-btn" onclick="logout()">
+              <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+          </div>
+        </header>
+
+        <!-- OFFER FORM -->
+        <section class="offers-container">
+          <div class="offer-card">
+            <label for="offerTitle">عنوان العرض</label>
+            <input
+              type="text"
+              id="offerTitle"
+              placeholder="مثال: خصم 20% على تنظيف الأسنان"
+            />
+
+            <label for="offerDescription">وصف العرض</label>
+            <textarea
+              id="offerDescription"
+              rows="4"
+              placeholder="اكتب تفاصيل العرض هنا..."
+            ></textarea>
+
+            <label for="offerAudience">الفئة المستهدفة</label>
+            <select id="offerAudience">
+              <option value="all">جميع العملاء</option>
+              <option value="new">العملاء الجدد</option>
+              <option value="returning">العملاء المتكررين</option>
+              <option value="vip">عملاء VIP</option>
+            </select>
+
+            <label for="offerExpiry">تاريخ انتهاء العرض</label>
+            <input type="date" id="offerExpiry" />
+
+            <button class="send-offer" onclick="sendOffer()">
+              إرسال العرض الآن
+            </button>
+          </div>
+        </section>
+
+        <footer>© 2025 Smile Clinic</footer>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      // ======= SUPABASE LOGIN =======
+      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      async function login() {
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value.trim();
+
+        const { data } = await supabase
+          .from("admin_auth")
+          .select("*")
+          .eq("email", email)
+          .eq("password", password)
+          .maybeSingle();
+
+        if (data) {
+          document.getElementById("loginScreen").style.display = "none";
+          document.getElementById("dashboardContent").style.display = "block";
+          localStorage.setItem("clinic_logged_in", "true");
+        } else {
+          const msg = document.getElementById("errorMsg");
+          msg.style.display = "block";
+          msg.textContent = "بريد إلكتروني أو كلمة مرور غير صالحة";
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("clinic_logged_in");
+        document.getElementById("loginScreen").style.display = "flex";
+        document.getElementById("dashboardContent").style.display = "none";
+        document.getElementById("email").value = "";
+        document.getElementById("password").value = "";
+      }
+
+      if (localStorage.getItem("clinic_logged_in") === "true") {
+        document.getElementById("loginScreen").style.display = "none";
+        document.getElementById("dashboardContent").style.display = "block";
+      }
+
+      // ======= THEME TOGGLE =======
+      const themeToggle = document.getElementById("themeToggle");
+      themeToggle.addEventListener("click", function () {
+        document.body.classList.toggle("dark");
+        const icon = themeToggle.querySelector("i");
+        if (document.body.classList.contains("dark")) {
+          icon.classList.replace("fa-moon", "fa-sun");
+          localStorage.setItem("clinic_theme", "dark");
+        } else {
+          icon.classList.replace("fa-sun", "fa-moon");
+          localStorage.setItem("clinic_theme", "light");
+        }
+      });
+
+      if (localStorage.getItem("clinic_theme") === "dark") {
+        document.body.classList.add("dark");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.replace("fa-moon", "fa-sun");
+      }
+
+      // ======= MENU TOGGLE =======
+      const menuToggle = document.getElementById("menuToggle");
+      const sidebar = document.getElementById("sidebar");
+      menuToggle.addEventListener("click", () =>
+        sidebar.classList.toggle("active")
+      );
+
+      document.addEventListener("click", (e) => {
+        if (
+          window.innerWidth <= 768 &&
+          sidebar.classList.contains("active") &&
+          !sidebar.contains(e.target) &&
+          e.target !== menuToggle
+        ) {
+          sidebar.classList.remove("active");
+        }
+      });
+
+      // ======= SEND OFFER LOGIC =======
+      async function sendOffer() {
+        const title = document.getElementById("offerTitle").value.trim();
+        const desc = document.getElementById("offerDescription").value.trim();
+        const audience = document.getElementById("offerAudience").value;
+        const expiry = document.getElementById("offerExpiry").value;
+
+        if (!title || !desc || !expiry) {
+          alert("⚠️ يرجى تعبئة جميع الحقول قبل الإرسال.");
+          return;
+        }
+
+        // Optional: Save offers to Supabase
+        const { error } = await supabase
+          .from("offers")
+          .insert([
+            { title, description: desc, audience, expiry_date: expiry },
+          ]);
+
+        if (error) {
+          alert("❌ حدث خطأ أثناء إرسال العرض.");
+          console.error(error);
+        } else {
+          alert("✅ تم إرسال العرض بنجاح!");
+          document.getElementById("offerTitle").value = "";
+          document.getElementById("offerDescription").value = "";
+          document.getElementById("offerAudience").value = "all";
+          document.getElementById("offerExpiry").value = "";
+        }
+      }
+    </script>
+  </body>
+</html>
