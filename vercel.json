@@ -7,6 +7,7 @@
     { "src": "img/**", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/sendWhatsApp", "dest": "index.js" },
     { "src": "/img/(.*)", "dest": "/img/$1" },
     { "src": "/(.*\\.css)", "dest": "/$1" },
     { "src": "/(.*\\.html)", "dest": "/$1" },
