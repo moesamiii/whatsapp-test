@@ -2,7 +2,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
-const fetch = require("node-fetch");
 const { registerWebhookRoutes } = require("./webhookHandler");
 const { detectSheetName, getAllBookings } = require("./helpers");
 
@@ -85,7 +84,7 @@ app.post("/sendWhatsApp", async (req, res) => {
 
     console.log("📡 Sending message via WhatsApp API to:", phone);
 
-    // Call Meta Cloud API
+    // ✅ Use native fetch (built into Node 18+, no need for node-fetch)
     const response = await fetch(
       `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
       {
