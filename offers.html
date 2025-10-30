@@ -280,6 +280,12 @@
         }
       });
 
+      // ======= GOOGLE SHEETS SETTINGS =======
+      // Example published sheet URL:
+      // https://docs.google.com/spreadsheets/d/<SHEET_ID>/gviz/tq?tqx=out:json
+      const SHEET_URL =
+        "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/gviz/tq?tqx=out:json";
+
       // ======= SEND OFFER LOGIC =======
       async function sendOffer() {
         const title = document.getElementById("offerTitle").value.trim();
@@ -292,21 +298,103 @@
           return;
         }
 
-        // Optional: Save offers to Supabase
-        const { error } = await supabase.from("offers").insert([
-          { title, description: desc, audience, expiry_date: expiry },
+        // 1️⃣ Fetch clients from Google Sheet
+        let clients = [];
+        try {
+          const res = await fetch(SHEET_URL);
+          const text = await res.text();
+          const json = JSON.parse(text.substring(47).slice(0, -2)); // Google Sheets JSONP cleanup
+
+          clients = json.table.rows.map((row) => ({
+            name: row.c[0]?.v || "بدون اسم",
+            phone: row.c[1]?.v || "",
+            visit_count: parseInt(row.c[2]?.v || "0"),
+          }));
+        } catch (err) {
+          console.error(err);
+          alert("❌ لم يتمكن النظام من قراءة بيانات Google Sheet.");
+          return;
+        }
+
+        if (clients.length === 0) {
+          alert("⚠️ لا يوجد عملاء في الجدول.");
+          return;
+        }
+
+        // 2️⃣ Categorize clients
+        const categorized = {
+          new: [],
+          returning: [],
+          vip: [],
+          all: clients,
+        };
+
+        clients.forEach((c) => {
+          if (!c.visit_count || c.visit_count <= 1) {
+            categorized.new.push(c);
+          } else if (c.visit_count > 1 && c.visit_count < 5) {
+            categorized.returning.push(c);
+          } else if (c.visit_count >= 5) {
+            categorized.vip.push(c);
+          }
+        });
+
+        // 3️⃣ Choose recipients based on audience
+        let recipients = [];
+        if (audience === "all") recipients = categorized.all;
+        if (audience === "new") recipients = categorized.new;
+        if (audience === "returning") recipients = categorized.returning;
+        if (audience === "vip") recipients = categorized.vip;
+
+        if (recipients.length === 0) {
+          alert("⚠️ لا يوجد عملاء في هذه الفئة.");
+          return;
+        }
+
+        // 4️⃣ Save offer to Supabase
+        const { error: insertError } = await supabase.from("offers").insert([
+          {
+            title,
+            description: desc,
+            audience,
+            expiry_date: expiry,
+            sent_count: recipients.length,
+          },
         ]);
 
-        if (error) {
-          alert("❌ حدث خطأ أثناء إرسال العرض.");
-          console.error(error);
-        } else {
-          alert("✅ تم إرسال العرض بنجاح!");
-          document.getElementById("offerTitle").value = "";
-          document.getElementById("offerDescription").value = "";
-          document.getElementById("offerAudience").value = "all";
-          document.getElementById("offerExpiry").value = "";
+        if (insertError) {
+          console.error(insertError);
+          alert("❌ لم يتم حفظ العرض في قاعدة البيانات.");
+          return;
         }
+
+        // 5️⃣ Simulate sending messages
+        for (const client of recipients) {
+          console.log(
+            `📩 إرسال العرض إلى ${client.name} (${client.phone}) → ${title}`
+          );
+
+          // Example (for future integration with WhatsApp API):
+          /*
+      await fetch("https://your-server.com/sendWhatsApp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: client.name,
+          phone: client.phone,
+          message: `${title}\n\n${desc}\nصالح حتى: ${expiry}`,
+        }),
+      });
+      */
+        }
+
+        alert(`✅ تم إرسال العرض إلى ${recipients.length} عميل بنجاح!`);
+
+        // 6️⃣ Clear form
+        document.getElementById("offerTitle").value = "";
+        document.getElementById("offerDescription").value = "";
+        document.getElementById("offerAudience").value = "all";
+        document.getElementById("offerExpiry").value = "";
       }
     </script>
   </body>
