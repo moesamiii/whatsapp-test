@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="./dashboard.css" />
 
     <style>
-      .offers-container {
+      .settings-container {
         padding: 30px;
         display: flex;
         flex-direction: column;
@@ -22,50 +22,46 @@
         margin: 0 auto;
       }
 
-      .offer-card {
+      .setting-card {
         background: var(--card-bg, #fff);
         border-radius: 12px;
-        padding: 25px;
+        padding: 20px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
         display: flex;
         flex-direction: column;
-        gap: 18px;
+        gap: 15px;
         transition: background 0.3s;
       }
 
-      body.dark .offer-card {
+      body.dark .setting-card {
         background: #2a2a2a;
         color: #fff;
       }
 
       label {
-        font-weight: bold;
+        font-weight: 600;
         font-size: 15px;
       }
 
       input,
       textarea,
       select {
-        width: 100%;
         padding: 10px;
         border-radius: 8px;
-        border: 1px solid #ddd;
+        border: 1px solid #ccc;
         font-size: 14px;
+        width: 100%;
       }
 
       body.dark input,
       body.dark textarea,
       body.dark select {
         background: #3a3a3a;
-        border-color: #555;
         color: #fff;
+        border-color: #555;
       }
 
-      textarea {
-        resize: vertical;
-      }
-
-      button.send-offer {
+      button {
         background: linear-gradient(270deg, #7c3aed, #a855f7);
         color: #fff;
         border: none;
@@ -74,11 +70,7 @@
         cursor: pointer;
         font-size: 16px;
         align-self: center;
-        transition: 0.3s;
-      }
-
-      button.send-offer:hover {
-        opacity: 0.9;
+        margin-top: 10px;
       }
 
       footer {
@@ -102,41 +94,34 @@
       </div>
     </div>
 
-    <!-- MAIN -->
+    <!-- MAIN DASHBOARD -->
     <div class="container">
-      <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
         <div class="logo">
           <span>CONAN DASHBOARD</span>
         </div>
         <nav class="menu">
-          <a href="dashboard.html">
-            <i class="fa-solid fa-gauge"></i> لوحة القيادة
-          </a>
-
-          <a href="notifications.html">
-            <i class="fa-solid fa-bell"></i> التنبيهات
-          </a>
-
-          <a href="analytics.html">
-            <i class="fa-solid fa-rocket"></i> تحليلات
-          </a>
-
-          <a href="booking.html">
-            <i class="fa-solid fa-table"></i> جدول الحجوزات
-          </a>
-
-          <a href="offers.html" class="active">
-            <i class="fa-solid fa-gift"></i> إرسال العروض المخصصة
-          </a>
-
-          <a href="AIsettings.html">
-            <i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي
-          </a>
+          <a href="dashboard.html"
+            ><i class="fa-solid fa-gauge"></i> لوحة القيادة</a
+          >
+          <a href="notifications.html"
+            ><i class="fa-solid fa-bell"></i> التنبيهات</a
+          >
+          <a href="analytics.html"
+            ><i class="fa-solid fa-rocket"></i> تحليلات</a
+          >
+          <a href="booking.html"
+            ><i class="fa-solid fa-table"></i> جدول الحجوزات</a
+          >
+          <a href="offers.html" class="active"
+            ><i class="fa-solid fa-gift"></i> إرسال العروض المخصصة</a
+          >
+          <a href="AIsettings.html"
+            ><i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي</a
+          >
         </nav>
       </aside>
 
-      <!-- MAIN CONTENT -->
       <main class="main-content" id="dashboardContent" style="display: none">
         <header class="header">
           <div class="header-left">
@@ -155,37 +140,29 @@
           </div>
         </header>
 
-        <!-- OFFER FORM -->
-        <section class="offers-container">
-          <div class="offer-card">
-            <label for="offerTitle">عنوان العرض</label>
+        <section class="settings-container">
+          <div class="setting-card">
+            <label>عنوان العرض</label>
             <input
               type="text"
               id="offerTitle"
               placeholder="مثال: خصم 20% على تنظيف الأسنان"
             />
 
-            <label for="offerDescription">وصف العرض</label>
+            <label>وصف العرض</label>
             <textarea
-              id="offerDescription"
-              rows="4"
+              id="offerDesc"
+              rows="3"
               placeholder="اكتب تفاصيل العرض هنا..."
             ></textarea>
 
-            <label for="offerAudience">الفئة المستهدفة</label>
-            <select id="offerAudience">
-              <option value="all">جميع العملاء</option>
-              <option value="new">العملاء الجدد</option>
-              <option value="returning">العملاء المتكررين</option>
-              <option value="vip">عملاء VIP</option>
-            </select>
+            <label>رقم العميل (مثلاً: 9627xxxxxxxx)</label>
+            <input type="text" id="offerPhone" placeholder="9627xxxxxxxx" />
 
-            <label for="offerExpiry">تاريخ انتهاء العرض</label>
-            <input type="date" id="offerExpiry" />
+            <label>تاريخ انتهاء العرض</label>
+            <input type="date" id="offerDate" />
 
-            <button class="send-offer" onclick="sendOffer()">
-              إرسال العرض الآن
-            </button>
+            <button onclick="sendOffer()">إرسال العرض الآن</button>
           </div>
         </section>
 
@@ -195,7 +172,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // ======= SUPABASE LOGIN =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -217,9 +193,7 @@
           document.getElementById("dashboardContent").style.display = "block";
           localStorage.setItem("clinic_logged_in", "true");
         } else {
-          const msg = document.getElementById("errorMsg");
-          msg.style.display = "block";
-          msg.textContent = "بريد إلكتروني أو كلمة مرور غير صالحة";
+          document.getElementById("errorMsg").style.display = "block";
         }
       }
 
@@ -227,8 +201,6 @@
         localStorage.removeItem("clinic_logged_in");
         document.getElementById("loginScreen").style.display = "flex";
         document.getElementById("dashboardContent").style.display = "none";
-        document.getElementById("email").value = "";
-        document.getElementById("password").value = "";
       }
 
       if (localStorage.getItem("clinic_logged_in") === "true") {
@@ -236,7 +208,6 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
-      // ======= THEME TOGGLE =======
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
@@ -256,117 +227,43 @@
         icon.classList.replace("fa-moon", "fa-sun");
       }
 
-      // ======= MENU TOGGLE =======
-      const menuToggle = document.getElementById("menuToggle");
-      const sidebar = document.getElementById("sidebar");
-      menuToggle.addEventListener("click", () =>
-        sidebar.classList.toggle("active")
-      );
-
-      // ======= GOOGLE SHEET URL =======
-      const SHEET_URL =
-        "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/gviz/tq?tqx=out:json";
-
-      // ======= SEND OFFER LOGIC =======
       async function sendOffer() {
         const title = document.getElementById("offerTitle").value.trim();
-        const desc = document.getElementById("offerDescription").value.trim();
-        const audience = document.getElementById("offerAudience").value;
-        const expiry = document.getElementById("offerExpiry").value;
+        const desc = document.getElementById("offerDesc").value.trim();
+        const phone = document.getElementById("offerPhone").value.trim();
+        const date = document.getElementById("offerDate").value;
 
-        if (!title || !desc || !expiry) {
+        if (!title || !desc || !phone || !date) {
           alert("⚠️ يرجى تعبئة جميع الحقول قبل الإرسال.");
           return;
         }
 
-        let clients = [];
         try {
-          const res = await fetch(SHEET_URL);
-          const text = await res.text();
-          const json = JSON.parse(text.substring(47).slice(0, -2));
+          const payload = {
+            name: "Smile Clinic",
+            phone: phone,
+            service: title,
+            appointment: `${desc}\n⏰ صالح حتى: ${date}`,
+          };
 
-          clients = json.table.rows.map((row) => ({
-            name: row.c[0]?.v || "بدون اسم",
-            phone: row.c[1]?.v || "",
-            visit_count: parseInt(row.c[2]?.v || "0"),
-          }));
-        } catch (err) {
-          alert("❌ لم يتمكن النظام من قراءة بيانات Google Sheet.");
-          return;
-        }
+          const res = await fetch(
+            "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }
+          );
 
-        const categorized = {
-          new: [],
-          returning: [],
-          vip: [],
-          all: clients,
-        };
-
-        clients.forEach((c) => {
-          if (!c.visit_count || c.visit_count <= 1) categorized.new.push(c);
-          else if (c.visit_count < 5) categorized.returning.push(c);
-          else categorized.vip.push(c);
-        });
-
-        let recipients =
-          audience === "new"
-            ? categorized.new
-            : audience === "returning"
-            ? categorized.returning
-            : audience === "vip"
-            ? categorized.vip
-            : categorized.all;
-
-        if (recipients.length === 0) {
-          alert("⚠️ لا يوجد عملاء في هذه الفئة.");
-          return;
-        }
-
-        const { error: insertError } = await supabase.from("offers").insert([
-          {
-            title,
-            description: desc,
-            audience,
-            expiry_date: expiry,
-            sent_count: recipients.length,
-          },
-        ]);
-
-        if (insertError) {
-          alert("❌ لم يتم حفظ العرض في قاعدة البيانات.");
-          return;
-        }
-
-        for (let i = 0; i < recipients.length; i++) {
-          const client = recipients[i];
-          if (!client.phone) continue;
-
-          try {
-            const payload = {
-              name: client.name,
-              phone: client.phone.toString().replace(/\s+/g, ""),
-              service: title,
-              appointment: `${desc}\n⏰ صالح حتى: ${expiry}`,
-            };
-
-            const res = await fetch(
-              "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-              }
-            );
-
-            const data = await res.json();
-            console.log(`📬 تم إرسال العرض رقم ${i + 1}:`, data);
-            await new Promise((r) => setTimeout(r, 2000)); // delay 2 seconds
-          } catch (err) {
-            console.error("❌ خطأ في الإرسال:", err);
+          const data = await res.json();
+          if (data.success) {
+            alert("✅ تم إرسال العرض بنجاح!");
+          } else {
+            alert("⚠️ فشل إرسال العرض.");
           }
+        } catch (err) {
+          alert("❌ خطأ أثناء الإرسال: " + err.message);
         }
-
-        alert(`✅ تم إرسال العرض إلى ${recipients.length} عميل بنجاح!`);
       }
     </script>
   </body>
