@@ -37,6 +37,26 @@
           width: 100%;
         }
       }
+
+      /* === Added button styling === */
+      .download-btn {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: background-color 0.3s;
+        margin-bottom: 10px;
+      }
+
+      .download-btn:hover {
+        background-color: #0056b3;
+      }
     </style>
   </head>
 
@@ -99,6 +119,12 @@
         <section class="dashboard-grid">
           <div class="table-card" style="width: 100%">
             <h3>جدول الحجوزات</h3>
+
+            <!-- === Added Download Button === -->
+            <button class="download-btn" id="downloadBtn">
+              <i class="fa-solid fa-download"></i> تنزيل الجدول
+            </button>
+
             <table id="tbl">
               <thead>
                 <tr>
@@ -173,6 +199,25 @@
         tb.innerHTML = "";
         rows.forEach((r) => tb.appendChild(r));
       }
+
+      // === Added CSV Download Feature ===
+      document.getElementById("downloadBtn").addEventListener("click", () => {
+        const table = document.getElementById("tbl");
+        let csv = [];
+        for (let row of table.rows) {
+          let cells = Array.from(row.cells).map(
+            (cell) => `"${cell.textContent.trim()}"`
+          );
+          csv.push(cells.join(","));
+        }
+        const csvContent = "data:text/csv;charset=utf-8," + csv.join("\n");
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", "bookings_table.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
 
       // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
