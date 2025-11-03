@@ -189,11 +189,30 @@
         color: white;
       }
 
-      /* ✅ ACTIVE STATE STYLING */
       .filter-btn.active {
         background: linear-gradient(135deg, #d946ef, #a855f7);
         color: white;
         box-shadow: 0 3px 10px rgba(217, 70, 239, 0.3);
+      }
+
+      /* ✅ Added Download Button */
+      .download-btn {
+        background-color: #d946ef;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background-color 0.3s;
+        margin-bottom: 20px;
+      }
+
+      .download-btn:hover {
+        background-color: #a855f7;
       }
     </style>
   </head>
@@ -295,6 +314,11 @@
               onkeyup="filterNotifications()"
             />
           </div>
+
+          <!-- ✅ Added Download Button -->
+          <button class="download-btn" id="downloadBtn">
+            <i class="fa-solid fa-download"></i> تنزيل التنبيهات
+          </button>
 
           <div id="notificationsList"></div>
         </div>
@@ -431,7 +455,7 @@
         renderNotifications();
       }
 
-      // ✅ NEW ADVANCED TIME FILTER (today + next 24h)
+      // ✅ NEW ADVANCED TIME FILTER
       function filterByTime(period, btn) {
         console.log("🕒 Applying filter:", period);
         setActiveButton(btn);
@@ -439,7 +463,6 @@
 
         filteredBookings = allBookings.filter((booking) => {
           if (!booking.time) return false;
-
           let raw = booking.time;
           if (typeof raw === "string" && !raw.endsWith("Z")) raw += "Z";
           const date = new Date(raw);
@@ -487,7 +510,6 @@
         setActiveButton(btn);
       }
 
-      // ✅ Highlight active filter button
       function setActiveButton(selectedBtn) {
         document
           .querySelectorAll(".filter-btn")
@@ -496,6 +518,36 @@
           selectedBtn.classList.add("active");
         }
       }
+
+      // ✅ CSV DOWNLOAD FEATURE
+      document.getElementById("downloadBtn").addEventListener("click", () => {
+        if (!filteredBookings || filteredBookings.length === 0) {
+          alert("لا توجد بيانات لتنزيلها!");
+          return;
+        }
+
+        const headers = ["الاسم", "الهاتف", "الخدمة", "الموعد", "الوقت"];
+        const rows = filteredBookings.map((b) => [
+          `"${b.name || "-"}"`,
+          `"${b.phone || "-"}"`,
+          `"${b.service || "-"}"`,
+          `"${b.appointment || "-"}"`,
+          `"${b.time || "-"}"`,
+        ]);
+
+        const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join(
+          "\n"
+        );
+        const blob = new Blob(["\uFEFF" + csv], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "notifications.csv");
+        link.click();
+        URL.revokeObjectURL(url);
+      });
 
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", () => {
