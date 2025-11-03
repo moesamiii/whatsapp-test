@@ -18,6 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
+      /* === Only added this fix === */
       @media (min-width: 1024px) {
         .dashboard-grid {
           width: 100%;
@@ -31,11 +32,13 @@
           margin: 0;
         }
 
+        /* Make sure main content stretches properly */
         .main-content {
           width: 100%;
         }
       }
 
+      /* === Added button styling === */
       .download-btn {
         background-color: #007bff;
         color: white;
@@ -54,10 +57,6 @@
       .download-btn:hover {
         background-color: #0056b3;
       }
-
-      #tbl tbody tr:nth-child(even) {
-        background-color: #f5f5f5;
-      }
     </style>
   </head>
 
@@ -70,22 +69,32 @@
         </div>
         <nav class="menu">
           <a href="dashboard.html">
-            <i class="fa-solid fa-gauge"></i> لوحة القيادة
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
           </a>
+
           <a href="notifications.html">
-            <i class="fa-solid fa-bell"></i> التنبيهات
+            <i class="fa-solid fa-bell"></i>
+            التنبيهات
           </a>
+
           <a href="analytics.html">
-            <i class="fa-solid fa-rocket"></i> تحليلات
+            <i class="fa-solid fa-rocket"></i>
+            تحليلات
           </a>
           <a href="booking.html" class="active">
-            <i class="fa-solid fa-table"></i> جدول الحجوزات
+            <i class="fa-solid fa-table"></i>
+            جدول الحجوزات
           </a>
+
           <a href="AIsettings.html">
-            <i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي
+            <i class="fa-solid fa-robot"></i>
+            إعدادات الذكاء الاصطناعي
           </a>
+
           <a href="offers.html">
-            <i class="fa-solid fa-gift"></i> إرسال العروض المخصصة
+            <i class="fa-solid fa-gift"></i>
+            إرسال العروض المخصصة
           </a>
         </nav>
       </aside>
@@ -111,6 +120,7 @@
           <div class="table-card" style="width: 100%">
             <h3>جدول الحجوزات</h3>
 
+            <!-- === Added Download Button === -->
             <button class="download-btn" id="downloadBtn">
               <i class="fa-solid fa-download"></i> تنزيل الجدول
             </button>
@@ -145,7 +155,7 @@
     </div>
 
     <script>
-      // ======= SUPABASE DIRECT FETCH =======
+      // ======= SUPABASE LOGIN LOGIC =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -156,17 +166,8 @@
       const q = (s) => document.querySelector(s);
 
       async function load() {
-        const { data, error } = await supabase
-          .from("bookings")
-          .select("*")
-          .order("timestamp", { ascending: false }); // newest first
-
-        if (error) {
-          console.error("❌ Error loading bookings:", error.message);
-          return;
-        }
-
-        allData = data;
+        const res = await fetch("/api/bookings");
+        allData = await res.json();
         renderTable(allData);
       }
 
@@ -175,15 +176,13 @@
         tb.innerHTML = "";
         d.forEach((b) => {
           const r = document.createElement("tr");
-          r.innerHTML = `
-            <td>${b.name || "-"}</td>
-            <td>${b.phone || "-"}</td>
-            <td>${b.service || "-"}</td>
-            <td>${b.appointment || "-"}</td>
-            <td>${
-              b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
-            }</td>
-          `;
+          r.innerHTML = `<td>${b.name || "-"}</td><td>${
+            b.phone || "-"
+          }</td><td>${b.service || "-"}</td><td>${
+            b.appointment || "-"
+          }</td><td>${
+            b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
+          }</td>`;
           tb.appendChild(r);
         });
       }
@@ -201,7 +200,7 @@
         rows.forEach((r) => tb.appendChild(r));
       }
 
-      // === CSV Download ===
+      // === Added CSV Download Feature ===
       document.getElementById("downloadBtn").addEventListener("click", () => {
         const table = document.getElementById("tbl");
         let csv = [];
