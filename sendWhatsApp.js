@@ -12,10 +12,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing name or phone" });
   }
 
-  // 🦷 Build WhatsApp message text
+  // 🦷 Main WhatsApp message
   const messageText = `👋 مرحبًا ${name}!\nتم حجز موعدك لخدمة ${service} في Smile Clinic 🦷\n📅 ${appointment}`;
 
-  // ✅ WhatsApp API endpoint and headers
+  // ✅ WhatsApp API setup
   const url = `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`;
   const headers = {
     "Content-Type": "application/json",
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   };
 
   try {
-    // ✅ Case 1: Send image message (if image exists)
+    // ✅ 1️⃣ Send image if exists
     if (image) {
       const imagePayload = {
         messaging_product: "whatsapp",
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
         },
       };
 
-      console.log("📤 Sending image with caption...");
+      console.log("📤 Sending image...");
       const imageResponse = await fetch(url, {
         method: "POST",
         headers,
@@ -43,19 +43,22 @@ export default async function handler(req, res) {
       });
 
       const imageData = await imageResponse.json();
-      console.log("🖼️ WhatsApp image response:", imageData);
+      console.log("🖼️ Image Response:", imageData);
 
       if (!imageResponse.ok) {
-        console.error("❌ Image message failed:", imageData);
+        console.error("❌ Image failed:", imageData);
         return res.status(500).json({
           success: false,
           stage: "image",
           error: imageData,
-          message: "Failed to send image message",
+          message: "Failed to send image",
         });
       }
 
-      // ✅ Send follow-up text message
+      // ✅ 2️⃣ Delay 2 seconds for natural feel
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // ✅ 3️⃣ Send follow-up text
       const followupPayload = {
         messaging_product: "whatsapp",
         to: phone,
@@ -65,7 +68,7 @@ export default async function handler(req, res) {
         },
       };
 
-      console.log("💬 Sending follow-up text...");
+      console.log("💬 Sending follow-up...");
       const followupResponse = await fetch(url, {
         method: "POST",
         headers,
@@ -73,17 +76,17 @@ export default async function handler(req, res) {
       });
 
       const followupData = await followupResponse.json();
-      console.log("✅ Follow-up text response:", followupData);
+      console.log("✅ Follow-up sent:", followupData);
 
       return res.status(200).json({
         success: true,
         imageData,
         followupData,
-        message: "Image and follow-up text sent successfully",
+        message: "Image and text sent successfully",
       });
     }
 
-    // ✅ Case 2: No image — send plain text
+    // ✅ 4️⃣ No image → send text only
     const textPayload = {
       messaging_product: "whatsapp",
       to: phone,
@@ -91,7 +94,7 @@ export default async function handler(req, res) {
       text: { body: messageText },
     };
 
-    console.log("💬 Sending text message only...");
+    console.log("💬 Sending text only...");
     const textResponse = await fetch(url, {
       method: "POST",
       headers,
@@ -99,10 +102,9 @@ export default async function handler(req, res) {
     });
 
     const textData = await textResponse.json();
-    console.log("✅ WhatsApp text response:", textData);
+    console.log("✅ Text Response:", textData);
 
     if (!textResponse.ok) {
-      console.error("❌ Text message failed:", textData);
       return res.status(500).json({ success: false, error: textData });
     }
 
@@ -112,11 +114,10 @@ export default async function handler(req, res) {
       message: "Text message sent successfully",
     });
   } catch (error) {
-    console.error("🚨 Server error:", error);
+    console.error("🚨 Server Error:", error);
     return res.status(500).json({
       success: false,
-      message: "Internal Server Error",
-      error: error.message,
+      message: error.message,
     });
   }
 }
