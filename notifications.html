@@ -197,61 +197,6 @@
         background-color: #9ca3af;
         cursor: not-allowed;
       }
-
-      /* Loading Spinner Styles */
-      .loading-spinner {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 60px 20px;
-        gap: 20px;
-      }
-
-      .spinner {
-        width: 50px;
-        height: 50px;
-        border: 4px solid rgba(217, 70, 239, 0.2);
-        border-top: 4px solid #d946ef;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-      }
-
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-
-      .loading-text {
-        color: #d946ef;
-        font-size: 16px;
-        font-weight: bold;
-      }
-
-      body.dark .loading-text {
-        color: #e879f9;
-      }
-
-      .no-data {
-        text-align: center;
-        padding: 60px 20px;
-        color: #999;
-        font-size: 16px;
-      }
-
-      body.dark .no-data {
-        color: #666;
-      }
-
-      .no-data i {
-        font-size: 48px;
-        margin-bottom: 15px;
-        opacity: 0.5;
-      }
     </style>
   </head>
 
@@ -354,12 +299,7 @@
             />
           </div>
 
-          <div id="notificationsList">
-            <div class="loading-spinner">
-              <div class="spinner"></div>
-              <div class="loading-text">جاري تحميل التنبيهات...</div>
-            </div>
-          </div>
+          <div id="notificationsList"></div>
         </div>
 
         <footer>© 2025 Smile Clinic</footer>
@@ -374,8 +314,6 @@
 
       let allBookings = [];
       let filteredBookings = [];
-      let isLoading = true; // START WITH TRUE
-      let dataFetched = false;
 
       // Login
       async function login() {
@@ -413,43 +351,11 @@
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboardContent").style.display = "block";
         loadNotifications();
-        setInterval(() => {
-          if (!isLoading) {
-            loadNotifications();
-          }
-        }, 30000);
-      }
-
-      // Show loading spinner
-      function showLoading() {
-        const container = document.getElementById("notificationsList");
-        container.innerHTML = `
-          <div class="loading-spinner">
-            <div class="spinner"></div>
-            <div class="loading-text">جاري تحميل التنبيهات...</div>
-          </div>
-        `;
-      }
-
-      // Show no data message
-      function showNoData() {
-        const container = document.getElementById("notificationsList");
-        container.innerHTML = `
-          <div class="no-data">
-            <div><i class="fa-solid fa-inbox"></i></div>
-            <div>لا توجد تنبيهات متاحة</div>
-          </div>
-        `;
+        setInterval(loadNotifications, 30000);
       }
 
       // Load notifications
       async function loadNotifications() {
-        if (isLoading) return;
-
-        isLoading = true;
-        dataFetched = false;
-        showLoading();
-
         try {
           const res = await fetch("/api/bookings");
           if (!res.ok) throw new Error("Failed to fetch bookings");
@@ -458,15 +364,9 @@
           allBookings = rawData.slice(1).reverse();
           filteredBookings = [...allBookings];
 
-          dataFetched = true;
-          isLoading = false;
-
           renderNotifications();
         } catch (error) {
           console.error("❌ Error loading notifications:", error);
-          isLoading = false;
-          dataFetched = true;
-          renderNotifications();
         }
       }
 
@@ -474,25 +374,6 @@
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        // إذا كان التحميل جاري، أظهر السبينر فقط
-        if (isLoading) {
-          showLoading();
-          return;
-        }
-
-        // إذا لم يكتمل التحميل بعد، أظهر السبينر
-        if (!dataFetched) {
-          showLoading();
-          return;
-        }
-
-        // إذا اكتمل التحميل ولا توجد بيانات، أظهر رسالة
-        if (filteredBookings.length === 0) {
-          showNoData();
-          return;
-        }
-
-        // أظهر البيانات
         container.innerHTML = filteredBookings
           .map((booking) => {
             const timeAgo = getTimeAgo(booking.time);
@@ -623,11 +504,6 @@
 
       // Download CSV
       document.getElementById("downloadBtn").addEventListener("click", () => {
-        if (filteredBookings.length === 0) {
-          alert("لا توجد بيانات للتنزيل");
-          return;
-        }
-
         const headers = ["الاسم", "الهاتف", "الخدمة", "الموعد", "الوقت"];
         const rows = filteredBookings.map((b) => [
           `"${(b.name || "-").replace(/"/g, '""')}"`,
