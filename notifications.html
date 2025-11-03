@@ -469,12 +469,14 @@
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        if (!dataFetched || isLoading) {
+        // إذا كان التحميل جاري، أظهر السبينر
+        if (isLoading) {
           showLoading();
           return;
         }
 
-        if (filteredBookings.length === 0) {
+        // إذا اكتمل التحميل ولا توجد بيانات، أظهر رسالة
+        if (dataFetched && filteredBookings.length === 0) {
           showNoData();
           return;
         }
