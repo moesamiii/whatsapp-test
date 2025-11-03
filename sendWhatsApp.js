@@ -1,5 +1,14 @@
 // sendWhatsApp.js
 export default async function handler(req, res) {
+  // ✅ Enable CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   // ✅ Allow only POST requests
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -23,8 +32,10 @@ export default async function handler(req, res) {
   };
 
   try {
-    // ✅ Case 1: Send image message (if image exists)
-    if (image) {
+    // ✅ Case 1: Send image message (if image exists and is valid URL)
+    if (image && image.startsWith("http")) {
+      console.log("📤 Image URL received:", image);
+
       const imagePayload = {
         messaging_product: "whatsapp",
         to: phone,
@@ -35,7 +46,11 @@ export default async function handler(req, res) {
         },
       };
 
-      console.log("📤 Sending image with caption...");
+      console.log(
+        "📤 Sending image with caption...",
+        JSON.stringify(imagePayload, null, 2)
+      );
+
       const imageResponse = await fetch(url, {
         method: "POST",
         headers,
@@ -43,15 +58,41 @@ export default async function handler(req, res) {
       });
 
       const imageData = await imageResponse.json();
-      console.log("🖼️ WhatsApp image response:", imageData);
+      console.log(
+        "🖼️ WhatsApp image response:",
+        JSON.stringify(imageData, null, 2)
+      );
 
-      if (!imageResponse.ok) {
+      if (!imageResponse.ok || imageData.error) {
         console.error("❌ Image message failed:", imageData);
-        return res.status(500).json({
-          success: false,
-          stage: "image",
-          error: imageData,
-          message: "Failed to send image message",
+
+        // ⚠️ Fallback: Send text only if image fails
+        console.log("⚠️ Falling back to text-only message...");
+        const textPayload = {
+          messaging_product: "whatsapp",
+          to: phone,
+          type: "text",
+          text: {
+            body:
+              messageText +
+              "\n\n📞 للحجز أو الاستفسار، تواصل معنا الآن عبر واتساب!",
+          },
+        };
+
+        const textResponse = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(textPayload),
+        });
+
+        const textData = await textResponse.json();
+
+        return res.status(200).json({
+          success: true,
+          fallback: true,
+          textData,
+          imageError: imageData,
+          message: "Image failed, sent text instead",
         });
       }
 
@@ -88,7 +129,11 @@ export default async function handler(req, res) {
       messaging_product: "whatsapp",
       to: phone,
       type: "text",
-      text: { body: messageText },
+      text: {
+        body:
+          messageText +
+          "\n\n📞 للحجز أو الاستفسار، تواصل معنا الآن عبر واتساب!",
+      },
     };
 
     console.log("💬 Sending text message only...");

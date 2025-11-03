@@ -71,6 +71,12 @@
         font-size: 16px;
         align-self: center;
         margin-top: 10px;
+        transition: opacity 0.3s;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
       }
 
       footer {
@@ -89,6 +95,52 @@
         display: none;
         margin-top: 10px;
         border: 2px solid #ccc;
+      }
+
+      /* ✅ Debug info box */
+      .debug-info {
+        background: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 20px;
+        font-family: monospace;
+        font-size: 12px;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+      }
+
+      body.dark .debug-info {
+        background: #1a1a1a;
+        border-color: #444;
+        color: #0f0;
+      }
+
+      .debug-info h4 {
+        margin-top: 0;
+        color: #7c3aed;
+      }
+
+      body.dark .debug-info h4 {
+        color: #a855f7;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+        margin-left: 10px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
       }
     </style>
   </head>
@@ -176,7 +228,13 @@
             <label>تاريخ انتهاء العرض</label>
             <input type="date" id="offerDate" />
 
-            <button onclick="sendOffer()">إرسال العرض الآن</button>
+            <button id="sendBtn" onclick="sendOffer()">إرسال العرض الآن</button>
+
+            <!-- Debug Info -->
+            <div class="debug-info" id="debugInfo">
+              <h4>🔍 معلومات التشخيص</h4>
+              <div id="debugContent"></div>
+            </div>
           </div>
         </section>
 
@@ -191,6 +249,20 @@
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      // 🔍 Debug helper
+      function addDebugLog(message, type = "info") {
+        const debugContent = document.getElementById("debugContent");
+        const debugInfo = document.getElementById("debugInfo");
+        debugInfo.style.display = "block";
+
+        const timestamp = new Date().toLocaleTimeString("ar-EG");
+        const icon = type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
+
+        debugContent.innerHTML += `<div>[${timestamp}] ${icon} ${message}</div>`;
+        debugContent.scrollTop = debugContent.scrollHeight;
+        console.log(`[${timestamp}] ${message}`);
+      }
 
       // 🔐 Login logic
       async function login() {
@@ -249,6 +321,9 @@
       offerImage.addEventListener("change", () => {
         const file = offerImage.files[0];
         if (file) {
+          addDebugLog(
+            `تم اختيار صورة: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`
+          );
           const reader = new FileReader();
           reader.onload = (e) => {
             imagePreview.src = e.target.result;
@@ -262,36 +337,79 @@
 
       // 🚀 Send offer
       async function sendOffer() {
+        const sendBtn = document.getElementById("sendBtn");
         const title = document.getElementById("offerTitle").value.trim();
         const desc = document.getElementById("offerDesc").value.trim();
         const date = document.getElementById("offerDate").value;
         const file = offerImage.files[0];
 
+        // Clear previous debug logs
+        document.getElementById("debugContent").innerHTML = "";
+        document.getElementById("debugInfo").style.display = "block";
+
         if (!title || !desc || !date) {
           alert("⚠️ يرجى تعبئة جميع الحقول قبل الإرسال.");
+          addDebugLog("فشل: حقول مفقودة", "error");
           return;
         }
+
+        // Disable button during send
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = 'جاري الإرسال... <span class="spinner"></span>';
 
         let imageUrl = null;
 
         if (file) {
           try {
+            addDebugLog(`بدء رفع الصورة: ${file.name}`);
+
             const uniqueName = `${Date.now()}_${file.name}`;
             const { data, error } = await supabase.storage
               .from("offers")
-              .upload(uniqueName, file);
+              .upload(uniqueName, file, {
+                cacheControl: "3600",
+                upsert: false,
+              });
 
-            if (error) throw error;
+            if (error) {
+              addDebugLog(`خطأ في رفع الصورة: ${error.message}`, "error");
+              throw error;
+            }
 
             const { data: urlData } = supabase.storage
               .from("offers")
               .getPublicUrl(uniqueName);
 
             imageUrl = urlData.publicUrl;
+            addDebugLog(`✅ تم رفع الصورة بنجاح`, "success");
+            addDebugLog(`رابط الصورة: ${imageUrl}`);
+
+            // ⚠️ Test if image URL is accessible
+            try {
+              const testResponse = await fetch(imageUrl, { method: "HEAD" });
+              if (testResponse.ok) {
+                addDebugLog(`✅ الصورة متاحة للوصول العام`, "success");
+              } else {
+                addDebugLog(
+                  `⚠️ الصورة غير متاحة (كود: ${testResponse.status})`,
+                  "error"
+                );
+                addDebugLog(
+                  `تأكد من أن bucket "offers" عام في إعدادات Supabase`,
+                  "error"
+                );
+              }
+            } catch (e) {
+              addDebugLog(`⚠️ لم يتم التحقق من إمكانية الوصول للصورة`, "error");
+            }
           } catch (err) {
-            console.error("❌ Image upload error:", err.message);
+            console.error("❌ Image upload error:", err);
+            addDebugLog(`خطأ في رفع الصورة: ${err.message}`, "error");
             alert("⚠️ حدث خطأ أثناء رفع الصورة. سيتم الإرسال بدون صورة.");
+            imageUrl = null;
           }
+        } else {
+          addDebugLog("لم يتم اختيار صورة - سيتم الإرسال بدون صورة");
         }
 
         try {
@@ -305,6 +423,9 @@
             image: imageUrl,
           };
 
+          addDebugLog("إرسال الطلب إلى WhatsApp API...");
+          addDebugLog(`البيانات: ${JSON.stringify(payload, null, 2)}`);
+
           const res = await fetch(
             "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
             {
@@ -315,14 +436,49 @@
           );
 
           const data = await res.json();
+          addDebugLog(`استجابة API: ${JSON.stringify(data, null, 2)}`);
+
           if (data.success) {
-            alert("✅ تم إرسال العرض بنجاح!");
+            if (data.fallback) {
+              addDebugLog("⚠️ تم الإرسال بنجاح لكن بدون صورة", "error");
+              alert("⚠️ تم إرسال العرض بنجاح (نص فقط - فشل إرسال الصورة)");
+            } else {
+              addDebugLog("✅ تم إرسال العرض بنجاح مع الصورة!", "success");
+              alert("✅ تم إرسال العرض بنجاح!");
+            }
+
+            // Clear form
+            document.getElementById("offerTitle").value = "";
+            document.getElementById("offerDesc").value = "";
+            document.getElementById("offerDate").value = "";
+            document.getElementById("offerImage").value = "";
+            imagePreview.style.display = "none";
           } else {
-            alert("⚠️ فشل إرسال العرض.");
+            console.error("❌ Send failed:", data);
+            addDebugLog(`فشل الإرسال: ${JSON.stringify(data)}`, "error");
+            alert(
+              "⚠️ فشل إرسال العرض: " +
+                (data.error?.message || data.message || "خطأ غير معروف")
+            );
           }
         } catch (err) {
+          console.error("❌ Error sending offer:", err);
+          addDebugLog(`خطأ في الإرسال: ${err.message}`, "error");
           alert("❌ خطأ أثناء الإرسال: " + err.message);
+        } finally {
+          // Re-enable button
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = "إرسال العرض الآن";
         }
+      }
+
+      // 📱 Menu toggle for mobile
+      const menuToggle = document.getElementById("menuToggle");
+      const sidebar = document.getElementById("sidebar");
+      if (menuToggle) {
+        menuToggle.addEventListener("click", () => {
+          sidebar.classList.toggle("active");
+        });
       }
     </script>
   </body>
