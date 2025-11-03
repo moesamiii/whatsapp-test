@@ -374,7 +374,7 @@
 
       let allBookings = [];
       let filteredBookings = [];
-      let isLoading = false;
+      let isLoading = true; // START WITH TRUE
       let dataFetched = false;
 
       // Login
@@ -413,7 +413,11 @@
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboardContent").style.display = "block";
         loadNotifications();
-        setInterval(loadNotifications, 30000);
+        setInterval(() => {
+          if (!isLoading) {
+            loadNotifications();
+          }
+        }, 30000);
       }
 
       // Show loading spinner
@@ -443,6 +447,7 @@
         if (isLoading) return;
 
         isLoading = true;
+        dataFetched = false;
         showLoading();
 
         try {
@@ -461,7 +466,7 @@
           console.error("❌ Error loading notifications:", error);
           isLoading = false;
           dataFetched = true;
-          showNoData();
+          renderNotifications();
         }
       }
 
@@ -469,18 +474,25 @@
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        // إذا كان التحميل جاري، أظهر السبينر
+        // إذا كان التحميل جاري، أظهر السبينر فقط
         if (isLoading) {
           showLoading();
           return;
         }
 
+        // إذا لم يكتمل التحميل بعد، أظهر السبينر
+        if (!dataFetched) {
+          showLoading();
+          return;
+        }
+
         // إذا اكتمل التحميل ولا توجد بيانات، أظهر رسالة
-        if (dataFetched && filteredBookings.length === 0) {
+        if (filteredBookings.length === 0) {
           showNoData();
           return;
         }
 
+        // أظهر البيانات
         container.innerHTML = filteredBookings
           .map((booking) => {
             const timeAgo = getTimeAgo(booking.time);
