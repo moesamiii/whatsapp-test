@@ -197,15 +197,6 @@
         background-color: #9ca3af;
         cursor: not-allowed;
       }
-
-      /* Simple loading message */
-      #loadingMessage {
-        text-align: center;
-        margin: 30px 0;
-        font-weight: bold;
-        color: #a855f7;
-        display: none;
-      }
     </style>
   </head>
 
@@ -287,9 +278,6 @@
             <button onclick="filterByTime('week', this)" class="filter-btn">
               هذا الأسبوع
             </button>
-            <button onclick="filterByTime('month', this)" class="filter-btn">
-              هذا الشهر
-            </button>
             <button onclick="resetTimeFilter(this)" class="filter-btn reset">
               الكل
             </button>
@@ -308,10 +296,6 @@
             />
           </div>
 
-          <div id="loadingMessage">
-            ⏳ الرجاء الانتظار... يتم تحميل البيانات
-          </div>
-
           <div id="notificationsList"></div>
         </div>
 
@@ -328,7 +312,6 @@
       let allBookings = [];
       let filteredBookings = [];
 
-      // Login
       async function login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
@@ -352,14 +335,12 @@
         }
       }
 
-      // Logout
       function logout() {
         localStorage.removeItem("clinic_logged_in");
         document.getElementById("loginScreen").style.display = "flex";
         document.getElementById("dashboardContent").style.display = "none";
       }
 
-      // Check login status
       if (localStorage.getItem("clinic_logged_in") === "true") {
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboardContent").style.display = "block";
@@ -367,15 +348,8 @@
         setInterval(loadNotifications, 30000);
       }
 
-      // Load notifications with loading message
       async function loadNotifications() {
-        const loadingMessage = document.getElementById("loadingMessage");
-        const list = document.getElementById("notificationsList");
-
         try {
-          loadingMessage.style.display = "block";
-          list.innerHTML = "";
-
           const res = await fetch("/api/bookings");
           if (!res.ok) throw new Error("Failed to fetch bookings");
 
@@ -386,14 +360,9 @@
           renderNotifications();
         } catch (error) {
           console.error("❌ Error loading notifications:", error);
-          list.innerHTML =
-            '<p style="text-align:center; color:red;">حدث خطأ أثناء تحميل البيانات</p>';
-        } finally {
-          loadingMessage.style.display = "none";
         }
       }
 
-      // Render notifications
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
@@ -429,7 +398,6 @@
           .join("");
       }
 
-      // Time formatting helper
       function getTimeAgo(time) {
         if (!time) return "غير محدد";
 
@@ -451,7 +419,6 @@
         return bookingDate.toLocaleDateString("ar-EG");
       }
 
-      // Filter by search
       function filterNotifications() {
         const searchTerm = document
           .getElementById("searchInput")
@@ -471,7 +438,6 @@
         renderNotifications();
       }
 
-      // Filter by time
       function filterByTime(period, btn) {
         setActiveButton(btn);
         const now = new Date();
@@ -491,15 +457,8 @@
           }
 
           if (period === "week") {
-            const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             return date >= weekAgo && date <= now;
-          }
-
-          if (period === "month") {
-            return (
-              date.getFullYear() === now.getFullYear() &&
-              date.getMonth() === now.getMonth()
-            );
           }
 
           return true;
@@ -523,7 +482,6 @@
         }
       }
 
-      // Download CSV
       document.getElementById("downloadBtn").addEventListener("click", () => {
         const headers = ["الاسم", "الهاتف", "الخدمة", "الموعد", "الوقت"];
         const rows = filteredBookings.map((b) => [
@@ -543,15 +501,18 @@
 
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
-        link.href = url;
-        link.download = `notifications_${
-          new Date().toISOString().split("T")[0]
-        }.csv`;
+        link.setAttribute("href", url);
+        link.setAttribute(
+          "download",
+          `notifications_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        link.style.display = "none";
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
         URL.revokeObjectURL(url);
       });
 
-      // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", () => {
         document.body.classList.toggle("dark");
