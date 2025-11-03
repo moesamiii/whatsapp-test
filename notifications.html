@@ -24,6 +24,18 @@
         display: flex;
         align-items: center;
         gap: 15px;
+        animation: slideIn 0.4s ease;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       body.dark .notification-item {
@@ -108,14 +120,50 @@
 
       .empty-state {
         text-align: center;
-        padding: 60px 20px;
+        padding: 80px 20px;
         color: #999;
+        animation: fadeIn 0.5s ease;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
       }
 
       .empty-state i {
-        font-size: 64px;
-        margin-bottom: 20px;
-        opacity: 0.5;
+        font-size: 80px;
+        margin-bottom: 25px;
+        opacity: 0.4;
+        background: linear-gradient(135deg, #d946ef, #a855f7);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .empty-state h3 {
+        font-size: 24px;
+        margin-bottom: 12px;
+        color: #4b5563;
+      }
+
+      body.dark .empty-state h3 {
+        color: #d1d5db;
+      }
+
+      .empty-state p {
+        font-size: 16px;
+        color: #9ca3af;
+        max-width: 400px;
+        margin: 0 auto;
+        line-height: 1.6;
+      }
+
+      body.dark .empty-state p {
+        color: #6b7280;
       }
 
       .notifications-container {
@@ -191,17 +239,17 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 80px 20px;
+        padding: 60px 20px;
         gap: 20px;
       }
 
       .spinner {
-        width: 60px;
-        height: 60px;
-        border: 5px solid #f3e8ff;
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3e8ff;
         border-top-color: #d946ef;
         border-radius: 50%;
-        animation: spin 1s linear infinite;
+        animation: spin 0.8s linear infinite;
       }
 
       @keyframes spin {
@@ -212,7 +260,7 @@
 
       .loading-text {
         color: #6b7280;
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 600;
       }
 
@@ -247,6 +295,70 @@
       .download-btn:disabled {
         background-color: #9ca3af;
         cursor: not-allowed;
+      }
+
+      .skeleton-item {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-inline-start: 4px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      body.dark .skeleton-item {
+        background: #2d2d2d;
+        border-inline-start-color: #444;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .skeleton-icon {
+        width: 50px;
+        height: 50px;
+        background: #e5e7eb;
+        border-radius: 50%;
+      }
+
+      body.dark .skeleton-icon {
+        background: #444;
+      }
+
+      .skeleton-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .skeleton-line {
+        height: 14px;
+        background: #e5e7eb;
+        border-radius: 4px;
+      }
+
+      body.dark .skeleton-line {
+        background: #444;
+      }
+
+      .skeleton-line.short {
+        width: 60%;
+      }
+
+      .skeleton-line.medium {
+        width: 80%;
       }
     </style>
   </head>
@@ -350,7 +462,7 @@
             />
           </div>
 
-          <div id="loadingState" class="loading-state">
+          <div id="loadingState" class="loading-state" style="display: none">
             <div class="spinner"></div>
             <span class="loading-text">جارٍ تحميل الإشعارات...</span>
           </div>
@@ -370,7 +482,8 @@
 
       let allBookings = [];
       let filteredBookings = [];
-      let hasLoadedAtLeastOnce = false; // <-- ADD HERE
+      let isLoading = false;
+      let hasStartedLoading = false;
 
       // Login
       async function login() {
@@ -411,132 +524,148 @@
         setInterval(loadNotifications, 30000);
       }
 
-      // Loading state
-      function showLoading() {
-        document.getElementById("loadingState").style.display = "flex";
-        document.getElementById("notificationsList").style.display = "none";
-        document.getElementById("downloadBtn").style.display = "none";
+      // Show skeleton loading
+      function showSkeletonLoading() {
+        const container = document.getElementById("notificationsList");
+        container.innerHTML = Array(5)
+          .fill(0)
+          .map(
+            () => `
+          <div class="skeleton-item">
+            <div class="skeleton-icon"></div>
+            <div class="skeleton-content">
+              <div class="skeleton-line short"></div>
+              <div class="skeleton-line medium"></div>
+              <div class="skeleton-line medium"></div>
+              <div class="skeleton-line short"></div>
+            </div>
+          </div>
+        `
+          )
+          .join("");
       }
 
-      function hideLoading() {
-        document.getElementById("loadingState").style.display = "none";
-        document.getElementById("notificationsList").style.display = "block";
-        document.getElementById("downloadBtn").style.display = "inline-flex";
+      // Show empty state
+      function showEmptyState() {
+        const container = document.getElementById("notificationsList");
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-bell-slash"></i>
+            <h3>لا توجد إشعارات</h3>
+            <p>لم يتم العثور على أي حجوزات في الوقت الحالي</p>
+          </div>`;
       }
 
-      // Load notifications
+      // Load notifications progressively
       async function loadNotifications() {
+        if (isLoading) return;
+
         try {
-          showLoading();
+          isLoading = true;
+          hasStartedLoading = true;
+
+          const container = document.getElementById("notificationsList");
+
+          // Show skeleton on first load
+          if (allBookings.length === 0) {
+            showSkeletonLoading();
+          }
 
           const res = await fetch("/api/bookings");
           if (!res.ok) throw new Error("Failed to fetch bookings");
 
           const rawData = await res.json();
-          allBookings = rawData.slice(1).reverse();
-          filteredBookings = [...allBookings];
+          const bookingsData = rawData.slice(1).reverse();
 
-          hasLoadedAtLeastOnce = true;
-          renderNotifications();
+          // Clear container
+          container.innerHTML = "";
+          allBookings = [];
+
+          if (bookingsData.length === 0) {
+            showEmptyState();
+            document.getElementById("downloadBtn").style.display = "none";
+            isLoading = false;
+            return;
+          }
+
+          // Render items progressively
+          for (let i = 0; i < bookingsData.length; i++) {
+            const booking = bookingsData[i];
+            allBookings.push(booking);
+
+            // Add item with animation
+            const itemHTML = createNotificationItem(booking);
+            container.insertAdjacentHTML("beforeend", itemHTML);
+
+            // Small delay for smooth progressive loading
+            if (i < 20) {
+              await new Promise((resolve) => setTimeout(resolve, 30));
+            }
+          }
+
+          filteredBookings = [...allBookings];
+          document.getElementById("downloadBtn").style.display = "inline-flex";
         } catch (error) {
           console.error("❌ Error loading notifications:", error);
           document.getElementById("notificationsList").innerHTML = `
-      <div class="empty-state">
-        <i class="fa-solid fa-exclamation-triangle"></i>
-        <h3>خطأ في تحميل البيانات</h3>
-        <p>حدث خطأ أثناء تحميل الإشعارات. الرجاء المحاولة لاحقاً.</p>
-      </div>`;
+            <div class="empty-state">
+              <i class="fa-solid fa-exclamation-triangle"></i>
+              <h3>خطأ في تحميل البيانات</h3>
+              <p>حدث خطأ أثناء تحميل الإشعارات. الرجاء المحاولة لاحقاً.</p>
+            </div>`;
         } finally {
-          hideLoading();
+          isLoading = false;
         }
+      }
+
+      // Create notification item HTML
+      function createNotificationItem(booking) {
+        const timeAgo = getTimeAgo(booking.time);
+        return `
+          <div class="notification-item">
+            <div class="notification-icon">
+              <i class="fa-solid fa-user-plus"></i>
+            </div>
+            <div class="notification-content">
+              <div class="notification-name">${booking.name || "غير محدد"}</div>
+              <div class="notification-details">
+                <i class="fa-solid fa-phone"></i> ${booking.phone || "غير محدد"}
+              </div>
+              <div class="notification-details">
+                <i class="fa-solid fa-stethoscope"></i> ${
+                  booking.service || "غير محدد"
+                }
+              </div>
+              <div class="notification-details">
+                <i class="fa-solid fa-calendar"></i> ${
+                  booking.appointment || "غير محدد"
+                }
+              </div>
+              <div class="notification-time">
+                <i class="fa-solid fa-clock"></i> ${timeAgo}
+              </div>
+            </div>
+          </div>`;
       }
 
       // Render notifications
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        // if it's the first render before loading is done → show nothing (empty)
-        if (!hasLoadedAtLeastOnce) {
+        if (!hasStartedLoading) {
           container.innerHTML = "";
           return;
         }
 
         if (!filteredBookings || filteredBookings.length === 0) {
-          container.innerHTML = `
-      <div class="empty-state">
-        <i class="fa-solid fa-bell-slash"></i>
-        <h3>لا توجد إشعارات</h3>
-        <p>لم يتم العثور على أي حجوزات</p>
-      </div>`;
+          showEmptyState();
           return;
         }
 
         container.innerHTML = filteredBookings
-          .map((booking) => {
-            const timeAgo = getTimeAgo(booking.time);
-            return `
-        <div class="notification-item">
-          <div class="notification-icon">
-            <i class="fa-solid fa-user-plus"></i>
-          </div>
-          <div class="notification-content">
-            <div class="notification-name">${booking.name || "غير محدد"}</div>
-            <div class="notification-details">
-              <i class="fa-solid fa-phone"></i> ${booking.phone || "غير محدد"}
-            </div>
-            <div class="notification-details">
-              <i class="fa-solid fa-stethoscope"></i> ${
-                booking.service || "غير محدد"
-              }
-            </div>
-            <div class="notification-details">
-              <i class="fa-solid fa-calendar"></i> ${
-                booking.appointment || "غير محدد"
-              }
-            </div>
-            <div class="notification-time">
-              <i class="fa-solid fa-clock"></i> ${timeAgo}
-            </div>
-          </div>
-        </div>`;
-          })
+          .map((booking) => createNotificationItem(booking))
           .join("");
       }
-
-      container.innerHTML = filteredBookings
-        .map((booking) => {
-          const timeAgo = getTimeAgo(booking.time);
-          return `
-              <div class="notification-item">
-                <div class="notification-icon">
-                  <i class="fa-solid fa-user-plus"></i>
-                </div>
-                <div class="notification-content">
-                  <div class="notification-name">${
-                    booking.name || "غير محدد"
-                  }</div>
-                  <div class="notification-details">
-                    <i class="fa-solid fa-phone"></i> ${
-                      booking.phone || "غير محدد"
-                    }
-                  </div>
-                  <div class="notification-details">
-                    <i class="fa-solid fa-stethoscope"></i> ${
-                      booking.service || "غير محدد"
-                    }
-                  </div>
-                  <div class="notification-details">
-                    <i class="fa-solid fa-calendar"></i> ${
-                      booking.appointment || "غير محدد"
-                    }
-                  </div>
-                  <div class="notification-time">
-                    <i class="fa-solid fa-clock"></i> ${timeAgo}
-                  </div>
-                </div>
-              </div>`;
-        })
-        .join("");
 
       // Get time ago
       function getTimeAgo(time) {
