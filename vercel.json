@@ -1,16 +1,18 @@
 {
   "version": 2,
   "builds": [
-    { "src": "index.js", "use": "@vercel/node" },
+    { "src": "sendWhatsApp.js", "use": "@vercel/node" },
+    { "src": "bookings.js", "use": "@vercel/node" },
     { "src": "*.html", "use": "@vercel/static" },
     { "src": "*.css", "use": "@vercel/static" },
     { "src": "img/**", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/sendWhatsApp", "dest": "index.js" },
+    { "src": "/sendWhatsApp", "dest": "/sendWhatsApp.js" },
+    { "src": "/bookings", "dest": "/bookings.js" },
     { "src": "/img/(.*)", "dest": "/img/$1" },
     { "src": "/(.*\\.css)", "dest": "/$1" },
     { "src": "/(.*\\.html)", "dest": "/$1" },
-    { "src": "/(.*)", "dest": "index.js" }
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
