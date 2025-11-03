@@ -13,6 +13,47 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
+      /* -------------------- Loader -------------------- */
+      #loadingOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        font-family: "Cairo", sans-serif;
+      }
+
+      body.dark #loadingOverlay {
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+      }
+
+      .loader-spinner {
+        border: 5px solid #eee;
+        border-top: 5px solid #d946ef;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 15px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* -------------------- Notifications -------------------- */
       .notification-item {
         background: white;
         border-radius: 12px;
@@ -24,18 +65,6 @@
         display: flex;
         align-items: center;
         gap: 15px;
-        animation: slideIn 0.3s ease;
-      }
-
-      @keyframes slideIn {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
       }
 
       body.dark .notification-item {
@@ -209,80 +238,16 @@
         background-color: #9ca3af;
         cursor: not-allowed;
       }
-
-      /* Loading State Styles */
-      .loading-state {
-        display: none;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 80px 20px;
-        gap: 20px;
-      }
-
-      .loading-state.active {
-        display: flex;
-      }
-
-      .spinner {
-        width: 60px;
-        height: 60px;
-        border: 5px solid #f3e8ff;
-        border-top-color: #d946ef;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-      }
-
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      .loading-text {
-        color: #6b7280;
-        font-size: 16px;
-        font-weight: 600;
-      }
-
-      body.dark .loading-text {
-        color: #ddd;
-      }
-
-      body.dark .spinner {
-        border-color: #444;
-        border-top-color: #d946ef;
-      }
-
-      .loading-subtext {
-        color: #9ca3af;
-        font-size: 14px;
-        margin-top: -10px;
-      }
-
-      body.dark .loading-subtext {
-        color: #888;
-      }
-
-      /* Pulse animation for loading dots */
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.5;
-        }
-      }
-
-      .loading-dots {
-        display: inline-block;
-        animation: pulse 1.5s ease-in-out infinite;
-      }
     </style>
   </head>
 
   <body>
+    <!-- Loader -->
+    <div id="loadingOverlay">
+      <div class="loader-spinner"></div>
+      <p>⏳ يرجى الانتظار... يتم تحميل البيانات</p>
+    </div>
+
     <!-- LOGIN SCREEN -->
     <div id="loginScreen">
       <div id="loginBox">
@@ -381,17 +346,6 @@
             />
           </div>
 
-          <!-- Loading State -->
-          <div id="loadingState" class="loading-state">
-            <div class="spinner"></div>
-            <span class="loading-text"
-              >جارٍ تحميل الإشعارات<span class="loading-dots">...</span></span
-            >
-            <span class="loading-subtext"
-              >يرجى الانتظار، قد يستغرق هذا بضع ثوانٍ</span
-            >
-          </div>
-
           <div id="notificationsList"></div>
         </div>
 
@@ -407,7 +361,16 @@
 
       let allBookings = [];
       let filteredBookings = [];
-      let isLoading = false;
+
+      const loadingOverlay = document.getElementById("loadingOverlay");
+
+      function showLoading() {
+        loadingOverlay.style.display = "flex";
+      }
+
+      function hideLoading() {
+        loadingOverlay.style.display = "none";
+      }
 
       // Login
       async function login() {
@@ -448,27 +411,10 @@
         setInterval(loadNotifications, 30000);
       }
 
-      // Show loading state
-      function showLoading() {
-        isLoading = true;
-        document.getElementById("loadingState").classList.add("active");
-        document.getElementById("notificationsList").style.display = "none";
-      }
-
-      // Hide loading state
-      function hideLoading() {
-        isLoading = false;
-        document.getElementById("loadingState").classList.remove("active");
-        document.getElementById("notificationsList").style.display = "block";
-      }
-
       // Load notifications
       async function loadNotifications() {
-        if (isLoading) return; // Prevent multiple simultaneous loads
-
+        showLoading();
         try {
-          showLoading();
-
           const res = await fetch("/api/bookings");
           if (!res.ok) throw new Error("Failed to fetch bookings");
 
@@ -476,14 +422,9 @@
           allBookings = rawData.slice(1).reverse();
           filteredBookings = [...allBookings];
 
-          // Small delay to ensure smooth transition
-          await new Promise((resolve) => setTimeout(resolve, 300));
-
           renderNotifications();
         } catch (error) {
           console.error("❌ Error loading notifications:", error);
-          // Even on error, hide loading and show empty list
-          hideLoading();
         } finally {
           hideLoading();
         }
@@ -492,7 +433,6 @@
       // Render notifications
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
-
         container.innerHTML = filteredBookings
           .map((booking) => {
             const timeAgo = getTimeAgo(booking.time);
@@ -568,8 +508,10 @@
       }
 
       // Filter by time period
-      function filterByTime(period, btn) {
+      async function filterByTime(period, btn) {
+        showLoading();
         setActiveButton(btn);
+        await new Promise((r) => setTimeout(r, 400)); // simulate delay
         const now = new Date();
 
         filteredBookings = allBookings.filter((booking) => {
@@ -602,6 +544,7 @@
         });
 
         renderNotifications();
+        hideLoading();
       }
 
       // Reset time filter
