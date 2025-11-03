@@ -352,7 +352,7 @@
 
           <div id="loadingState" class="loading-state">
             <div class="spinner"></div>
-            <span class="loading-text">جارٍ تحميل الإشعارات...</span>
+            <span class="loading-text">الرجاء الانتظار...</span>
           </div>
 
           <div id="notificationsList"></div>
@@ -370,7 +370,7 @@
 
       let allBookings = [];
       let filteredBookings = [];
-      let hasLoadedAtLeastOnce = false; // <-- ADD HERE
+      let isLoading = false;
 
       // Login
       async function login() {
@@ -413,12 +413,14 @@
 
       // Loading state
       function showLoading() {
+        isLoading = true;
         document.getElementById("loadingState").style.display = "flex";
         document.getElementById("notificationsList").style.display = "none";
         document.getElementById("downloadBtn").style.display = "none";
       }
 
       function hideLoading() {
+        isLoading = false;
         document.getElementById("loadingState").style.display = "none";
         document.getElementById("notificationsList").style.display = "block";
         document.getElementById("downloadBtn").style.display = "inline-flex";
@@ -436,22 +438,17 @@
           allBookings = rawData.slice(1).reverse();
           filteredBookings = [...allBookings];
 
-          hasLoadedAtLeastOnce = true;
-
-          // allow DOM to paint HIDE-LOADING first
-          requestAnimationFrame(() => {
-            renderNotifications();
-          });
+          hideLoading();
+          renderNotifications();
         } catch (error) {
           console.error("❌ Error loading notifications:", error);
-          document.getElementById("notificationsList").innerHTML = `
-      <div class="empty-state">
-        <i class="fa-solid fa-exclamation-triangle"></i>
-        <h3>خطأ في تحميل البيانات</h3>
-        <p>حدث خطأ أثناء تحميل الإشعارات. الرجاء المحاولة لاحقاً.</p>
-      </div>`;
-        } finally {
           hideLoading();
+          document.getElementById("notificationsList").innerHTML = `
+            <div class="empty-state">
+              <i class="fa-solid fa-exclamation-triangle"></i>
+              <h3>خطأ في تحميل البيانات</h3>
+              <p>حدث خطأ أثناء تحميل الإشعارات. الرجاء المحاولة لاحقاً.</p>
+            </div>`;
         }
       }
 
@@ -459,59 +456,27 @@
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        // if it's the first render before loading is done → show nothing (empty)
-        if (!hasLoadedAtLeastOnce) {
-          container.innerHTML = "";
+        // إذا كان قيد التحميل، لا تفعل شيء (رسالة الانتظار ظاهرة)
+        if (isLoading) {
           return;
         }
 
+        // إذا لا توجد حجوزات بعد التحميل
         if (!filteredBookings || filteredBookings.length === 0) {
           container.innerHTML = `
-      <div class="empty-state">
-        <i class="fa-solid fa-bell-slash"></i>
-        <h3>الرجاء الانتظار</h3>
-<p>جاري تحميل الحجوزات...</p>
-
-      </div>`;
+            <div class="empty-state">
+              <i class="fa-solid fa-bell-slash"></i>
+              <h3>لا توجد تنبيهات</h3>
+              <p>لم يتم العثور على أي حجوزات حتى الآن</p>
+            </div>`;
           return;
         }
 
+        // عرض الحجوزات
         container.innerHTML = filteredBookings
           .map((booking) => {
             const timeAgo = getTimeAgo(booking.time);
             return `
-        <div class="notification-item">
-          <div class="notification-icon">
-            <i class="fa-solid fa-user-plus"></i>
-          </div>
-          <div class="notification-content">
-            <div class="notification-name">${booking.name || "غير محدد"}</div>
-            <div class="notification-details">
-              <i class="fa-solid fa-phone"></i> ${booking.phone || "غير محدد"}
-            </div>
-            <div class="notification-details">
-              <i class="fa-solid fa-stethoscope"></i> ${
-                booking.service || "غير محدد"
-              }
-            </div>
-            <div class="notification-details">
-              <i class="fa-solid fa-calendar"></i> ${
-                booking.appointment || "غير محدد"
-              }
-            </div>
-            <div class="notification-time">
-              <i class="fa-solid fa-clock"></i> ${timeAgo}
-            </div>
-          </div>
-        </div>`;
-          })
-          .join("");
-      }
-
-      container.innerHTML = filteredBookings
-        .map((booking) => {
-          const timeAgo = getTimeAgo(booking.time);
-          return `
               <div class="notification-item">
                 <div class="notification-icon">
                   <i class="fa-solid fa-user-plus"></i>
@@ -540,8 +505,9 @@
                   </div>
                 </div>
               </div>`;
-        })
-        .join("");
+          })
+          .join("");
+      }
 
       // Get time ago
       function getTimeAgo(time) {
