@@ -371,6 +371,7 @@
       let allBookings = [];
       let filteredBookings = [];
       let hasLoadedAtLeastOnce = false;
+      let isLoading = false;
 
       // Login
       async function login() {
@@ -413,12 +414,14 @@
 
       // Loading state
       function showLoading() {
+        isLoading = true; // NEW
         document.getElementById("loadingState").style.display = "flex";
         document.getElementById("notificationsList").style.display = "none";
         document.getElementById("downloadBtn").style.display = "none";
       }
 
       function hideLoading() {
+        isLoading = false; // NEW
         document.getElementById("loadingState").style.display = "none";
         document.getElementById("notificationsList").style.display = "block";
         document.getElementById("downloadBtn").style.display = "inline-flex";
@@ -438,64 +441,82 @@
 
           hasLoadedAtLeastOnce = true;
 
-          requestAnimationFrame(() => {
-            renderNotifications();
-          });
+          // Render content first…
+          renderNotifications();
+
+          // …then let the browser paint, and only then hide the spinner
+          requestAnimationFrame(() => hideLoading());
         } catch (error) {
           console.error("❌ Error loading notifications:", error);
           document.getElementById("notificationsList").innerHTML = `
-            <div class="empty-state">
-              <i class="fa-solid fa-exclamation-triangle"></i>
-              <h3>خطأ في تحميل البيانات</h3>
-              <p>حدث خطأ أثناء تحميل الإشعارات. الرجاء المحاولة لاحقاً.</p>
-            </div>`;
-        } finally {
-          hideLoading();
+      <div class="empty-state">
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <h3>خطأ في تحميل البيانات</h3>
+        <p>حدث خطأ أثناء تحميل الإشعارات. الرجاء المحاولة لاحقاً.</p>
+      </div>`;
+          hideLoading(); // ensure spinner is removed on error
         }
       }
 
-      // Render notifications - UPDATED VERSION
+      // Render notifications
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        // CASE 1: Still loading for the first time
-        if (!hasLoadedAtLeastOnce) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <i class="fa-solid fa-spinner fa-spin"></i>
-              <h3>الرجاء الانتظار</h3>
-              <p>جاري تحميل الحجوزات...</p>
-            </div>`;
+        // if it's the first render before loading is done → show nothing (empty)
+        if (isLoading && !hasLoadedAtLeastOnce) {
+          container.innerHTML = "";
           return;
         }
 
-        // CASE 2: Loaded but no bookings exist at all
-        if (!allBookings || allBookings.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <i class="fa-solid fa-bell-slash"></i>
-              <h3>لا توجد إشعارات</h3>
-              <p>لا توجد حجوزات حتى الآن.</p>
-            </div>`;
-          return;
-        }
-
-        // CASE 3: Bookings exist, but filtered result is empty
         if (!filteredBookings || filteredBookings.length === 0) {
           container.innerHTML = `
-            <div class="empty-state">
-              <i class="fa-solid fa-filter"></i>
-              <h3>لا توجد نتائج</h3>
-              <p>لا توجد حجوزات مطابقة للفلتر أو البحث الحالي.</p>
-            </div>`;
+      <div class="empty-state">
+        <i class="fa-solid fa-bell-slash"></i>
+        <h3>لا توجد إشعارات</h3>
+        <p>لم يتم العثور على أي حجوزات</p>
+      </div>`;
+          document.getElementById("downloadBtn").style.display = "none";
           return;
         }
 
-        // CASE 4: Display bookings normally
+        document.getElementById("downloadBtn").style.display = "inline-flex";
+
         container.innerHTML = filteredBookings
           .map((booking) => {
             const timeAgo = getTimeAgo(booking.time);
             return `
+        <div class="notification-item">
+          <div class="notification-icon">
+            <i class="fa-solid fa-user-plus"></i>
+          </div>
+          <div class="notification-content">
+            <div class="notification-name">${booking.name || "غير محدد"}</div>
+            <div class="notification-details">
+              <i class="fa-solid fa-phone"></i> ${booking.phone || "غير محدد"}
+            </div>
+            <div class="notification-details">
+              <i class="fa-solid fa-stethoscope"></i> ${
+                booking.service || "غير محدد"
+              }
+            </div>
+            <div class="notification-details">
+              <i class="fa-solid fa-calendar"></i> ${
+                booking.appointment || "غير محدد"
+              }
+            </div>
+            <div class="notification-time">
+              <i class="fa-solid fa-clock"></i> ${timeAgo}
+            </div>
+          </div>
+        </div>`;
+          })
+          .join("");
+      }
+
+      container.innerHTML = filteredBookings
+        .map((booking) => {
+          const timeAgo = getTimeAgo(booking.time);
+          return `
               <div class="notification-item">
                 <div class="notification-icon">
                   <i class="fa-solid fa-user-plus"></i>
@@ -524,9 +545,8 @@
                   </div>
                 </div>
               </div>`;
-          })
-          .join("");
-      }
+        })
+        .join("");
 
       // Get time ago
       function getTimeAgo(time) {
@@ -552,6 +572,7 @@
 
       // Filter notifications by search
       function filterNotifications() {
+        if (isLoading) return; // NEW
         const searchTerm = document
           .getElementById("searchInput")
           .value.toLowerCase();
@@ -572,6 +593,8 @@
 
       // Filter by time period
       function filterByTime(period, btn) {
+        if (isLoading) return;
+
         setActiveButton(btn);
         const now = new Date();
 
@@ -609,6 +632,7 @@
 
       // Reset time filter
       function resetTimeFilter(btn) {
+        if (isLoading) return;
         filteredBookings = [...allBookings];
         renderNotifications();
         setActiveButton(btn);
