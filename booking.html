@@ -15,10 +15,8 @@
     <link rel="stylesheet" href="./dashboard.css" />
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-      /* === Only added this fix === */
       @media (min-width: 1024px) {
         .dashboard-grid {
           width: 100%;
@@ -32,13 +30,11 @@
           margin: 0;
         }
 
-        /* Make sure main content stretches properly */
         .main-content {
           width: 100%;
         }
       }
 
-      /* === Added button styling === */
       .download-btn {
         background-color: #007bff;
         color: white;
@@ -57,6 +53,14 @@
       .download-btn:hover {
         background-color: #0056b3;
       }
+
+      #tbl tbody tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+
+      #tbl th {
+        cursor: pointer;
+      }
     </style>
   </head>
 
@@ -69,32 +73,22 @@
         </div>
         <nav class="menu">
           <a href="dashboard.html">
-            <i class="fa-solid fa-gauge"></i>
-            لوحة القيادة
+            <i class="fa-solid fa-gauge"></i> لوحة القيادة
           </a>
-
           <a href="notifications.html">
-            <i class="fa-solid fa-bell"></i>
-            التنبيهات
+            <i class="fa-solid fa-bell"></i> التنبيهات
           </a>
-
           <a href="analytics.html">
-            <i class="fa-solid fa-rocket"></i>
-            تحليلات
+            <i class="fa-solid fa-rocket"></i> تحليلات
           </a>
           <a href="booking.html" class="active">
-            <i class="fa-solid fa-table"></i>
-            جدول الحجوزات
+            <i class="fa-solid fa-table"></i> جدول الحجوزات
           </a>
-
           <a href="AIsettings.html">
-            <i class="fa-solid fa-robot"></i>
-            إعدادات الذكاء الاصطناعي
+            <i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي
           </a>
-
           <a href="offers.html">
-            <i class="fa-solid fa-gift"></i>
-            إرسال العروض المخصصة
+            <i class="fa-solid fa-gift"></i> إرسال العروض المخصصة
           </a>
         </nav>
       </aside>
@@ -120,7 +114,6 @@
           <div class="table-card" style="width: 100%">
             <h3>جدول الحجوزات</h3>
 
-            <!-- === Added Download Button === -->
             <button class="download-btn" id="downloadBtn">
               <i class="fa-solid fa-download"></i> تنزيل الجدول
             </button>
@@ -155,7 +148,7 @@
     </div>
 
     <script>
-      // ======= SUPABASE LOGIN LOGIC =======
+      // ======= DIRECT SUPABASE CONNECTION =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -165,28 +158,52 @@
       let sortDirection = 1;
       const q = (s) => document.querySelector(s);
 
+      // === Load data directly from Supabase ===
       async function load() {
-        const res = await fetch("/api/bookings");
-        allData = await res.json();
-        renderTable(allData);
+        try {
+          // Change "bookings" to your actual table name if needed
+          const { data, error } = await supabase
+            .from("bookings")
+            .select("*")
+            .order("timestamp", { ascending: false });
+
+          if (error) {
+            console.error("❌ Error loading bookings:", error.message);
+            alert("حدث خطأ أثناء تحميل البيانات: " + error.message);
+            return;
+          }
+
+          allData = data || [];
+          renderTable(allData);
+        } catch (err) {
+          console.error("🚨 Unexpected error:", err);
+        }
       }
 
+      // === Render table ===
       function renderTable(d) {
         const tb = q("#tbl tbody");
         tb.innerHTML = "";
+        if (!d.length) {
+          tb.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#888;">لا توجد حجوزات</td></tr>`;
+          return;
+        }
         d.forEach((b) => {
           const r = document.createElement("tr");
-          r.innerHTML = `<td>${b.name || "-"}</td><td>${
-            b.phone || "-"
-          }</td><td>${b.service || "-"}</td><td>${
-            b.appointment || "-"
-          }</td><td>${
-            b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
-          }</td>`;
+          r.innerHTML = `
+            <td>${b.name || "-"}</td>
+            <td>${b.phone || "-"}</td>
+            <td>${b.service || "-"}</td>
+            <td>${b.appointment || "-"}</td>
+            <td>${
+              b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
+            }</td>
+          `;
           tb.appendChild(r);
         });
       }
 
+      // === Sort columns ===
       function sortTable(col) {
         const tb = q("#tbl tbody");
         const rows = Array.from(tb.rows);
@@ -200,7 +217,7 @@
         rows.forEach((r) => tb.appendChild(r));
       }
 
-      // === Added CSV Download Feature ===
+      // === CSV Download ===
       document.getElementById("downloadBtn").addEventListener("click", () => {
         const table = document.getElementById("tbl");
         let csv = [];
@@ -219,7 +236,7 @@
         document.body.removeChild(link);
       });
 
-      // Theme toggle
+      // === Theme toggle ===
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
@@ -242,14 +259,14 @@
         icon.classList.add("fa-sun");
       }
 
-      // Sidebar toggle
+      // === Sidebar toggle ===
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       menuToggle.addEventListener("click", () => {
         sidebar.classList.toggle("active");
       });
 
-      // Load bookings on page load
+      // === Load data on startup ===
       load();
       setInterval(load, 15000);
     </script>
