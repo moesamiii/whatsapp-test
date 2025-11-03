@@ -198,59 +198,13 @@
         cursor: not-allowed;
       }
 
-      /* Loading Spinner Styles */
-      .loading-spinner {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 60px 20px;
-        gap: 20px;
-      }
-
-      .spinner {
-        width: 50px;
-        height: 50px;
-        border: 4px solid rgba(217, 70, 239, 0.2);
-        border-top: 4px solid #d946ef;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-      }
-
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-
-      .loading-text {
-        color: #d946ef;
-        font-size: 16px;
-        font-weight: bold;
-      }
-
-      body.dark .loading-text {
-        color: #e879f9;
-      }
-
-      .no-data {
+      /* Simple loading message */
+      #loadingMessage {
         text-align: center;
-        padding: 60px 20px;
-        color: #999;
-        font-size: 16px;
-      }
-
-      body.dark .no-data {
-        color: #666;
-      }
-
-      .no-data i {
-        font-size: 48px;
-        margin-bottom: 15px;
-        opacity: 0.5;
+        margin: 30px 0;
+        font-weight: bold;
+        color: #a855f7;
+        display: none;
       }
     </style>
   </head>
@@ -354,12 +308,11 @@
             />
           </div>
 
-          <div id="notificationsList">
-            <div class="loading-spinner">
-              <div class="spinner"></div>
-              <div class="loading-text">جاري تحميل التنبيهات...</div>
-            </div>
+          <div id="loadingMessage">
+            ⏳ الرجاء الانتظار... يتم تحميل البيانات
           </div>
+
+          <div id="notificationsList"></div>
         </div>
 
         <footer>© 2025 Smile Clinic</footer>
@@ -374,8 +327,6 @@
 
       let allBookings = [];
       let filteredBookings = [];
-      let isLoading = false;
-      let dataFetched = false;
 
       // Login
       async function login() {
@@ -416,37 +367,15 @@
         setInterval(loadNotifications, 30000);
       }
 
-      // Show loading spinner
-      function showLoading() {
-        const container = document.getElementById("notificationsList");
-        container.innerHTML = `
-      <div class="loading-spinner">
-        <div class="spinner"></div>
-        <div class="loading-text">جاري تحميل التنبيهات...</div>
-      </div>
-    `;
-      }
-
-      // Show no data message
-      function showNoData() {
-        const container = document.getElementById("notificationsList");
-        container.innerHTML = `
-      <div class="no-data">
-        <div><i class="fa-solid fa-inbox"></i></div>
-        <div>لا توجد تنبيهات متاحة</div>
-      </div>
-    `;
-      }
-
-      // Load notifications (with correct loading order)
+      // Load notifications with loading message
       async function loadNotifications() {
-        if (isLoading) return;
-
-        isLoading = true;
-        dataFetched = false;
-        showLoading();
+        const loadingMessage = document.getElementById("loadingMessage");
+        const list = document.getElementById("notificationsList");
 
         try {
+          loadingMessage.style.display = "block";
+          list.innerHTML = "";
+
           const res = await fetch("/api/bookings");
           if (!res.ok) throw new Error("Failed to fetch bookings");
 
@@ -454,62 +383,59 @@
           allBookings = rawData.slice(1).reverse();
           filteredBookings = [...allBookings];
 
-          dataFetched = true;
-          isLoading = false;
-
           renderNotifications();
         } catch (error) {
           console.error("❌ Error loading notifications:", error);
-          isLoading = false;
-          dataFetched = true;
-          showNoData();
+          list.innerHTML =
+            '<p style="text-align:center; color:red;">حدث خطأ أثناء تحميل البيانات</p>';
+        } finally {
+          loadingMessage.style.display = "none";
         }
       }
 
-      // Render notifications (with loading + no-data handling)
+      // Render notifications
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        if (isLoading && !dataFetched) {
-          showLoading();
-          return;
-        }
-
-        if (dataFetched && filteredBookings.length === 0) {
-          showNoData();
-          return;
-        }
-
         container.innerHTML = filteredBookings
-          .map(
-            (b) => `
-          <div class="notification-item">
-            <div class="notification-icon"><i class="fa-solid fa-user-plus"></i></div>
-            <div class="notification-content">
-              <div class="notification-name">${b.name || "غير محدد"}</div>
-              <div class="notification-details"><i class="fa-solid fa-phone"></i> ${
-                b.phone || "غير محدد"
-              }</div>
-              <div class="notification-details"><i class="fa-solid fa-stethoscope"></i> ${
-                b.service || "غير محدد"
-              }</div>
-              <div class="notification-details"><i class="fa-solid fa-calendar"></i> ${
-                b.appointment || "غير محدد"
-              }</div>
-              <div class="notification-time"><i class="fa-solid fa-clock"></i> ${getTimeAgo(
-                b.time
-              )}</div>
+          .map((booking) => {
+            const timeAgo = getTimeAgo(booking.time);
+            return `
+        <div class="notification-item">
+          <div class="notification-icon">
+            <i class="fa-solid fa-user-plus"></i>
+          </div>
+          <div class="notification-content">
+            <div class="notification-name">${booking.name || "غير محدد"}</div>
+            <div class="notification-details">
+              <i class="fa-solid fa-phone"></i> ${booking.phone || "غير محدد"}
             </div>
-          </div>`
-          )
+            <div class="notification-details">
+              <i class="fa-solid fa-stethoscope"></i> ${
+                booking.service || "غير محدد"
+              }
+            </div>
+            <div class="notification-details">
+              <i class="fa-solid fa-calendar"></i> ${
+                booking.appointment || "غير محدد"
+              }
+            </div>
+            <div class="notification-time">
+              <i class="fa-solid fa-clock"></i> ${timeAgo}
+            </div>
+          </div>
+        </div>`;
+          })
           .join("");
       }
 
-      // Get time ago
+      // Time formatting helper
       function getTimeAgo(time) {
         if (!time) return "غير محدد";
+
         const now = new Date();
         const bookingDate = new Date(time);
+
         if (isNaN(bookingDate.getTime())) return "غير محدد";
 
         const diffMs = now - bookingDate;
@@ -521,10 +447,11 @@
         if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
         if (diffHours < 24) return `منذ ${diffHours} ساعة`;
         if (diffDays < 7) return `منذ ${diffDays} يوم`;
+
         return bookingDate.toLocaleDateString("ar-EG");
       }
 
-      // Filter notifications by search
+      // Filter by search
       function filterNotifications() {
         const searchTerm = document
           .getElementById("searchInput")
@@ -544,33 +471,36 @@
         renderNotifications();
       }
 
-      // Filter by time period
+      // Filter by time
       function filterByTime(period, btn) {
         setActiveButton(btn);
         const now = new Date();
 
         filteredBookings = allBookings.filter((booking) => {
           if (!booking.time) return false;
+
           const date = new Date(booking.time);
           if (isNaN(date.getTime())) return false;
 
-          if (period === "day")
+          if (period === "day") {
             return (
               date.getFullYear() === now.getFullYear() &&
               date.getMonth() === now.getMonth() &&
               date.getDate() === now.getDate()
             );
+          }
 
           if (period === "week") {
-            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
             return date >= weekAgo && date <= now;
           }
 
-          if (period === "month")
+          if (period === "month") {
             return (
               date.getFullYear() === now.getFullYear() &&
               date.getMonth() === now.getMonth()
             );
+          }
 
           return true;
         });
@@ -588,17 +518,13 @@
         document
           .querySelectorAll(".filter-btn")
           .forEach((b) => b.classList.remove("active"));
-        if (!selectedBtn.classList.contains("reset"))
+        if (!selectedBtn.classList.contains("reset")) {
           selectedBtn.classList.add("active");
+        }
       }
 
-      // CSV Download
+      // Download CSV
       document.getElementById("downloadBtn").addEventListener("click", () => {
-        if (filteredBookings.length === 0) {
-          alert("لا توجد بيانات للتنزيل");
-          return;
-        }
-
         const headers = ["الاسم", "الهاتف", "الخدمة", "الموعد", "الوقت"];
         const rows = filteredBookings.map((b) => [
           `"${(b.name || "-").replace(/"/g, '""')}"`,
@@ -614,6 +540,7 @@
         const blob = new Blob(["\uFEFF" + csv], {
           type: "text/csv;charset=utf-8;",
         });
+
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
         link.href = url;
@@ -641,7 +568,8 @@
 
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.replace("fa-moon", "fa-sun");
       }
 
       document.getElementById("menuToggle").addEventListener("click", () => {
