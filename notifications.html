@@ -106,18 +106,6 @@
         opacity: 0.9;
       }
 
-      .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-        color: #999;
-      }
-
-      .empty-state i {
-        font-size: 64px;
-        margin-bottom: 20px;
-        opacity: 0.5;
-      }
-
       .notifications-container {
         max-width: 900px;
         margin: 0 auto;
@@ -184,45 +172,6 @@
         background: linear-gradient(135deg, #d946ef, #a855f7);
         color: white;
         box-shadow: 0 3px 10px rgba(217, 70, 239, 0.3);
-      }
-
-      .loading-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 80px 20px;
-        gap: 20px;
-      }
-
-      .spinner {
-        width: 60px;
-        height: 60px;
-        border: 5px solid #f3e8ff;
-        border-top-color: #d946ef;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-      }
-
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      .loading-text {
-        color: #6b7280;
-        font-size: 16px;
-        font-weight: 600;
-      }
-
-      body.dark .loading-text {
-        color: #ddd;
-      }
-
-      body.dark .spinner {
-        border-color: #444;
-        border-top-color: #d946ef;
       }
 
       .download-btn {
@@ -337,7 +286,7 @@
             </button>
           </div>
 
-          <button class="download-btn" id="downloadBtn" style="display: none">
+          <button class="download-btn" id="downloadBtn">
             <i class="fa-solid fa-download"></i> تنزيل التنبيهات
           </button>
 
@@ -348,11 +297,6 @@
               placeholder="🔍 ابحث عن اسم المريض أو الخدمة..."
               onkeyup="filterNotifications()"
             />
-          </div>
-
-          <div id="loadingState" class="loading-state">
-            <div class="spinner"></div>
-            <span class="loading-text">جارٍ تحميل الإشعارات...</span>
           </div>
 
           <div id="notificationsList"></div>
@@ -370,8 +314,6 @@
 
       let allBookings = [];
       let filteredBookings = [];
-      let hasLoadedAtLeastOnce = false;
-      let isLoading = false;
 
       // Login
       async function login() {
@@ -412,26 +354,9 @@
         setInterval(loadNotifications, 30000);
       }
 
-      // Loading state
-      function showLoading() {
-        isLoading = true; // NEW
-        document.getElementById("loadingState").style.display = "flex";
-        document.getElementById("notificationsList").style.display = "none";
-        document.getElementById("downloadBtn").style.display = "none";
-      }
-
-      function hideLoading() {
-        isLoading = false; // NEW
-        document.getElementById("loadingState").style.display = "none";
-        document.getElementById("notificationsList").style.display = "block";
-        document.getElementById("downloadBtn").style.display = "inline-flex";
-      }
-
       // Load notifications
       async function loadNotifications() {
         try {
-          showLoading();
-
           const res = await fetch("/api/bookings");
           if (!res.ok) throw new Error("Failed to fetch bookings");
 
@@ -439,47 +364,15 @@
           allBookings = rawData.slice(1).reverse();
           filteredBookings = [...allBookings];
 
-          hasLoadedAtLeastOnce = true;
-
-          // Render content first…
           renderNotifications();
-
-          // …then let the browser paint, and only then hide the spinner
-          requestAnimationFrame(() => hideLoading());
         } catch (error) {
           console.error("❌ Error loading notifications:", error);
-          document.getElementById("notificationsList").innerHTML = `
-      <div class="empty-state">
-        <i class="fa-solid fa-exclamation-triangle"></i>
-        <h3>خطأ في تحميل البيانات</h3>
-        <p>حدث خطأ أثناء تحميل الإشعارات. الرجاء المحاولة لاحقاً.</p>
-      </div>`;
-          hideLoading(); // ensure spinner is removed on error
         }
       }
 
       // Render notifications
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
-
-        // if it's the first render before loading is done → show nothing (empty)
-        if (isLoading && !hasLoadedAtLeastOnce) {
-          container.innerHTML = "";
-          return;
-        }
-
-        if (!filteredBookings || filteredBookings.length === 0) {
-          container.innerHTML = `
-      <div class="empty-state">
-        <i class="fa-solid fa-bell-slash"></i>
-        <h3>لا توجد إشعارات</h3>
-        <p>لم يتم العثور على أي حجوزات</p>
-      </div>`;
-          document.getElementById("downloadBtn").style.display = "none";
-          return;
-        }
-
-        document.getElementById("downloadBtn").style.display = "inline-flex";
 
         container.innerHTML = filteredBookings
           .map((booking) => {
@@ -513,41 +406,6 @@
           .join("");
       }
 
-      container.innerHTML = filteredBookings
-        .map((booking) => {
-          const timeAgo = getTimeAgo(booking.time);
-          return `
-              <div class="notification-item">
-                <div class="notification-icon">
-                  <i class="fa-solid fa-user-plus"></i>
-                </div>
-                <div class="notification-content">
-                  <div class="notification-name">${
-                    booking.name || "غير محدد"
-                  }</div>
-                  <div class="notification-details">
-                    <i class="fa-solid fa-phone"></i> ${
-                      booking.phone || "غير محدد"
-                    }
-                  </div>
-                  <div class="notification-details">
-                    <i class="fa-solid fa-stethoscope"></i> ${
-                      booking.service || "غير محدد"
-                    }
-                  </div>
-                  <div class="notification-details">
-                    <i class="fa-solid fa-calendar"></i> ${
-                      booking.appointment || "غير محدد"
-                    }
-                  </div>
-                  <div class="notification-time">
-                    <i class="fa-solid fa-clock"></i> ${timeAgo}
-                  </div>
-                </div>
-              </div>`;
-        })
-        .join("");
-
       // Get time ago
       function getTimeAgo(time) {
         if (!time) return "غير محدد";
@@ -572,7 +430,6 @@
 
       // Filter notifications by search
       function filterNotifications() {
-        if (isLoading) return; // NEW
         const searchTerm = document
           .getElementById("searchInput")
           .value.toLowerCase();
@@ -593,8 +450,6 @@
 
       // Filter by time period
       function filterByTime(period, btn) {
-        if (isLoading) return;
-
         setActiveButton(btn);
         const now = new Date();
 
@@ -632,7 +487,6 @@
 
       // Reset time filter
       function resetTimeFilter(btn) {
-        if (isLoading) return;
         filteredBookings = [...allBookings];
         renderNotifications();
         setActiveButton(btn);
@@ -650,11 +504,6 @@
 
       // Download CSV
       document.getElementById("downloadBtn").addEventListener("click", () => {
-        if (!filteredBookings || filteredBookings.length === 0) {
-          alert("لا توجد بيانات لتنزيلها!");
-          return;
-        }
-
         const headers = ["الاسم", "الهاتف", "الخدمة", "الموعد", "الوقت"];
         const rows = filteredBookings.map((b) => [
           `"${(b.name || "-").replace(/"/g, '""')}"`,
