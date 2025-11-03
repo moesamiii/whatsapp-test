@@ -13,62 +13,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-      /* Spinner Overlay */
-      #loadingOverlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.9);
-        flex-direction: column;
-        z-index: 9999;
-        text-align: center;
-      }
-
-      body.dark #loadingOverlay {
-        background: rgba(0, 0, 0, 0.85);
-      }
-
-      .loader {
-        border: 6px solid #e0e0e0;
-        border-top: 6px solid #d946ef;
-        border-radius: 50%;
-        width: 70px;
-        height: 70px;
-        animation: spin 1s linear infinite;
-        margin-bottom: 15px;
-      }
-
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-
-      #loadingText {
-        font-size: 18px;
-        font-weight: bold;
-        color: #6b21a8;
-      }
-
-      body.dark #loadingText {
-        color: #fff;
-      }
-
-      /* Notification styles */
       .notification-item {
         background: white;
         border-radius: 12px;
         padding: 20px;
         margin-bottom: 15px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
         border-inline-start: 4px solid #d946ef;
         display: flex;
         align-items: center;
@@ -95,6 +46,11 @@
         justify-content: center;
         color: white;
         font-size: 20px;
+        flex-shrink: 0;
+      }
+
+      .notification-content {
+        flex: 1;
       }
 
       .notification-name {
@@ -137,6 +93,48 @@
         box-shadow: 0 4px 12px rgba(217, 70, 239, 0.3);
       }
 
+      .notifications-header h2 {
+        margin: 0;
+        font-size: 28px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .notifications-header p {
+        margin: 10px 0 0 0;
+        opacity: 0.9;
+      }
+
+      .notifications-container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      .search-filter {
+        margin-bottom: 20px;
+      }
+
+      .search-filter input {
+        width: 100%;
+        padding: 12px 20px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.3s ease;
+      }
+
+      body.dark .search-filter input {
+        background: #2d2d2d;
+        border-color: #444;
+        color: #fff;
+      }
+
+      .search-filter input:focus {
+        outline: none;
+        border-color: #d946ef;
+      }
+
       .time-filters {
         display: flex;
         gap: 10px;
@@ -160,15 +158,20 @@
         color: white;
       }
 
+      .filter-btn.reset {
+        background: #e5e7eb;
+        color: #374151;
+      }
+
+      .filter-btn.reset:hover {
+        background: #9ca3af;
+        color: white;
+      }
+
       .filter-btn.active {
         background: linear-gradient(135deg, #d946ef, #a855f7);
         color: white;
         box-shadow: 0 3px 10px rgba(217, 70, 239, 0.3);
-      }
-
-      .filter-btn.reset {
-        background: #e5e7eb;
-        color: #374151;
       }
 
       .download-btn {
@@ -179,60 +182,126 @@
         border-radius: 8px;
         font-weight: bold;
         cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background-color 0.3s;
         margin-bottom: 20px;
       }
 
       .download-btn:hover {
         background-color: #a855f7;
       }
+
+      .download-btn:disabled {
+        background-color: #9ca3af;
+        cursor: not-allowed;
+      }
+
+      /* Loading Spinner Styles */
+      .loading-spinner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        gap: 20px;
+      }
+
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(217, 70, 239, 0.2);
+        border-top: 4px solid #d946ef;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-text {
+        color: #d946ef;
+        font-size: 16px;
+        font-weight: bold;
+      }
+
+      body.dark .loading-text {
+        color: #e879f9;
+      }
+
+      .no-data {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+        font-size: 16px;
+      }
+
+      body.dark .no-data {
+        color: #666;
+      }
+
+      .no-data i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+      }
     </style>
   </head>
 
   <body>
-    <!-- Loading Spinner -->
-    <div id="loadingOverlay">
-      <div class="loader"></div>
-      <div id="loadingText">⏳ جاري تحميل البيانات...</div>
-    </div>
-
     <!-- LOGIN SCREEN -->
     <div id="loginScreen">
       <div id="loginBox">
-        <h2><i class="fas fa-lock"></i> تسجيل دخول المسؤول</h2>
+        <h2><i class="fas fa-lock"></i>تسجيل دخول المسؤول</h2>
         <input type="email" id="email" placeholder="البريد الإلكتروني" />
         <input type="password" id="password" placeholder="كلمة المرور" />
         <button onclick="login()">تسجيل الدخول</button>
-        <p id="errorMsg" style="display: none">
-          بريد إلكتروني أو كلمة مرور غير صالحة
-        </p>
+        <p id="errorMsg">بريد إلكتروني أو كلمة مرور غير صالحة</p>
       </div>
     </div>
 
     <div class="container">
+      <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
-        <div class="logo"><span>CONAN DASHBOARD</span></div>
+        <div class="logo">
+          <span>CONAN DASHBOARD</span>
+        </div>
         <nav class="menu">
-          <a href="dashboard.html"
-            ><i class="fa-solid fa-gauge"></i> لوحة القيادة</a
-          >
-          <a href="notifications.html" class="active"
-            ><i class="fa-solid fa-bell"></i> التنبيهات</a
-          >
-          <a href="analytics.html"
-            ><i class="fa-solid fa-rocket"></i> تحليلات</a
-          >
-          <a href="booking.html"
-            ><i class="fa-solid fa-table"></i> جدول الحجوزات</a
-          >
-          <a href="AIsettings.html"
-            ><i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي</a
-          >
-          <a href="offers.html"
-            ><i class="fa-solid fa-gift"></i> إرسال العروض المخصصة</a
-          >
+          <a href="dashboard.html">
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
+          </a>
+          <a href="notifications.html" class="active">
+            <i class="fa-solid fa-bell"></i>
+            التنبيهات
+          </a>
+          <a href="analytics.html">
+            <i class="fa-solid fa-rocket"></i>
+            تحليلات
+          </a>
+          <a href="booking.html">
+            <i class="fa-solid fa-table"></i>
+            جدول الحجوزات
+          </a>
+          <a href="AIsettings.html">
+            <i class="fa-solid fa-robot"></i>
+            إعدادات الذكاء الاصطناعي
+          </a>
+          <a href="offers.html">
+            <i class="fa-solid fa-gift"></i>
+            إرسال العروض المخصصة
+          </a>
         </nav>
       </aside>
 
+      <!-- MAIN CONTENT -->
       <main class="main-content" id="dashboardContent" style="display: none">
         <header class="header">
           <div class="header-left">
@@ -285,7 +354,12 @@
             />
           </div>
 
-          <div id="notificationsList"></div>
+          <div id="notificationsList">
+            <div class="loading-spinner">
+              <div class="spinner"></div>
+              <div class="loading-text">جاري تحميل التنبيهات...</div>
+            </div>
+          </div>
         </div>
 
         <footer>© 2025 Smile Clinic</footer>
@@ -301,20 +375,7 @@
       let allBookings = [];
       let filteredBookings = [];
       let isLoading = false;
-
-      const overlay = document.getElementById("loadingOverlay");
-      const loadingText = document.getElementById("loadingText");
-
-      function showLoading(message = "⏳ جاري تحميل البيانات...") {
-        loadingText.textContent = message;
-        overlay.style.display = "flex";
-        isLoading = true;
-      }
-
-      function hideLoading() {
-        overlay.style.display = "none";
-        isLoading = false;
-      }
+      let dataFetched = false;
 
       // Login
       async function login() {
@@ -334,7 +395,9 @@
           localStorage.setItem("clinic_logged_in", "true");
           loadNotifications();
         } else {
-          document.getElementById("errorMsg").style.display = "block";
+          const msg = document.getElementById("errorMsg");
+          msg.style.display = "block";
+          msg.textContent = "بريد إلكتروني أو كلمة مرور غير صالحة";
         }
       }
 
@@ -345,70 +408,160 @@
         document.getElementById("dashboardContent").style.display = "none";
       }
 
+      // Check login status
+      if (localStorage.getItem("clinic_logged_in") === "true") {
+        document.getElementById("loginScreen").style.display = "none";
+        document.getElementById("dashboardContent").style.display = "block";
+        loadNotifications();
+        setInterval(loadNotifications, 30000);
+      }
+
+      // Show loading spinner
+      function showLoading() {
+        const container = document.getElementById("notificationsList");
+        container.innerHTML = `
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div class="loading-text">جاري تحميل التنبيهات...</div>
+          </div>
+        `;
+      }
+
+      // Show no data message
+      function showNoData() {
+        const container = document.getElementById("notificationsList");
+        container.innerHTML = `
+          <div class="no-data">
+            <div><i class="fa-solid fa-inbox"></i></div>
+            <div>لا توجد تنبيهات متاحة</div>
+          </div>
+        `;
+      }
+
       // Load notifications
       async function loadNotifications() {
-        showLoading("📋 يتم تحميل بيانات الحجوزات...");
+        if (isLoading) return;
+
+        isLoading = true;
+        showLoading();
+
         try {
           const res = await fetch("/api/bookings");
           if (!res.ok) throw new Error("Failed to fetch bookings");
-          const rawData = await res.json();
 
+          const rawData = await res.json();
           allBookings = rawData.slice(1).reverse();
           filteredBookings = [...allBookings];
 
+          dataFetched = true;
+          isLoading = false;
+
           renderNotifications();
-        } catch (e) {
-          console.error("❌ Error loading notifications:", e);
-        } finally {
-          hideLoading();
+        } catch (error) {
+          console.error("❌ Error loading notifications:", error);
+          isLoading = false;
+          dataFetched = true;
+          showNoData();
         }
       }
 
       // Render notifications
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
-        container.innerHTML = "";
 
-        if (!filteredBookings.length) {
-          container.innerHTML =
-            "<p style='text-align:center;color:#666;'>لا توجد بيانات متاحة</p>";
+        if (!dataFetched || isLoading) {
+          showLoading();
+          return;
+        }
+
+        if (filteredBookings.length === 0) {
+          showNoData();
           return;
         }
 
         container.innerHTML = filteredBookings
-          .map(
-            (b) => `
-          <div class="notification-item">
-            <div class="notification-icon"><i class="fa-solid fa-user-plus"></i></div>
-            <div class="notification-content">
-              <div class="notification-name">${b.name || "غير محدد"}</div>
-              <div class="notification-details"><i class="fa-solid fa-phone"></i> ${
-                b.phone || "غير محدد"
-              }</div>
-              <div class="notification-details"><i class="fa-solid fa-stethoscope"></i> ${
-                b.service || "غير محدد"
-              }</div>
-              <div class="notification-details"><i class="fa-solid fa-calendar"></i> ${
-                b.appointment || "غير محدد"
-              }</div>
-              <div class="notification-time"><i class="fa-solid fa-clock"></i> ${getTimeAgo(
-                b.time
-              )}</div>
+          .map((booking) => {
+            const timeAgo = getTimeAgo(booking.time);
+            return `
+        <div class="notification-item">
+          <div class="notification-icon">
+            <i class="fa-solid fa-user-plus"></i>
+          </div>
+          <div class="notification-content">
+            <div class="notification-name">${booking.name || "غير محدد"}</div>
+            <div class="notification-details">
+              <i class="fa-solid fa-phone"></i> ${booking.phone || "غير محدد"}
             </div>
-          </div>`
-          )
+            <div class="notification-details">
+              <i class="fa-solid fa-stethoscope"></i> ${
+                booking.service || "غير محدد"
+              }
+            </div>
+            <div class="notification-details">
+              <i class="fa-solid fa-calendar"></i> ${
+                booking.appointment || "غير محدد"
+              }
+            </div>
+            <div class="notification-time">
+              <i class="fa-solid fa-clock"></i> ${timeAgo}
+            </div>
+          </div>
+        </div>`;
+          })
           .join("");
       }
 
-      // Time filtering
-      async function filterByTime(period, btn) {
-        showLoading("🔄 جاري تصفية البيانات...");
+      // Get time ago
+      function getTimeAgo(time) {
+        if (!time) return "غير محدد";
+
+        const now = new Date();
+        const bookingDate = new Date(time);
+
+        if (isNaN(bookingDate.getTime())) return "غير محدد";
+
+        const diffMs = now - bookingDate;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return "الآن";
+        if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
+        if (diffHours < 24) return `منذ ${diffHours} ساعة`;
+        if (diffDays < 7) return `منذ ${diffDays} يوم`;
+
+        return bookingDate.toLocaleDateString("ar-EG");
+      }
+
+      // Filter notifications by search
+      function filterNotifications() {
+        const searchTerm = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+
+        if (searchTerm === "") {
+          filteredBookings = [...allBookings];
+        } else {
+          filteredBookings = allBookings.filter(
+            (b) =>
+              (b.name && b.name.toLowerCase().includes(searchTerm)) ||
+              (b.service && b.service.toLowerCase().includes(searchTerm)) ||
+              (b.phone && b.phone.includes(searchTerm))
+          );
+        }
+
+        renderNotifications();
+      }
+
+      // Filter by time period
+      function filterByTime(period, btn) {
         setActiveButton(btn);
         const now = new Date();
 
-        filteredBookings = allBookings.filter((b) => {
-          if (!b.time) return false;
-          const date = new Date(b.time);
+        filteredBookings = allBookings.filter((booking) => {
+          if (!booking.time) return false;
+
+          const date = new Date(booking.time);
           if (isNaN(date.getTime())) return false;
 
           if (period === "day") {
@@ -420,7 +573,7 @@
           }
 
           if (period === "week") {
-            const weekAgo = new Date(now.getTime() - 7 * 86400000);
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             return date >= weekAgo && date <= now;
           }
 
@@ -435,17 +588,16 @@
         });
 
         renderNotifications();
-        hideLoading();
       }
 
+      // Reset time filter
       function resetTimeFilter(btn) {
-        showLoading("🔁 جاري عرض جميع الحجوزات...");
         filteredBookings = [...allBookings];
-        setActiveButton(btn);
         renderNotifications();
-        hideLoading();
+        setActiveButton(btn);
       }
 
+      // Set active button
       function setActiveButton(selectedBtn) {
         document
           .querySelectorAll(".filter-btn")
@@ -455,50 +607,69 @@
         }
       }
 
-      // Time ago
-      function getTimeAgo(time) {
-        if (!time) return "غير محدد";
-        const now = new Date();
-        const d = new Date(time);
-        if (isNaN(d)) return "غير محدد";
-        const diff = now - d;
-        const mins = Math.floor(diff / 60000),
-          hrs = Math.floor(diff / 3600000),
-          days = Math.floor(diff / 86400000);
-        if (mins < 1) return "الآن";
-        if (mins < 60) return `منذ ${mins} دقيقة`;
-        if (hrs < 24) return `منذ ${hrs} ساعة`;
-        if (days < 7) return `منذ ${days} يوم`;
-        return d.toLocaleDateString("ar-EG");
-      }
+      // Download CSV
+      document.getElementById("downloadBtn").addEventListener("click", () => {
+        if (filteredBookings.length === 0) {
+          alert("لا توجد بيانات للتنزيل");
+          return;
+        }
 
-      // Theme + startup
+        const headers = ["الاسم", "الهاتف", "الخدمة", "الموعد", "الوقت"];
+        const rows = filteredBookings.map((b) => [
+          `"${(b.name || "-").replace(/"/g, '""')}"`,
+          `"${(b.phone || "-").replace(/"/g, '""')}"`,
+          `"${(b.service || "-").replace(/"/g, '""')}"`,
+          `"${(b.appointment || "-").replace(/"/g, '""')}"`,
+          `"${(b.time || "-").replace(/"/g, '""')}"`,
+        ]);
+
+        const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join(
+          "\n"
+        );
+        const blob = new Blob(["\uFEFF" + csv], {
+          type: "text/csv;charset=utf-8;",
+        });
+
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute(
+          "download",
+          `notifications_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      });
+
+      // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
-      themeToggle.onclick = () => {
+      themeToggle.addEventListener("click", () => {
         document.body.classList.toggle("dark");
-        const i = themeToggle.querySelector("i");
+        const icon = themeToggle.querySelector("i");
+
         if (document.body.classList.contains("dark")) {
-          i.classList.replace("fa-moon", "fa-sun");
+          icon.classList.replace("fa-moon", "fa-sun");
           localStorage.setItem("clinic_theme", "dark");
         } else {
-          i.classList.replace("fa-sun", "fa-moon");
+          icon.classList.replace("fa-sun", "fa-moon");
           localStorage.setItem("clinic_theme", "light");
         }
-      };
+      });
 
+      // Load theme preference
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.replace("fa-moon", "fa-sun");
       }
 
-      if (localStorage.getItem("clinic_logged_in") === "true") {
-        document.getElementById("loginScreen").style.display = "none";
-        document.getElementById("dashboardContent").style.display = "block";
-        loadNotifications();
-      }
-
-      document.getElementById("menuToggle").onclick = () =>
+      // Menu toggle
+      document.getElementById("menuToggle").addEventListener("click", () => {
         document.getElementById("sidebar").classList.toggle("active");
+      });
     </script>
   </body>
 </html>
