@@ -101,7 +101,9 @@
         <input type="email" id="email" placeholder="البريد الإلكتروني" />
         <input type="password" id="password" placeholder="كلمة المرور" />
         <button onclick="login()">تسجيل الدخول</button>
-        <p id="errorMsg">بريد إلكتروني أو كلمة مرور غير صالحة</p>
+        <p id="errorMsg" style="display: none">
+          بريد إلكتروني أو كلمة مرور غير صالحة
+        </p>
       </div>
     </div>
 
@@ -167,7 +169,6 @@
               placeholder="اكتب تفاصيل العرض هنا..."
             ></textarea>
 
-            <!-- ✅ New: Image upload -->
             <label>اختيار صورة العرض (اختياري)</label>
             <input type="file" id="offerImage" accept="image/*" />
             <img id="imagePreview" class="image-preview" alt="معاينة الصورة" />
@@ -185,11 +186,13 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+      // 🔑 Supabase configuration
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+      // 🔐 Login logic
       async function login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
@@ -221,6 +224,7 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
+      // 🌙 Theme toggle
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
@@ -233,14 +237,13 @@
           localStorage.setItem("clinic_theme", "light");
         }
       });
-
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
         const icon = themeToggle.querySelector("i");
         icon.classList.replace("fa-moon", "fa-sun");
       }
 
-      // ✅ Preview selected image
+      // 🖼️ Preview image before upload
       const offerImage = document.getElementById("offerImage");
       const imagePreview = document.getElementById("imagePreview");
       offerImage.addEventListener("change", () => {
@@ -257,7 +260,7 @@
         }
       });
 
-      // ✅ Send Offer with image upload
+      // 🚀 Send offer
       async function sendOffer() {
         const title = document.getElementById("offerTitle").value.trim();
         const desc = document.getElementById("offerDesc").value.trim();
@@ -273,17 +276,17 @@
 
         if (file) {
           try {
+            const uniqueName = `${Date.now()}_${file.name}`;
             const { data, error } = await supabase.storage
               .from("offers")
-              .upload(`offers/${Date.now()}_${file.name}`, file, {
-                cacheControl: "3600",
-                upsert: true,
-              });
+              .upload(uniqueName, file);
+
             if (error) throw error;
 
             const { data: urlData } = supabase.storage
               .from("offers")
-              .getPublicUrl(data.path);
+              .getPublicUrl(uniqueName);
+
             imageUrl = urlData.publicUrl;
           } catch (err) {
             console.error("❌ Image upload error:", err.message);
@@ -292,16 +295,15 @@
         }
 
         try {
-          const phone = "962785050875";
+          const phone = "962785050875"; // ✅ Replace with recipient phone number
 
           const payload = {
             name: "Smile Clinic",
             phone: phone,
             service: title,
             appointment: `${desc}\n⏰ صالح حتى: ${date}`,
+            image: imageUrl,
           };
-
-          if (imageUrl) payload.image = imageUrl;
 
           const res = await fetch(
             "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
