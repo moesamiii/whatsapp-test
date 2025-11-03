@@ -11,6 +11,6 @@
     { "src": "/img/(.*)", "dest": "/img/$1" },
     { "src": "/(.*\\.css)", "dest": "/$1" },
     { "src": "/(.*\\.html)", "dest": "/$1" },
-    { "src": "/", "dest": "/offers.html" }
+    { "src": "/(.*)", "dest": "index.js" }
   ]
 }
