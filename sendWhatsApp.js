@@ -1,21 +1,21 @@
 // sendWhatsApp.js
-import fetch from "node-fetch";
-
 export default async function handler(req, res) {
-  // ✅ Only allow POST requests
+  // ✅ Allow only POST requests
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   const { name, phone, service, appointment, image } = req.body || {};
 
-  // ✅ Basic validation
+  // ✅ Validate required fields
   if (!name || !phone) {
     return res.status(400).json({ error: "Missing name or phone" });
   }
 
-  // 🦷 Construct message text
+  // 🦷 Build WhatsApp message text
   const messageText = `👋 مرحبًا ${name}!\nتم حجز موعدك لخدمة ${service} في Smile Clinic 🦷\n📅 ${appointment}`;
+
+  // ✅ WhatsApp API endpoint and headers
   const url = `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`;
   const headers = {
     "Content-Type": "application/json",
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   };
 
   try {
-    // ✅ 1. If image provided → send image message first
+    // ✅ Case 1: Send image message (if image exists)
     if (image) {
       const imagePayload = {
         messaging_product: "whatsapp",
@@ -51,16 +51,18 @@ export default async function handler(req, res) {
           success: false,
           stage: "image",
           error: imageData,
-          message: "Failed to send image message.",
+          message: "Failed to send image message",
         });
       }
 
-      // ✅ 2. Send follow-up text message
+      // ✅ Send follow-up text message
       const followupPayload = {
         messaging_product: "whatsapp",
         to: phone,
         type: "text",
-        text: { body: "📞 للحجز أو الاستفسار، تواصل معنا الآن عبر واتساب!" },
+        text: {
+          body: "📞 للحجز أو الاستفسار، تواصل معنا الآن عبر واتساب!",
+        },
       };
 
       console.log("💬 Sending follow-up text...");
@@ -81,7 +83,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // ✅ 3. If no image → send text message only
+    // ✅ Case 2: No image — send plain text
     const textPayload = {
       messaging_product: "whatsapp",
       to: phone,
