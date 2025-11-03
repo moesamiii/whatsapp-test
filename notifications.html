@@ -352,7 +352,7 @@
 
           <div id="loadingState" class="loading-state">
             <div class="spinner"></div>
-            <span class="loading-text">الرجاء الانتظار...</span>
+            <span class="loading-text">جارٍ تحميل الإشعارات...</span>
           </div>
 
           <div id="notificationsList"></div>
@@ -370,7 +370,7 @@
 
       let allBookings = [];
       let filteredBookings = [];
-      let isLoading = false;
+      let hasLoadedAtLeastOnce = false;
 
       // Login
       async function login() {
@@ -413,14 +413,12 @@
 
       // Loading state
       function showLoading() {
-        isLoading = true;
         document.getElementById("loadingState").style.display = "flex";
         document.getElementById("notificationsList").style.display = "none";
         document.getElementById("downloadBtn").style.display = "none";
       }
 
       function hideLoading() {
-        isLoading = false;
         document.getElementById("loadingState").style.display = "none";
         document.getElementById("notificationsList").style.display = "block";
         document.getElementById("downloadBtn").style.display = "inline-flex";
@@ -438,41 +436,62 @@
           allBookings = rawData.slice(1).reverse();
           filteredBookings = [...allBookings];
 
-          hideLoading();
-          renderNotifications();
+          hasLoadedAtLeastOnce = true;
+
+          requestAnimationFrame(() => {
+            renderNotifications();
+          });
         } catch (error) {
           console.error("❌ Error loading notifications:", error);
-          hideLoading();
           document.getElementById("notificationsList").innerHTML = `
             <div class="empty-state">
               <i class="fa-solid fa-exclamation-triangle"></i>
               <h3>خطأ في تحميل البيانات</h3>
               <p>حدث خطأ أثناء تحميل الإشعارات. الرجاء المحاولة لاحقاً.</p>
             </div>`;
+        } finally {
+          hideLoading();
         }
       }
 
-      // Render notifications
+      // Render notifications - UPDATED VERSION
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
-        // إذا كان قيد التحميل، لا تفعل شيء (رسالة الانتظار ظاهرة)
-        if (isLoading) {
-          return;
-        }
-
-        // إذا لا توجد حجوزات بعد التحميل
-        if (!filteredBookings || filteredBookings.length === 0) {
+        // CASE 1: Still loading for the first time
+        if (!hasLoadedAtLeastOnce) {
           container.innerHTML = `
             <div class="empty-state">
-              <i class="fa-solid fa-bell-slash"></i>
-              <h3>لا توجد تنبيهات</h3>
-              <p>لم يتم العثور على أي حجوزات حتى الآن</p>
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              <h3>الرجاء الانتظار</h3>
+              <p>جاري تحميل الحجوزات...</p>
             </div>`;
           return;
         }
 
-        // عرض الحجوزات
+        // CASE 2: Loaded but no bookings exist at all
+        if (!allBookings || allBookings.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <i class="fa-solid fa-bell-slash"></i>
+              <h3>لا توجد إشعارات</h3>
+              <p>لا توجد حجوزات حتى الآن.</p>
+            </div>`;
+          return;
+        }
+
+        // CASE 3: Bookings exist, but filtered result is empty
+        if (!filteredBookings || filteredBookings.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <i class="fa-solid fa-filter"></i>
+              <h3>لا توجد نتائج</h3>
+              <p>لا توجد حجوزات مطابقة للفلتر أو البحث الحالي.</p>
+            </div>`;
+          return;
+        }
+
+        // CASE 4: Display bookings normally
         container.innerHTML = filteredBookings
           .map((booking) => {
             const timeAgo = getTimeAgo(booking.time);
