@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>جدول الحجوزات - Smile Clinic</title>
+    <title>Clinic Dashboard - Booking Table</title>
 
     <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
     <link
@@ -26,14 +26,25 @@
           max-width: none !important;
           margin: 0;
         }
+        .main-content {
+          width: 100%;
+        }
       }
 
-      select,
-      button {
+      .status-filter {
+        margin: 15px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      select.status-dropdown,
+      select#statusFilter {
         padding: 6px 8px;
-        border-radius: 6px;
+        border-radius: 5px;
         border: 1px solid #ccc;
-        font-size: 14px;
+        background: #fff;
+        cursor: pointer;
       }
 
       body.dark select {
@@ -42,54 +53,26 @@
         border-color: #555;
       }
 
-      .reminder-btn {
-        background: linear-gradient(270deg, #7c3aed, #a855f7);
-        color: #fff;
+      .save-indicator {
+        font-size: 12px;
+        color: green;
+        display: none;
+        margin-right: 5px;
+      }
+
+      button.reminder-btn {
+        padding: 5px 10px;
+        background-color: #7c3aed;
+        color: white;
         border: none;
-        padding: 6px 12px;
-        border-radius: 6px;
+        border-radius: 5px;
         cursor: pointer;
         font-size: 13px;
-        transition: opacity 0.3s;
-      }
-      .reminder-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
+        transition: background 0.3s;
       }
 
-      /* Debug panel */
-      #debugBox {
-        background: #f8f9fa;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 10px;
-        margin: 20px;
-        font-family: monospace;
-        font-size: 12px;
-        max-height: 200px;
-        overflow-y: auto;
-        display: none;
-      }
-      body.dark #debugBox {
-        background: #1a1a1a;
-        border-color: #444;
-        color: #0f0;
-      }
-
-      .spinner {
-        display: inline-block;
-        width: 14px;
-        height: 14px;
-        border: 3px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        border-top-color: #fff;
-        animation: spin 1s ease-in-out infinite;
-        margin-left: 5px;
-      }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
+      button.reminder-btn:hover {
+        background-color: #5b21b6;
       }
     </style>
   </head>
@@ -102,24 +85,30 @@
           <span>CONAN DASHBOARD</span>
         </div>
         <nav class="menu">
-          <a href="dashboard.html"
-            ><i class="fa-solid fa-gauge"></i> لوحة القيادة</a
-          >
-          <a href="notifications.html"
-            ><i class="fa-solid fa-bell"></i> التنبيهات</a
-          >
-          <a href="analytics.html"
-            ><i class="fa-solid fa-rocket"></i> تحليلات</a
-          >
-          <a href="booking.html" class="active"
-            ><i class="fa-solid fa-table"></i> جدول الحجوزات</a
-          >
-          <a href="AIsettings.html"
-            ><i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي</a
-          >
-          <a href="offers.html"
-            ><i class="fa-solid fa-gift"></i> إرسال العروض المخصصة</a
-          >
+          <a href="dashboard.html">
+            <i class="fa-solid fa-gauge"></i>
+            لوحة القيادة
+          </a>
+          <a href="notifications.html">
+            <i class="fa-solid fa-bell"></i>
+            التنبيهات
+          </a>
+          <a href="analytics.html">
+            <i class="fa-solid fa-rocket"></i>
+            تحليلات
+          </a>
+          <a href="booking.html" class="active">
+            <i class="fa-solid fa-table"></i>
+            جدول الحجوزات
+          </a>
+          <a href="AIsettings.html">
+            <i class="fa-solid fa-robot"></i>
+            إعدادات الذكاء الاصطناعي
+          </a>
+          <a href="offers.html">
+            <i class="fa-solid fa-gift"></i>
+            إرسال العروض المخصصة
+          </a>
         </nav>
       </aside>
 
@@ -139,10 +128,12 @@
           </div>
         </header>
 
+        <!-- BOOKING TABLE -->
         <section class="dashboard-grid">
-          <div class="table-card">
+          <div class="table-card" style="width: 100%">
             <h3>جدول الحجوزات</h3>
 
+            <!-- STATUS FILTER -->
             <div class="status-filter">
               <label for="statusFilter">تصفية حسب الحالة:</label>
               <select id="statusFilter">
@@ -169,12 +160,6 @@
               </thead>
               <tbody></tbody>
             </table>
-
-            <!-- Debug Panel -->
-            <div id="debugBox">
-              <strong>🔍 Debug Log:</strong>
-              <div id="debugContent"></div>
-            </div>
           </div>
         </section>
 
@@ -183,7 +168,7 @@
     </div>
 
     <script>
-      // ========= SUPABASE SETUP =========
+      // ======= SUPABASE CONNECTION =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -191,48 +176,32 @@
 
       let allData = [];
       const q = (s) => document.querySelector(s);
-      const logBox = q("#debugBox");
-      const logContent = q("#debugContent");
 
-      // ========= DEBUG LOGGER =========
-      function logDebug(msg, type = "info") {
-        logBox.style.display = "block";
-        const t = new Date().toLocaleTimeString("ar-EG");
-        const icon = type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
-        const line = `<div>[${t}] ${icon} ${msg}</div>`;
-        logContent.innerHTML += line;
-        logContent.scrollTop = logContent.scrollHeight;
-        console.log(`[${t}] ${msg}`);
-      }
-
-      // ========= LOAD BOOKINGS =========
+      // ✅ LOAD BOOKINGS FROM SUPABASE
       async function load() {
-        logDebug("🔄 Loading bookings from Supabase...");
         const { data, error } = await supabase.from("bookings").select("*");
         if (error) {
-          logDebug("❌ Load error: " + error.message, "error");
+          console.error("Error fetching bookings:", error);
           return;
         }
-        allData = data.map((b) => ({ ...b, status: b.status || "Still" }));
-        logDebug(`✅ Loaded ${data.length} rows from Supabase`, "success");
-        applyFilter(); // maintain filter
+        allData = data.map((b) => ({
+          ...b,
+          status: b.status || "Still",
+        }));
+        renderTable(allData);
       }
 
-      // ========= UPDATE STATUS =========
+      // ✅ UPDATE STATUS
       async function updateStatus(id, newStatus) {
-        logDebug(`✏️ Updating status for ID ${id} to ${newStatus}...`);
         const { error } = await supabase
           .from("bookings")
           .update({ status: newStatus })
           .eq("id", id);
-        if (error) logDebug("❌ Update error: " + error.message, "error");
-        else logDebug(`✅ Status updated for ID ${id}`, "success");
+        if (error) console.error("Error updating status:", error);
       }
 
-      // ========= SEND REMINDER =========
-      async function sendReminder(name, phone, service, id, btn) {
-        btn.disabled = true;
-        btn.innerHTML = 'جاري الإرسال... <span class="spinner"></span>';
+      // ✅ SEND WHATSAPP REMINDER (fixed and improved)
+      async function sendReminder(name, phone, service, id) {
         const payload = {
           name: name || "عميلنا الكريم",
           phone: phone.startsWith("962") ? phone : "962" + phone,
@@ -243,8 +212,6 @@
             ". يسعدنا الرد على استفسارك أو تحديد موعد مناسب لك 😊",
           image: null,
         };
-
-        logDebug(`📤 Sending reminder to ${payload.phone}...`);
 
         try {
           const res = await fetch(
@@ -257,32 +224,30 @@
           );
 
           const data = await res.json();
-          logDebug("📦 API response: " + JSON.stringify(data));
+          console.log("📦 WhatsApp API response:", data);
 
           if (data.success) {
-            logDebug(`✅ Reminder sent to ${name}`, "success");
+            alert("✅ تم إرسال التذكير بنجاح إلى " + name);
             await updateStatus(id, "Reminder Sent");
             load();
           } else {
-            const msg =
+            const errMsg =
               data.error?.message || data.message || "حدث خطأ أثناء الإرسال";
-            logDebug("⚠️ Sending failed: " + msg, "error");
-            alert("⚠️ فشل إرسال التذكير: " + msg);
+            alert("⚠️ فشل إرسال التذكير: " + errMsg);
+            console.error("❌ API Error:", data);
           }
         } catch (err) {
-          logDebug("🚨 Network error: " + err.message, "error");
+          console.error("🚨 Network error:", err);
           alert("❌ خطأ أثناء الإرسال: " + err.message);
-        } finally {
-          btn.disabled = false;
-          btn.innerHTML = "إرسال تذكير";
         }
       }
 
-      // ========= RENDER TABLE =========
+      // ✅ RENDER TABLE
       function renderTable(d) {
         const tb = q("#tbl tbody");
         tb.innerHTML = "";
-        d.forEach((b) => {
+
+        d.forEach((b, idx) => {
           const r = document.createElement("tr");
           r.innerHTML = `
             <td>${b.name || "-"}</td>
@@ -291,7 +256,9 @@
             <td>${b.appointment || "-"}</td>
             <td>${b.time || "-"}</td>
             <td>
-              <select class="status-dropdown" data-id="${b.id}">
+              <select class="status-dropdown" data-index="${idx}" data-id="${
+            b.id
+          }">
                 <option value="Contacted" ${
                   b.status === "Contacted" ? "selected" : ""
                 }>تم التواصل</option>
@@ -312,36 +279,39 @@
             <td>
               ${
                 b.status === "No Response"
-                  ? `<button class="reminder-btn" onclick="sendReminder('${b.name}','${b.phone}','${b.service}','${b.id}', this)">إرسال تذكير</button>`
+                  ? `<button class="reminder-btn" onclick="sendReminder('${b.name}','${b.phone}','${b.service}','${b.id}')">إرسال تذكير</button>`
                   : "-"
               }
-            </td>`;
+            </td>
+          `;
           tb.appendChild(r);
         });
 
+        // Dropdown change listener
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
           sel.addEventListener("change", async (e) => {
+            const index = e.target.dataset.index;
             const id = e.target.dataset.id;
             const newStatus = e.target.value;
+
+            allData[index].status = newStatus;
             await updateStatus(id, newStatus);
-            applyFilter();
+            renderTable(allData);
           });
         });
       }
 
-      // ========= FILTER =========
+      // ✅ FILTER FUNCTION
       function applyFilter() {
-        const v = q("#statusFilter").value;
-        if (v === "all") renderTable(allData);
-        else renderTable(allData.filter((b) => b.status === v));
-        logDebug(`🔎 Applied filter: ${v}`);
+        const filterVal = q("#statusFilter").value;
+        if (filterVal === "all") renderTable(allData);
+        else renderTable(allData.filter((b) => b.status === filterVal));
       }
-
       q("#statusFilter").addEventListener("change", applyFilter);
 
-      // ========= THEME + SIDEBAR =========
-      const themeToggle = q("#themeToggle");
-      themeToggle.addEventListener("click", () => {
+      // ✅ THEME TOGGLE
+      const themeToggle = document.getElementById("themeToggle");
+      themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
         const icon = themeToggle.querySelector("i");
         if (document.body.classList.contains("dark")) {
@@ -352,17 +322,20 @@
           localStorage.setItem("clinic_theme", "light");
         }
       });
-
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.replace("fa-moon", "fa-sun");
       }
 
-      q("#menuToggle").addEventListener("click", () =>
-        q("#sidebar").classList.toggle("active")
+      // ✅ SIDEBAR TOGGLE
+      const menuToggle = document.getElementById("menuToggle");
+      const sidebar = document.getElementById("sidebar");
+      menuToggle.addEventListener("click", () =>
+        sidebar.classList.toggle("active")
       );
 
-      // ========= INIT =========
+      // ✅ INITIAL LOAD
       load();
       setInterval(load, 15000);
     </script>
