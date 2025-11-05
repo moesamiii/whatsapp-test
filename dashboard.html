@@ -6,7 +6,6 @@
     <title>Clinic Dashboard</title>
 
     <link rel="icon" href="/img/dummy-conan.jpeg" type="image/jpeg" />
-
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -128,7 +127,7 @@
           </div>
         </header>
 
-        <!-- METRICS (2 cards removed) -->
+        <!-- METRICS -->
         <section class="metrics">
           <div class="metric-card pink">
             <div class="metric-icon">
@@ -265,19 +264,15 @@
                     <th onclick="sortTable(0)">
                       الاسم <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(1)">
                       الهاتف <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(2)">
                       الخدمة <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(3)">
                       الموعد <i class="fas fa-sort"></i>
                     </th>
-
                     <th onclick="sortTable(4)">
                       الوقت <i class="fas fa-sort"></i>
                     </th>
@@ -294,7 +289,6 @@
     </div>
 
     <script>
-      // ======= SUPABASE LOGIN LOGIC =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -336,7 +330,7 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
-      // ======= NOTIFICATION LOGIC =======
+      // ======= NOTIFICATION =======
       let notificationCount = 0;
       let lastBookingCount = 0;
       const notificationBadge = document.getElementById("notificationBadge");
@@ -364,10 +358,9 @@
         e.preventDefault();
         notificationCount = 0;
         updateNotificationBadge();
-
-        // Navigate to notifications page after resetting count
         window.location.href = "notifications.html";
       });
+
       // ======= DASHBOARD LOGIC =======
       let bar, pie, line;
       let allData = [];
@@ -380,7 +373,6 @@
         allData = rawData.slice(1);
 
         checkForNewBookings(allData.length);
-
         filterAndRender();
       }
 
@@ -390,10 +382,12 @@
         drawCharts(allData);
       }
 
+      // Updated: reverse booking order
       function renderTable(d) {
         const tb = q("#tbl tbody");
         tb.innerHTML = "";
-        d.forEach((b) => {
+        const reversed = [...d].reverse(); // reverse the order here
+        reversed.forEach((b) => {
           const r = document.createElement("tr");
           r.innerHTML = `<td>${b.name || "-"}</td><td>${
             b.phone || "-"
@@ -435,16 +429,13 @@
                 data: vals,
                 backgroundColor: "rgba(217, 70, 239, 0.8)",
                 borderRadius: 8,
-                borderWidth: 0,
               },
             ],
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-            },
+            plugins: { legend: { display: false } },
           },
         });
 
@@ -465,63 +456,8 @@
               },
             ],
           },
-          options: {
-            plugins: {
-              legend: {
-                position: "bottom",
-              },
-            },
-          },
+          options: { plugins: { legend: { position: "bottom" } } },
         });
-
-        const weekData = getWeeklyData(d);
-        line = new Chart(q("#line"), {
-          type: "line",
-          data: {
-            labels: weekData.labels,
-            datasets: [
-              {
-                data: weekData.values,
-                borderColor: "#d946ef",
-                backgroundColor: "rgba(217, 70, 239, 0.1)",
-                fill: true,
-              },
-            ],
-          },
-          options: {
-            plugins: { legend: { display: false } },
-          },
-        });
-      }
-
-      function getWeeklyData(d) {
-        const days = [
-          "الأحد",
-          "الاثنين",
-          "الثلاثاء",
-          "الأربعاء",
-          "الخميس",
-          "الجمعة",
-          "السبت",
-        ];
-        const counts = [0, 0, 0, 0, 0, 0, 0];
-        d.forEach((b) => {
-          if (b.timestamp) counts[new Date(b.timestamp).getDay()]++;
-        });
-        return { labels: days, values: counts };
-      }
-
-      function sortTable(col) {
-        const tb = q("#tbl tbody");
-        const rows = Array.from(tb.rows);
-        rows.sort(
-          (a, b) =>
-            sortDirection *
-            a.cells[col].textContent.localeCompare(b.cells[col].textContent)
-        );
-        sortDirection *= -1;
-        tb.innerHTML = "";
-        rows.forEach((r) => tb.appendChild(r));
       }
 
       const themeToggle = document.getElementById("themeToggle");
