@@ -193,7 +193,7 @@
           status: b.status || "Still",
         }));
 
-        renderTable(allData);
+        applyFilter(); // Apply filter after loading data
       }
 
       async function updateStatus(id, newStatus) {
@@ -280,6 +280,7 @@
 
       function applyFilter() {
         const filterVal = q("#statusFilter").value;
+        localStorage.setItem("selectedStatusFilter", filterVal); // remember filter
         if (filterVal === "all") {
           renderTable(allData);
         } else {
@@ -319,9 +320,21 @@
         sidebar.classList.toggle("active");
       });
 
-      // Load bookings on page load
-      load();
-      setInterval(load, 15000);
+      // ===== INIT FUNCTION =====
+      async function init() {
+        await load();
+
+        // restore saved filter from localStorage
+        const savedFilter = localStorage.getItem("selectedStatusFilter");
+        if (savedFilter) {
+          q("#statusFilter").value = savedFilter;
+          applyFilter();
+        }
+      }
+
+      // Run on start and refresh every 15 seconds
+      init();
+      setInterval(init, 15000);
     </script>
   </body>
 </html>
