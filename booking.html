@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Clinic Dashboard - Booking Table</title>
+    <title>جدول الحجوزات - Smile Clinic</title>
 
     <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
     <link
@@ -69,6 +69,29 @@
         to {
           transform: rotate(360deg);
         }
+      }
+
+      /* ✅ Debug box same as offers.html */
+      .debug-info {
+        background: #f8f8f8;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 12px;
+        font-family: monospace;
+        margin-top: 15px;
+        display: none;
+        max-height: 250px;
+        overflow-y: auto;
+      }
+      body.dark .debug-info {
+        background: #1a1a1a;
+        color: #0f0;
+        border-color: #333;
+      }
+      .debug-info h4 {
+        color: #7c3aed;
+        margin-top: 0;
       }
     </style>
   </head>
@@ -139,6 +162,12 @@
               </thead>
               <tbody></tbody>
             </table>
+
+            <!-- ✅ Debug Info like offers -->
+            <div class="debug-info" id="debugInfo">
+              <h4>🔍 معلومات التشخيص</h4>
+              <div id="debugContent"></div>
+            </div>
           </div>
         </section>
 
@@ -147,14 +176,25 @@
     </div>
 
     <script>
+      // ✅ Supabase setup
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       let allData = [];
-      let sortDirection = 1;
-      const q = (s) => document.querySelector(s);
+
+      // ✅ Debug log
+      function addDebugLog(msg, type = "info") {
+        const box = document.getElementById("debugInfo");
+        const content = document.getElementById("debugContent");
+        box.style.display = "block";
+        const time = new Date().toLocaleTimeString("ar-EG");
+        const icon = type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
+        content.innerHTML += `<div>[${time}] ${icon} ${msg}</div>`;
+        content.scrollTop = content.scrollHeight;
+        console.log(`[${time}] ${msg}`);
+      }
 
       // ✅ Load bookings
       async function load() {
@@ -176,22 +216,27 @@
         if (error) console.error("Error updating status:", error);
       }
 
-      // ✅ Send WhatsApp reminder
+      // ✅ Send WhatsApp reminder (to fixed test number)
       async function sendWhatsAppReminder(booking, idx) {
         const indicator = document.getElementById(`sending-${idx}`);
         indicator.style.display = "inline";
+        addDebugLog(`بدء إرسال تذكير للعميل ${booking.name}`);
+
+        // 🟣 Send only to verified test number (like offers)
+        const testPhone = "962785050875"; // ← Replace with your allowed number
 
         const payload = {
           name: booking.name || "عميلنا الكريم",
-          phone: booking.phone.startsWith("962")
-            ? booking.phone
-            : "962" + booking.phone,
+          phone: testPhone,
           service: booking.service,
-          appointment: booking.appointment,
+          appointment: booking.appointment || "",
           image: null,
         };
 
         try {
+          addDebugLog("إرسال الطلب إلى WhatsApp API...");
+          addDebugLog(`البيانات: ${JSON.stringify(payload, null, 2)}`);
+
           const res = await fetch(
             "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
             {
@@ -202,16 +247,21 @@
           );
 
           const data = await res.json();
-          console.log("📦 WhatsApp API response:", data);
+          addDebugLog(`استجابة API: ${JSON.stringify(data, null, 2)}`);
 
           if (data.success) {
             await updateStatus(booking.id, "SentNoReply");
+            addDebugLog(
+              `✅ تم إرسال التذكير بنجاح إلى ${booking.name}`,
+              "success"
+            );
             alert(`✅ تم إرسال التذكير بنجاح إلى ${booking.name}`);
           } else {
+            addDebugLog(`⚠️ فشل الإرسال: ${data.message}`, "error");
             alert(`⚠️ فشل إرسال التذكير: ${data.message || "خطأ غير معروف"}`);
           }
         } catch (err) {
-          console.error("❌ WhatsApp reminder error:", err);
+          addDebugLog(`❌ خطأ في الإرسال: ${err.message}`, "error");
           alert("❌ خطأ أثناء إرسال التذكير: " + err.message);
         } finally {
           indicator.style.display = "none";
@@ -219,14 +269,14 @@
         }
       }
 
-      // ✅ Render table
+      // ✅ Render bookings table
       function renderTable(data) {
-        const tb = q("#tbl tbody");
+        const tb = document.querySelector("#tbl tbody");
         tb.innerHTML = "";
 
         data.forEach((b, idx) => {
-          const r = document.createElement("tr");
-          r.innerHTML = `
+          const row = document.createElement("tr");
+          row.innerHTML = `
             <td>${b.name || "-"}</td>
             <td>${b.phone || "-"}</td>
             <td>${b.service || "-"}</td>
@@ -257,7 +307,7 @@
               </div>
             </td>
           `;
-          tb.appendChild(r);
+          tb.appendChild(row);
         });
 
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
@@ -270,11 +320,10 @@
             allData[index].status = newStatus;
             await updateStatus(id, newStatus);
 
-            const indicator = document.getElementById(`saved-${index}`);
-            indicator.style.display = "inline";
-            setTimeout(() => (indicator.style.display = "none"), 1500);
+            const saved = document.getElementById(`saved-${index}`);
+            saved.style.display = "inline";
+            setTimeout(() => (saved.style.display = "none"), 1500);
 
-            // 🟣 Send reminder automatically if "SentNoReply"
             if (newStatus === "SentNoReply") {
               await sendWhatsAppReminder(booking, index);
             }
@@ -284,47 +333,42 @@
         });
       }
 
-      // ✅ Filter function
+      // ✅ Filter
       function applyFilter() {
-        const filterVal = q("#statusFilter").value;
-        if (filterVal === "all") {
-          renderTable(allData);
-        } else {
-          renderTable(allData.filter((b) => b.status === filterVal));
-        }
+        const val = document.getElementById("statusFilter").value;
+        if (val === "all") renderTable(allData);
+        else renderTable(allData.filter((b) => b.status === val));
       }
-      q("#statusFilter").addEventListener("change", applyFilter);
+      document
+        .getElementById("statusFilter")
+        .addEventListener("change", applyFilter);
 
       // ✅ Theme toggle
       const themeToggle = document.getElementById("themeToggle");
-      themeToggle.addEventListener("click", function () {
+      themeToggle.addEventListener("click", () => {
         document.body.classList.toggle("dark");
         const icon = themeToggle.querySelector("i");
         if (document.body.classList.contains("dark")) {
-          icon.classList.remove("fa-moon");
-          icon.classList.add("fa-sun");
+          icon.classList.replace("fa-moon", "fa-sun");
           localStorage.setItem("clinic_theme", "dark");
         } else {
-          icon.classList.remove("fa-sun");
-          icon.classList.add("fa-moon");
+          icon.classList.replace("fa-sun", "fa-moon");
           localStorage.setItem("clinic_theme", "light");
         }
       });
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        const icon = themeToggle.querySelector("i");
-        icon.classList.remove("fa-moon");
-        icon.classList.add("fa-sun");
+        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
       }
 
       // ✅ Sidebar toggle
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
-      menuToggle.addEventListener("click", () => {
-        sidebar.classList.toggle("active");
-      });
+      menuToggle.addEventListener("click", () =>
+        sidebar.classList.toggle("active")
+      );
 
-      // ✅ Initial load
+      // ✅ Load bookings
       load();
       setInterval(load, 15000);
     </script>
