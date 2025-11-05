@@ -74,11 +74,6 @@
       button.reminder-btn:hover {
         background-color: #5b21b6;
       }
-
-      button.reminder-btn:disabled {
-        background-color: #ccc;
-        cursor: not-allowed;
-      }
     </style>
   </head>
 
@@ -205,7 +200,7 @@
         if (error) console.error("Error updating status:", error);
       }
 
-      // ✅ SEND WHATSAPP REMINDER (fixed)
+      // ✅ SEND WHATSAPP REMINDER (fixed and improved)
       async function sendReminder(name, phone, service, id) {
         const payload = {
           name: name || "عميلنا الكريم",
@@ -218,22 +213,15 @@
           image: null,
         };
 
-        const API_URL =
-          "https://whatsapp-test-rosy.vercel.app/api/sendWhatsApp"; // ✅ fixed path
-
         try {
-          const res = await fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-
-          if (!res.ok) {
-            const text = await res.text();
-            console.error("❌ Server returned:", res.status, text);
-            alert("⚠️ فشل الإرسال (HTTP " + res.status + ")");
-            return;
-          }
+          const res = await fetch(
+            "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }
+          );
 
           const data = await res.json();
           console.log("📦 WhatsApp API response:", data);
@@ -261,8 +249,6 @@
 
         d.forEach((b, idx) => {
           const r = document.createElement("tr");
-          const disableBtn = b.status === "Reminder Sent";
-
           r.innerHTML = `
             <td>${b.name || "-"}</td>
             <td>${b.phone || "-"}</td>
@@ -292,14 +278,8 @@
             </td>
             <td>
               ${
-                b.status === "No Response" || b.status === "Reminder Sent"
-                  ? `<button class="reminder-btn" ${
-                      disableBtn ? "disabled" : ""
-                    } onclick="sendReminder('${b.name}','${b.phone}','${
-                      b.service
-                    }','${b.id}')">
-                      ${disableBtn ? "تم الإرسال" : "إرسال تذكير"}
-                    </button>`
+                b.status === "No Response"
+                  ? `<button class="reminder-btn" onclick="sendReminder('${b.name}','${b.phone}','${b.service}','${b.id}')">إرسال تذكير</button>`
                   : "-"
               }
             </td>
@@ -307,11 +287,13 @@
           tb.appendChild(r);
         });
 
+        // Dropdown change listener
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
           sel.addEventListener("change", async (e) => {
             const index = e.target.dataset.index;
             const id = e.target.dataset.id;
             const newStatus = e.target.value;
+
             allData[index].status = newStatus;
             await updateStatus(id, newStatus);
             renderTable(allData);
