@@ -61,6 +61,13 @@
       .table-card h3 {
         margin-bottom: 10px;
       }
+
+      .status-saved {
+        color: green;
+        font-size: 12px;
+        display: none;
+        margin-right: 5px;
+      }
     </style>
   </head>
 
@@ -154,9 +161,6 @@
                     الوقت <i class="fas fa-sort"></i>
                   </th>
                   <th>الحالة</th>
-                  <th onclick="sortTable(6)">
-                    الطابع الزمني <i class="fas fa-sort"></i>
-                  </th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -169,7 +173,7 @@
     </div>
 
     <script>
-      // ======= SUPABASE LOGIN LOGIC =======
+      // ======= SUPABASE CONFIG =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -180,11 +184,13 @@
       const q = (s) => document.querySelector(s);
 
       async function load() {
-        const res = await fetch("/api/bookings");
-        allData = await res.json();
+        const { data, error } = await supabase.from("bookings").select("*");
+        if (error) {
+          console.error("❌ Error loading bookings:", error);
+          return;
+        }
 
-        // Add default status if missing
-        allData = allData.map((b) => ({
+        allData = data.map((b) => ({
           ...b,
           status: b.status || "Still",
         }));
@@ -198,11 +204,6 @@
 
         d.forEach((b, idx) => {
           const r = document.createElement("tr");
-
-          const formattedTime = b.timestamp
-            ? new Date(b.timestamp).toLocaleString()
-            : "-";
-
           r.innerHTML = `
             <td>${b.name || "-"}</td>
             <td>${b.phone || "-"}</td>
@@ -210,28 +211,50 @@
             <td>${b.appointment || "-"}</td>
             <td>${b.time || "-"}</td>
             <td>
-              <select class="status-dropdown" data-index="${idx}">
-                <option value="Contacted" ${
-                  b.status === "Contacted" ? "selected" : ""
-                }>تم التواصل</option>
-                <option value="Still" ${
-                  b.status === "Still" ? "selected" : ""
-                }>قيد الانتظار</option>
-                <option value="Booking Complete" ${
-                  b.status === "Booking Complete" ? "selected" : ""
-                }>تم الحجز</option>
-              </select>
+              <div style="display:flex; align-items:center;">
+                <span class="status-saved" id="saved-${idx}">✔</span>
+                <select class="status-dropdown" data-index="${idx}" data-id="${
+            b.id
+          }">
+                  <option value="Contacted" ${
+                    b.status === "Contacted" ? "selected" : ""
+                  }>تم التواصل</option>
+                  <option value="Still" ${
+                    b.status === "Still" ? "selected" : ""
+                  }>قيد الانتظار</option>
+                  <option value="Booking Complete" ${
+                    b.status === "Booking Complete" ? "selected" : ""
+                  }>تم الحجز</option>
+                </select>
+              </div>
             </td>
-            <td>${formattedTime}</td>
           `;
           tb.appendChild(r);
         });
 
-        // Attach change event
+        // Attach change event for saving status
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
-          sel.addEventListener("change", (e) => {
+          sel.addEventListener("change", async (e) => {
             const index = e.target.dataset.index;
-            allData[index].status = e.target.value;
+            const bookingId = e.target.dataset.id;
+            const newStatus = e.target.value;
+            allData[index].status = newStatus;
+
+            // Save to Supabase
+            const { error } = await supabase
+              .from("bookings")
+              .update({ status: newStatus })
+              .eq("id", bookingId);
+
+            if (error) {
+              console.error("Error updating status:", error);
+              alert("❌ فشل حفظ الحالة!");
+            } else {
+              const check = document.getElementById(`saved-${index}`);
+              check.style.display = "inline";
+              setTimeout(() => (check.style.display = "none"), 1500);
+            }
+
             applyFilter();
           });
         });
