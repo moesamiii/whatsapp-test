@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clinic Dashboard - Booking Table</title>
 
-    <!-- Favicon -->
     <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
-
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -24,25 +22,21 @@
           display: flex;
           justify-content: center;
         }
-
         .table-card {
           width: 100% !important;
           max-width: none !important;
           margin: 0;
         }
-
         .main-content {
           width: 100%;
         }
       }
-
       .status-filter {
         margin: 15px 0;
         display: flex;
         align-items: center;
         gap: 10px;
       }
-
       select.status-dropdown,
       select#statusFilter {
         padding: 6px 8px;
@@ -51,17 +45,14 @@
         background: #fff;
         cursor: pointer;
       }
-
       body.dark select {
         background: #333;
         color: #fff;
         border-color: #555;
       }
-
       .table-card h3 {
         margin-bottom: 10px;
       }
-
       .save-indicator {
         font-size: 12px;
         color: green;
@@ -83,12 +74,10 @@
             <i class="fa-solid fa-gauge"></i>
             لوحة القيادة
           </a>
-
           <a href="notifications.html">
             <i class="fa-solid fa-bell"></i>
             التنبيهات
           </a>
-
           <a href="analytics.html">
             <i class="fa-solid fa-rocket"></i>
             تحليلات
@@ -97,12 +86,10 @@
             <i class="fa-solid fa-table"></i>
             جدول الحجوزات
           </a>
-
           <a href="AIsettings.html">
             <i class="fa-solid fa-robot"></i>
             إعدادات الذكاء الاصطناعي
           </a>
-
           <a href="offers.html">
             <i class="fa-solid fa-gift"></i>
             إرسال العروض المخصصة
@@ -126,7 +113,6 @@
           </div>
         </header>
 
-        <!-- BOOKING TABLE -->
         <section class="dashboard-grid">
           <div class="table-card" style="width: 100%">
             <h3>جدول الحجوزات</h3>
@@ -173,7 +159,6 @@
     </div>
 
     <script>
-      // ======= SUPABASE LOGIN LOGIC =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -189,17 +174,25 @@
           const res = await fetch("/api/bookings");
           const data = await res.json();
 
-          // Ensure default status exists and preserve local unsaved changes
-          return data.map((b) => {
-            const existing = allData.find((x) => x.id === b.id);
-            return {
-              ...b,
-              status: existing?.status || b.status || "Still",
-            };
-          });
+          // ✅ Only keep NEW rows (not already in allData)
+          const newRows = data.filter(
+            (b) => !allData.some((x) => x.id === b.id)
+          );
+
+          if (newRows.length > 0) {
+            console.log(`🔄 Added ${newRows.length} new booking(s)`);
+          }
+
+          // merge new ones
+          allData = [...allData, ...newRows].map((b) => ({
+            ...b,
+            status: b.status || "Still",
+          }));
+
+          return newRows;
         } catch (e) {
           console.error("Error fetching data:", e);
-          return allData; // fallback
+          return [];
         }
       }
 
@@ -249,6 +242,10 @@
           tb.appendChild(r);
         });
 
+        attachDropdownEvents();
+      }
+
+      function attachDropdownEvents() {
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
           sel.addEventListener("focus", () => (isEditing = true));
           sel.addEventListener("blur", () => (isEditing = false));
@@ -263,7 +260,7 @@
             indicator.style.display = "inline";
             setTimeout(() => (indicator.style.display = "none"), 1500);
 
-            applyFilter();
+            applyFilter(); // keep view consistent
           });
         });
       }
@@ -284,11 +281,11 @@
       function applyFilter() {
         const filterVal = q("#statusFilter").value;
         localStorage.setItem("selectedStatusFilter", filterVal);
-        if (filterVal === "all") {
-          renderTable(allData);
-        } else {
-          renderTable(allData.filter((b) => b.status === filterVal));
-        }
+        const filtered =
+          filterVal === "all"
+            ? allData
+            : allData.filter((b) => b.status === filterVal);
+        renderTable(filtered);
       }
 
       q("#statusFilter").addEventListener("change", applyFilter);
@@ -323,26 +320,22 @@
         sidebar.classList.toggle("active");
       });
 
-      // ===== INIT FUNCTION =====
-      async function init(refreshOnly = false) {
-        if (isEditing) return; // skip refresh while editing
+      async function init(firstLoad = false) {
+        if (isEditing) return;
 
         const prevFilter =
           localStorage.getItem("selectedStatusFilter") || "all";
-        const prevScroll = window.scrollY;
 
-        const newData = await fetchData();
-        allData = newData;
-
-        q("#statusFilter").value = prevFilter;
-        applyFilter();
-
-        window.scrollTo(0, prevScroll);
+        const newRows = await fetchData();
+        // only re-render if new rows were added OR on first load
+        if (newRows.length > 0 || firstLoad) {
+          q("#statusFilter").value = prevFilter;
+          applyFilter();
+        }
       }
 
-      // Run on start and refresh every 15 seconds
-      init();
-      setInterval(() => init(true), 15000);
+      init(true);
+      setInterval(() => init(false), 15000);
     </script>
   </body>
 </html>
