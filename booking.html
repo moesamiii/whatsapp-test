@@ -183,17 +183,47 @@
       let sortDirection = 1;
       const q = (s) => document.querySelector(s);
 
+      // Store current filter value globally to reapply after reload
+      let currentFilter = "all";
+
       async function load() {
-        const res = await fetch("/api/bookings");
-        allData = await res.json();
+        try {
+          const res = await fetch("/api/bookings");
+          const serverData = await res.json();
 
-        // Add default status if missing
-        allData = allData.map((b) => ({
-          ...b,
-          status: b.status || "Still",
-        }));
+          // Merge server data into allData preserving local status overrides
+          // This prevents overwriting status changes done locally but not yet fully synced
+          const serverDataMap = new Map(
+            serverData.map((item) => [item.id, item])
+          );
+          allData = allData.map((localItem) => {
+            const serverItem = serverDataMap.get(localItem.id);
+            if (serverItem) {
+              // Preserve local status if changed, otherwise use server status
+              return {
+                ...serverItem,
+                status: localItem.status || serverItem.status || "Still",
+              };
+            }
+            return localItem;
+          });
 
-        renderTable(allData);
+          // Add new items from server not in local data
+          serverData.forEach((item) => {
+            if (!allData.some((d) => d.id === item.id)) {
+              // Ensure status fallback
+              allData.push({
+                ...item,
+                status: item.status || "Still",
+              });
+            }
+          });
+        } catch (e) {
+          console.error("Failed to load data:", e);
+        }
+
+        // render with current filter applied
+        applyFilter();
       }
 
       async function updateStatus(id, newStatus) {
@@ -245,7 +275,7 @@
           tb.appendChild(r);
         });
 
-        // Attach change event
+        // Attach change event for status dropdowns
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
           sel.addEventListener("change", async (e) => {
             const index = e.target.dataset.index;
@@ -253,6 +283,8 @@
             const newStatus = e.target.value;
 
             allData[index].status = newStatus;
+
+            // Immediately update status in DB and reflect change instantly
             await updateStatus(id, newStatus);
 
             // Show quick save check mark
@@ -260,6 +292,7 @@
             indicator.style.display = "inline";
             setTimeout(() => (indicator.style.display = "none"), 1500);
 
+            // Apply current filter immediately without waiting for reload
             applyFilter();
           });
         });
@@ -279,14 +312,15 @@
       }
 
       function applyFilter() {
-        const filterVal = q("#statusFilter").value;
-        if (filterVal === "all") {
+        currentFilter = q("#statusFilter").value;
+        if (currentFilter === "all") {
           renderTable(allData);
         } else {
-          renderTable(allData.filter((b) => b.status === filterVal));
+          renderTable(allData.filter((b) => b.status === currentFilter));
         }
       }
 
+      // Event to reapply filter on user select
       q("#statusFilter").addEventListener("change", applyFilter);
 
       // Theme toggle
@@ -319,8 +353,10 @@
         sidebar.classList.toggle("active");
       });
 
-      // Load bookings on page load
+      // Load bookings initially
       load();
+
+      // Reload periodically but preserve local changes and filter
       setInterval(load, 15000);
     </script>
   </body>
