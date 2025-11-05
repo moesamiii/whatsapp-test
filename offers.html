@@ -11,28 +11,18 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     />
     <link rel="stylesheet" href="./dashboard.css" />
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
       @media (min-width: 1024px) {
         .dashboard-grid {
-          width: 100%;
           display: flex;
           justify-content: center;
         }
         .table-card {
-          width: 100% !important;
-          max-width: none !important;
-          margin: 0;
+          width: 100%;
+          max-width: none;
         }
-      }
-
-      .status-filter {
-        margin: 15px 0;
-        display: flex;
-        align-items: center;
-        gap: 10px;
       }
 
       select,
@@ -56,6 +46,13 @@
       .reminder-btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
+      }
+
+      .status-filter {
+        margin: 15px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
 
       .debug-info {
@@ -87,7 +84,6 @@
         animation: spin 1s ease-in-out infinite;
         margin-left: 5px;
       }
-
       @keyframes spin {
         to {
           transform: rotate(360deg);
@@ -98,11 +94,8 @@
 
   <body>
     <div class="container">
-      <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
-        <div class="logo">
-          <span>CONAN DASHBOARD</span>
-        </div>
+        <div class="logo"><span>CONAN DASHBOARD</span></div>
         <nav class="menu">
           <a href="dashboard.html"
             ><i class="fa-solid fa-gauge"></i> لوحة القيادة</a
@@ -125,7 +118,6 @@
         </nav>
       </aside>
 
-      <!-- MAIN CONTENT -->
       <main class="main-content" id="dashboardContent">
         <header class="header">
           <div class="header-left">
@@ -184,7 +176,7 @@
     </div>
 
     <script>
-      // ============ SUPABASE SETUP ============
+      // ==================== CONFIG ====================
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -192,8 +184,9 @@
 
       const q = (s) => document.querySelector(s);
       let allData = [];
+      let currentFilter = "all";
 
-      // ============ DEBUG LOGGER ============
+      // ==================== DEBUG ====================
       function logDebug(msg, type = "info") {
         const box = q("#debugInfo");
         const log = q("#debugContent");
@@ -205,28 +198,35 @@
         console.log(`[${time}] ${msg}`);
       }
 
-      // ============ LOAD BOOKINGS ============
+      // ==================== LOAD BOOKINGS ====================
       async function load() {
+        logDebug("🔄 تحميل البيانات من Supabase...");
         const { data, error } = await supabase.from("bookings").select("*");
-        if (error) return console.error("Error loading:", error);
+        if (error) {
+          logDebug("❌ خطأ في تحميل البيانات: " + error.message, "error");
+          return;
+        }
         allData = data.map((b) => ({ ...b, status: b.status || "Still" }));
-        renderTable(allData);
+        logDebug(`✅ تم تحميل ${allData.length} سجل`);
+        applyFilter(); // render according to current filter
       }
 
-      // ============ UPDATE STATUS ============
+      // ==================== UPDATE STATUS ====================
       async function updateStatus(id, newStatus) {
+        logDebug(`📝 تحديث الحالة للعميل ID:${id} → ${newStatus}`);
         const { error } = await supabase
           .from("bookings")
           .update({ status: newStatus })
           .eq("id", id);
-        if (error) console.error("Error updating status:", error);
+        if (error) logDebug("❌ فشل تحديث الحالة: " + error.message, "error");
+        else logDebug("✅ تم تحديث الحالة بنجاح", "success");
       }
 
-      // ============ SEND REMINDER (Offers Logic) ============
+      // ==================== SEND REMINDER ====================
       async function sendReminder(name, phone, service, id, btn) {
         btn.disabled = true;
         btn.innerHTML = 'جاري الإرسال... <span class="spinner"></span>';
-        logDebug(`📨 بدء إرسال تذكير إلى ${phone}`);
+        logDebug(`📨 إرسال تذكير إلى ${phone}`);
 
         const payload = {
           name: name || "عميلنا الكريم",
@@ -256,7 +256,7 @@
             await updateStatus(id, "Reminder Sent");
             logDebug(`✅ تم إرسال التذكير بنجاح إلى ${name}`, "success");
             alert("✅ تم إرسال التذكير بنجاح!");
-            load();
+            await load();
           } else {
             const msg =
               data.error?.message || data.message || "حدث خطأ أثناء الإرسال";
@@ -269,14 +269,20 @@
         } finally {
           btn.disabled = false;
           btn.innerHTML = "إرسال تذكير";
+          applyFilter(); // keep filter view
         }
       }
 
-      // ============ RENDER TABLE ============
-      function renderTable(d) {
+      // ==================== RENDER TABLE ====================
+      function renderTable(dataList) {
         const tb = q("#tbl tbody");
         tb.innerHTML = "";
-        d.forEach((b) => {
+        if (!dataList.length) {
+          tb.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#777;">لا توجد بيانات لعرضها</td></tr>`;
+          return;
+        }
+
+        dataList.forEach((b) => {
           const r = document.createElement("tr");
           r.innerHTML = `
             <td>${b.name || "-"}</td>
@@ -309,30 +315,33 @@
                   ? `<button class="reminder-btn" onclick="sendReminder('${b.name}','${b.phone}','${b.service}','${b.id}', this)">إرسال تذكير</button>`
                   : "-"
               }
-            </td>
-          `;
+            </td>`;
           tb.appendChild(r);
         });
 
-        // status change listener
-        document.querySelectorAll(".status-dropdown").forEach((s) => {
-          s.addEventListener("change", async (e) => {
+        // listeners for status updates
+        document.querySelectorAll(".status-dropdown").forEach((sel) => {
+          sel.addEventListener("change", async (e) => {
             const id = e.target.dataset.id;
             const newStatus = e.target.value;
             await updateStatus(id, newStatus);
-            load();
+            applyFilter();
           });
         });
       }
 
-      // ============ FILTER ============
-      q("#statusFilter").addEventListener("change", () => {
+      // ==================== FILTER HANDLER ====================
+      function applyFilter() {
         const v = q("#statusFilter").value;
-        if (v === "all") renderTable(allData);
-        else renderTable(allData.filter((b) => b.status === v));
-      });
+        currentFilter = v;
+        let filtered =
+          v === "all" ? allData : allData.filter((b) => b.status === v);
+        logDebug(`🧩 تطبيق الفلترة: ${v} (${filtered.length} نتائج)`);
+        renderTable(filtered);
+      }
+      q("#statusFilter").addEventListener("change", applyFilter);
 
-      // ============ THEME + SIDEBAR ============
+      // ==================== THEME & SIDEBAR ====================
       const themeToggle = q("#themeToggle");
       themeToggle.addEventListener("click", () => {
         document.body.classList.toggle("dark");
@@ -354,7 +363,7 @@
         q("#sidebar").classList.toggle("active")
       );
 
-      // ============ INIT ============
+      // ==================== INIT ====================
       load();
       setInterval(load, 15000);
     </script>
