@@ -18,7 +18,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-      /* === Only added this fix === */
       @media (min-width: 1024px) {
         .dashboard-grid {
           width: 100%;
@@ -32,10 +31,35 @@
           margin: 0;
         }
 
-        /* Make sure main content stretches properly */
         .main-content {
           width: 100%;
         }
+      }
+
+      .status-filter {
+        margin: 15px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      select.status-dropdown,
+      select#statusFilter {
+        padding: 6px 8px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        background: #fff;
+        cursor: pointer;
+      }
+
+      body.dark select {
+        background: #333;
+        color: #fff;
+        border-color: #555;
+      }
+
+      .table-card h3 {
+        margin-bottom: 10px;
       }
     </style>
   </head>
@@ -99,6 +123,18 @@
         <section class="dashboard-grid">
           <div class="table-card" style="width: 100%">
             <h3>جدول الحجوزات</h3>
+
+            <!-- STATUS FILTER -->
+            <div class="status-filter">
+              <label for="statusFilter">تصفية حسب الحالة:</label>
+              <select id="statusFilter">
+                <option value="all">الكل</option>
+                <option value="Contacted">تم التواصل</option>
+                <option value="Still">قيد الانتظار</option>
+                <option value="Booking Complete">تم الحجز</option>
+              </select>
+            </div>
+
             <table id="tbl">
               <thead>
                 <tr>
@@ -116,6 +152,10 @@
                   </th>
                   <th onclick="sortTable(4)">
                     الوقت <i class="fas fa-sort"></i>
+                  </th>
+                  <th>الحالة</th>
+                  <th onclick="sortTable(6)">
+                    الطابع الزمني <i class="fas fa-sort"></i>
                   </th>
                 </tr>
               </thead>
@@ -142,22 +182,58 @@
       async function load() {
         const res = await fetch("/api/bookings");
         allData = await res.json();
+
+        // Add default status if missing
+        allData = allData.map((b) => ({
+          ...b,
+          status: b.status || "Still",
+        }));
+
         renderTable(allData);
       }
 
       function renderTable(d) {
         const tb = q("#tbl tbody");
         tb.innerHTML = "";
-        d.forEach((b) => {
+
+        d.forEach((b, idx) => {
           const r = document.createElement("tr");
-          r.innerHTML = `<td>${b.name || "-"}</td><td>${
-            b.phone || "-"
-          }</td><td>${b.service || "-"}</td><td>${
-            b.appointment || "-"
-          }</td><td>${
-            b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
-          }</td>`;
+
+          const formattedTime = b.timestamp
+            ? new Date(b.timestamp).toLocaleString()
+            : "-";
+
+          r.innerHTML = `
+            <td>${b.name || "-"}</td>
+            <td>${b.phone || "-"}</td>
+            <td>${b.service || "-"}</td>
+            <td>${b.appointment || "-"}</td>
+            <td>${b.time || "-"}</td>
+            <td>
+              <select class="status-dropdown" data-index="${idx}">
+                <option value="Contacted" ${
+                  b.status === "Contacted" ? "selected" : ""
+                }>تم التواصل</option>
+                <option value="Still" ${
+                  b.status === "Still" ? "selected" : ""
+                }>قيد الانتظار</option>
+                <option value="Booking Complete" ${
+                  b.status === "Booking Complete" ? "selected" : ""
+                }>تم الحجز</option>
+              </select>
+            </td>
+            <td>${formattedTime}</td>
+          `;
           tb.appendChild(r);
+        });
+
+        // Attach change event
+        document.querySelectorAll(".status-dropdown").forEach((sel) => {
+          sel.addEventListener("change", (e) => {
+            const index = e.target.dataset.index;
+            allData[index].status = e.target.value;
+            applyFilter();
+          });
         });
       }
 
@@ -173,6 +249,17 @@
         tb.innerHTML = "";
         rows.forEach((r) => tb.appendChild(r));
       }
+
+      function applyFilter() {
+        const filterVal = q("#statusFilter").value;
+        if (filterVal === "all") {
+          renderTable(allData);
+        } else {
+          renderTable(allData.filter((b) => b.status === filterVal));
+        }
+      }
+
+      q("#statusFilter").addEventListener("change", applyFilter);
 
       // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
