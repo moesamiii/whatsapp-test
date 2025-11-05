@@ -203,17 +203,22 @@
       const q = (s) => document.querySelector(s);
 
       async function load() {
-        const res = await fetch("/api/bookings");
-        allData = await res.json();
+        try {
+          const res = await fetch("/api/bookings");
+          const newData = await res.json();
 
-        // Add default status if missing
-        allData = allData.map((b) => ({
-          ...b,
-          status: b.status || "Still",
-        }));
+          // Add default status if missing
+          allData = newData.map((b) => ({
+            ...b,
+            status: b.status || "Still",
+          }));
 
-        renderTable(allData);
-        highlightActiveTab();
+          // Re-render table with current filter maintained
+          renderTable(allData);
+          highlightActiveTab();
+        } catch (error) {
+          console.error("Error loading bookings:", error);
+        }
       }
 
       async function updateStatus(id, newStatus) {
@@ -235,12 +240,13 @@
         const tb = q("#tbl tbody");
         tb.innerHTML = "";
 
+        // Apply filter based on currentFilter
         let filtered =
           currentFilter === "all"
             ? d
             : d.filter((b) => b.status === currentFilter);
 
-        filtered.forEach((b, idx) => {
+        filtered.forEach((b) => {
           const r = document.createElement("tr");
           r.innerHTML = `
             <td>${b.name || "-"}</td>
@@ -250,10 +256,8 @@
             <td>${b.time || "-"}</td>
             <td>
               <div style="display:flex;align-items:center;gap:5px;">
-                <span class="save-indicator" id="saved-${idx}">✔</span>
-                <select class="status-dropdown" data-index="${idx}" data-id="${
-            b.id
-          }">
+                <span class="save-indicator" id="saved-${b.id}">✔</span>
+                <select class="status-dropdown" data-id="${b.id}">
                   <option value="Contacted" ${
                     b.status === "Contacted" ? "selected" : ""
                   }>تم التواصل</option>
@@ -273,18 +277,27 @@
         // Attach change event
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
           sel.addEventListener("change", async (e) => {
-            const index = e.target.dataset.index;
             const id = e.target.dataset.id;
             const newStatus = e.target.value;
 
-            allData[index].status = newStatus;
+            // Update in allData array
+            const bookingIndex = allData.findIndex((b) => b.id == id);
+            if (bookingIndex !== -1) {
+              allData[bookingIndex].status = newStatus;
+            }
+
+            // Update in database
             await updateStatus(id, newStatus);
 
-            const indicator = document.getElementById(`saved-${index}`);
-            indicator.style.display = "inline";
-            setTimeout(() => (indicator.style.display = "none"), 1500);
+            // Show save indicator
+            const indicator = document.getElementById(`saved-${id}`);
+            if (indicator) {
+              indicator.style.display = "inline";
+              setTimeout(() => (indicator.style.display = "none"), 1500);
+            }
 
-            renderTable(allData); // refresh table with updated data
+            // Re-render table with current filter
+            renderTable(allData);
           });
         });
       }
