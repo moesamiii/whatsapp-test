@@ -131,15 +131,14 @@
             <h3>جدول الحجوزات</h3>
 
             <!-- STATUS FILTER -->
-            <div class="status-filter">
-              <label for="statusFilter">تصفية حسب الحالة:</label>
-              <select id="statusFilter">
-                <option value="all">الكل</option>
-                <option value="Contacted">تم التواصل</option>
-                <option value="Still">قيد الانتظار</option>
-                <option value="Booking Complete">تم الحجز</option>
-              </select>
-            </div>
+
+            <select id="statusFilter">
+              <option value="all">الكل</option>
+              <option value="Contacted">تم التواصل</option>
+              <option value="Still">قيد الانتظار</option>
+              <option value="Booking Complete">تم الحجز</option>
+              <option value="SentNoReply">تم الإرسال ولم يتم الرد</option>
+            </select>
 
             <table id="tbl">
               <thead>
