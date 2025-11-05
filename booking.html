@@ -4,19 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clinic Dashboard - Booking Table</title>
-
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
-
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     />
     <link rel="stylesheet" href="./dashboard.css" />
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <style>
       @media (min-width: 1024px) {
         .dashboard-grid {
@@ -24,59 +20,37 @@
           display: flex;
           justify-content: center;
         }
-
         .table-card {
           width: 100% !important;
           max-width: none !important;
           margin: 0;
         }
-
         .main-content {
           width: 100%;
         }
       }
-
-      .status-tabs {
-        display: flex;
-        gap: 10px;
+      .status-filter {
         margin: 15px 0;
-        border-bottom: 2px solid #ccc;
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
-
-      .status-tab {
-        padding: 8px 16px;
-        border: none;
-        cursor: pointer;
-        background: none;
-        font-weight: bold;
-        color: #555;
-        border-bottom: 3px solid transparent;
-        transition: all 0.3s;
-      }
-
-      .status-tab.active {
-        color: #007bff;
-        border-bottom: 3px solid #007bff;
-      }
-
-      select.status-dropdown {
+      select.status-dropdown,
+      select#statusFilter {
         padding: 6px 8px;
         border-radius: 5px;
         border: 1px solid #ccc;
         background: #fff;
         cursor: pointer;
       }
-
       body.dark select {
         background: #333;
         color: #fff;
         border-color: #555;
       }
-
       .table-card h3 {
         margin-bottom: 10px;
       }
-
       .save-indicator {
         font-size: 12px;
         color: green;
@@ -85,7 +59,6 @@
       }
     </style>
   </head>
-
   <body>
     <div class="container">
       <!-- SIDEBAR -->
@@ -98,12 +71,10 @@
             <i class="fa-solid fa-gauge"></i>
             لوحة القيادة
           </a>
-
           <a href="notifications.html">
             <i class="fa-solid fa-bell"></i>
             التنبيهات
           </a>
-
           <a href="analytics.html">
             <i class="fa-solid fa-rocket"></i>
             تحليلات
@@ -112,19 +83,16 @@
             <i class="fa-solid fa-table"></i>
             جدول الحجوزات
           </a>
-
           <a href="AIsettings.html">
             <i class="fa-solid fa-robot"></i>
             إعدادات الذكاء الاصطناعي
           </a>
-
           <a href="offers.html">
             <i class="fa-solid fa-gift"></i>
             إرسال العروض المخصصة
           </a>
         </nav>
       </aside>
-
       <!-- MAIN CONTENT -->
       <main class="main-content" id="dashboardContent">
         <header class="header">
@@ -140,26 +108,20 @@
             </button>
           </div>
         </header>
-
         <!-- BOOKING TABLE -->
         <section class="dashboard-grid">
           <div class="table-card" style="width: 100%">
             <h3>جدول الحجوزات</h3>
-
-            <!-- STATUS TABS -->
-            <div class="status-tabs">
-              <button class="status-tab" data-status="all">الكل</button>
-              <button class="status-tab" data-status="Contacted">
-                تم التواصل
-              </button>
-              <button class="status-tab" data-status="Still">
-                قيد الانتظار
-              </button>
-              <button class="status-tab" data-status="Booking Complete">
-                تم الحجز
-              </button>
+            <!-- STATUS FILTER -->
+            <div class="status-filter">
+              <label for="statusFilter">تصفية حسب الحالة:</label>
+              <select id="statusFilter">
+                <option value="all">الكل</option>
+                <option value="Contacted">تم التواصل</option>
+                <option value="Still">قيد الانتظار</option>
+                <option value="Booking Complete">تم الحجز</option>
+              </select>
             </div>
-
             <table id="tbl">
               <thead>
                 <tr>
@@ -185,11 +147,9 @@
             </table>
           </div>
         </section>
-
         <footer>© 2025 Smile Clinic</footer>
       </main>
     </div>
-
     <script>
       // ======= SUPABASE LOGIN LOGIC =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
@@ -199,26 +159,24 @@
 
       let allData = [];
       let sortDirection = 1;
-      let currentFilter = localStorage.getItem("booking_filter") || "all";
       const q = (s) => document.querySelector(s);
 
       async function load() {
-        try {
-          const res = await fetch("/api/bookings");
-          const newData = await res.json();
+        const res = await fetch("/api/bookings");
+        allData = await res.json();
+        // Add default status if missing
+        allData = allData.map((b) => ({
+          ...b,
+          status: b.status || "Still",
+        }));
 
-          // Add default status if missing
-          allData = newData.map((b) => ({
-            ...b,
-            status: b.status || "Still",
-          }));
-
-          // Re-render table with current filter maintained
-          renderTable(allData);
-          highlightActiveTab();
-        } catch (error) {
-          console.error("Error loading bookings:", error);
+        // Restore saved filter
+        const savedFilter = localStorage.getItem("booking_filter");
+        if (savedFilter) {
+          q("#statusFilter").value = savedFilter;
         }
+
+        applyFilter();
       }
 
       async function updateStatus(id, newStatus) {
@@ -227,7 +185,6 @@
             .from("bookings")
             .update({ status: newStatus })
             .eq("id", id);
-
           if (error) {
             console.error("Error updating status:", error);
           }
@@ -239,14 +196,7 @@
       function renderTable(d) {
         const tb = q("#tbl tbody");
         tb.innerHTML = "";
-
-        // Apply filter based on currentFilter
-        let filtered =
-          currentFilter === "all"
-            ? d
-            : d.filter((b) => b.status === currentFilter);
-
-        filtered.forEach((b) => {
+        d.forEach((b, idx) => {
           const r = document.createElement("tr");
           r.innerHTML = `
             <td>${b.name || "-"}</td>
@@ -280,43 +230,25 @@
             const id = e.target.dataset.id;
             const newStatus = e.target.value;
 
-            // Update in allData array
+            // Find booking by ID and update
             const bookingIndex = allData.findIndex((b) => b.id == id);
             if (bookingIndex !== -1) {
               allData[bookingIndex].status = newStatus;
             }
 
-            // Update in database
             await updateStatus(id, newStatus);
 
-            // Show save indicator
+            // Show quick save check mark
             const indicator = document.getElementById(`saved-${id}`);
             if (indicator) {
               indicator.style.display = "inline";
               setTimeout(() => (indicator.style.display = "none"), 1500);
             }
 
-            // Re-render table with current filter
-            renderTable(allData);
+            applyFilter();
           });
         });
       }
-
-      // ========== TAB FILTERING ==========
-      function highlightActiveTab() {
-        document.querySelectorAll(".status-tab").forEach((btn) => {
-          btn.classList.toggle("active", btn.dataset.status === currentFilter);
-        });
-      }
-
-      document.querySelectorAll(".status-tab").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          currentFilter = btn.dataset.status;
-          localStorage.setItem("booking_filter", currentFilter);
-          highlightActiveTab();
-          renderTable(allData);
-        });
-      });
 
       function sortTable(col) {
         const tb = q("#tbl tbody");
@@ -330,6 +262,21 @@
         tb.innerHTML = "";
         rows.forEach((r) => tb.appendChild(r));
       }
+
+      function applyFilter() {
+        const filterVal = q("#statusFilter").value;
+
+        // Save filter to localStorage
+        localStorage.setItem("booking_filter", filterVal);
+
+        if (filterVal === "all") {
+          renderTable(allData);
+        } else {
+          renderTable(allData.filter((b) => b.status === filterVal));
+        }
+      }
+
+      q("#statusFilter").addEventListener("change", applyFilter);
 
       // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
