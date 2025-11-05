@@ -53,15 +53,8 @@
         border-color: #555;
       }
 
-      .save-indicator {
-        font-size: 12px;
-        color: green;
-        display: none;
-        margin-right: 5px;
-      }
-
       button.reminder-btn {
-        padding: 5px 10px;
+        padding: 6px 10px;
         background-color: #7c3aed;
         color: white;
         border: none;
@@ -73,6 +66,23 @@
 
       button.reminder-btn:hover {
         background-color: #5b21b6;
+      }
+
+      /* ✅ Loading spinner */
+      .spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top: 2px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        margin-right: 6px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
       }
     </style>
   </head>
@@ -86,28 +96,22 @@
         </div>
         <nav class="menu">
           <a href="dashboard.html">
-            <i class="fa-solid fa-gauge"></i>
-            لوحة القيادة
+            <i class="fa-solid fa-gauge"></i> لوحة القيادة
           </a>
           <a href="notifications.html">
-            <i class="fa-solid fa-bell"></i>
-            التنبيهات
+            <i class="fa-solid fa-bell"></i> التنبيهات
           </a>
           <a href="analytics.html">
-            <i class="fa-solid fa-rocket"></i>
-            تحليلات
+            <i class="fa-solid fa-rocket"></i> تحليلات
           </a>
           <a href="booking.html" class="active">
-            <i class="fa-solid fa-table"></i>
-            جدول الحجوزات
+            <i class="fa-solid fa-table"></i> جدول الحجوزات
           </a>
           <a href="AIsettings.html">
-            <i class="fa-solid fa-robot"></i>
-            إعدادات الذكاء الاصطناعي
+            <i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي
           </a>
           <a href="offers.html">
-            <i class="fa-solid fa-gift"></i>
-            إرسال العروض المخصصة
+            <i class="fa-solid fa-gift"></i> إرسال العروض المخصصة
           </a>
         </nav>
       </aside>
@@ -128,12 +132,11 @@
           </div>
         </header>
 
-        <!-- BOOKING TABLE -->
+        <!-- BOOKINGS TABLE -->
         <section class="dashboard-grid">
           <div class="table-card" style="width: 100%">
             <h3>جدول الحجوزات</h3>
 
-            <!-- STATUS FILTER -->
             <div class="status-filter">
               <label for="statusFilter">تصفية حسب الحالة:</label>
               <select id="statusFilter">
@@ -168,16 +171,14 @@
     </div>
 
     <script>
-      // ======= SUPABASE CONNECTION =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
       let allData = [];
+
       const q = (s) => document.querySelector(s);
 
-      // ✅ LOAD BOOKINGS FROM SUPABASE
       async function load() {
         const { data, error } = await supabase.from("bookings").select("*");
         if (error) {
@@ -188,10 +189,9 @@
           ...b,
           status: b.status || "Still",
         }));
-        renderTable(allData);
+        applyFilter();
       }
 
-      // ✅ UPDATE STATUS
       async function updateStatus(id, newStatus) {
         const { error } = await supabase
           .from("bookings")
@@ -200,12 +200,14 @@
         if (error) console.error("Error updating status:", error);
       }
 
-      // ✅ SEND WHATSAPP REMINDER (fixed and improved)
-      async function sendReminder(name, phone, service, id) {
+      async function sendReminder(name, phone, service, id, btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span> جاري الإرسال...`;
+
         const payload = {
           name: name || "عميلنا الكريم",
           phone: phone.startsWith("962") ? phone : "962" + phone,
-          service: "تذكير بالمتابعة - " + (service || "الخدمة"),
+          service: service || "الخدمة",
           appointment:
             "مرحباً! تواصلنا معك سابقاً بخصوص " +
             service +
@@ -239,10 +241,12 @@
         } catch (err) {
           console.error("🚨 Network error:", err);
           alert("❌ خطأ أثناء الإرسال: " + err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = "إرسال تذكير";
         }
       }
 
-      // ✅ RENDER TABLE
       function renderTable(d) {
         const tb = q("#tbl tbody");
         tb.innerHTML = "";
@@ -256,9 +260,7 @@
             <td>${b.appointment || "-"}</td>
             <td>${b.time || "-"}</td>
             <td>
-              <select class="status-dropdown" data-index="${idx}" data-id="${
-            b.id
-          }">
+              <select class="status-dropdown" data-id="${b.id}">
                 <option value="Contacted" ${
                   b.status === "Contacted" ? "selected" : ""
                 }>تم التواصل</option>
@@ -279,37 +281,31 @@
             <td>
               ${
                 b.status === "No Response"
-                  ? `<button class="reminder-btn" onclick="sendReminder('${b.name}','${b.phone}','${b.service}','${b.id}')">إرسال تذكير</button>`
+                  ? `<button class="reminder-btn" onclick="sendReminder('${b.name}','${b.phone}','${b.service}','${b.id}', this)">إرسال تذكير</button>`
                   : "-"
               }
-            </td>
-          `;
+            </td>`;
           tb.appendChild(r);
         });
 
-        // Dropdown change listener
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
           sel.addEventListener("change", async (e) => {
-            const index = e.target.dataset.index;
             const id = e.target.dataset.id;
             const newStatus = e.target.value;
-
-            allData[index].status = newStatus;
             await updateStatus(id, newStatus);
-            renderTable(allData);
+            applyFilter();
           });
         });
       }
 
-      // ✅ FILTER FUNCTION
       function applyFilter() {
-        const filterVal = q("#statusFilter").value;
-        if (filterVal === "all") renderTable(allData);
-        else renderTable(allData.filter((b) => b.status === filterVal));
+        const v = q("#statusFilter").value;
+        if (v === "all") renderTable(allData);
+        else renderTable(allData.filter((b) => b.status === v));
       }
+
       q("#statusFilter").addEventListener("change", applyFilter);
 
-      // ✅ THEME TOGGLE
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
@@ -324,18 +320,15 @@
       });
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        const icon = themeToggle.querySelector("i");
-        icon.classList.replace("fa-moon", "fa-sun");
+        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
       }
 
-      // ✅ SIDEBAR TOGGLE
-      const menuToggle = document.getElementById("menuToggle");
-      const sidebar = document.getElementById("sidebar");
-      menuToggle.addEventListener("click", () =>
-        sidebar.classList.toggle("active")
-      );
+      document
+        .getElementById("menuToggle")
+        .addEventListener("click", () =>
+          document.getElementById("sidebar").classList.toggle("active")
+        );
 
-      // ✅ INITIAL LOAD
       load();
       setInterval(load, 15000);
     </script>

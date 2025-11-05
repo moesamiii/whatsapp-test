@@ -1,30 +1,23 @@
-// sendWhatsApp.js
 export default async function handler(req, res) {
-  // ✅ Enable CORS
+  // ✅ CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(200).end();
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  // ✅ Allow only POST requests
-  if (req.method !== "POST") {
+  if (req.method !== "POST")
     return res.status(405).json({ error: "Method not allowed" });
-  }
 
   const { name, phone, service, appointment, image } = req.body || {};
 
-  // ✅ Validate required fields
-  if (!name || !phone) {
-    return res.status(400).json({ error: "Missing name or phone" });
-  }
+  if (!phone)
+    return res.status(400).json({ success: false, message: "Missing phone" });
 
-  // 🦷 Build WhatsApp message text
-  const messageText = `👋 مرحبًا ${name}!\nتم حجز موعدك لخدمة ${service} في Smile Clinic 🦷\n📅 ${appointment}`;
+  const text =
+    `👋 مرحبًا ${name || "عميلنا الكريم"}!\n` +
+    `خدمة: ${service || "الخدمة"}\n\n` +
+    `${appointment}\n\n📞 للحجز أو الاستفسار، تواصل معنا الآن عبر واتساب!`;
 
-  // ✅ WhatsApp API endpoint and headers
   const url = `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`;
   const headers = {
     "Content-Type": "application/json",
@@ -32,136 +25,47 @@ export default async function handler(req, res) {
   };
 
   try {
-    // ✅ Case 1: Send image message (if image exists and is valid URL)
-    if (image && image.startsWith("http")) {
-      console.log("📤 Image URL received:", image);
+    let payload;
 
-      const imagePayload = {
+    if (image && image.startsWith("http")) {
+      payload = {
         messaging_product: "whatsapp",
         to: phone,
         type: "image",
-        image: {
-          link: image,
-          caption: messageText,
-        },
+        image: { link: image, caption: text },
       };
-
-      console.log(
-        "📤 Sending image with caption...",
-        JSON.stringify(imagePayload, null, 2)
-      );
-
-      const imageResponse = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(imagePayload),
-      });
-
-      const imageData = await imageResponse.json();
-      console.log(
-        "🖼️ WhatsApp image response:",
-        JSON.stringify(imageData, null, 2)
-      );
-
-      if (!imageResponse.ok || imageData.error) {
-        console.error("❌ Image message failed:", imageData);
-
-        // ⚠️ Fallback: Send text only if image fails
-        console.log("⚠️ Falling back to text-only message...");
-        const textPayload = {
-          messaging_product: "whatsapp",
-          to: phone,
-          type: "text",
-          text: {
-            body:
-              messageText +
-              "\n\n📞 للحجز أو الاستفسار، تواصل معنا الآن عبر واتساب!",
-          },
-        };
-
-        const textResponse = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(textPayload),
-        });
-
-        const textData = await textResponse.json();
-
-        return res.status(200).json({
-          success: true,
-          fallback: true,
-          textData,
-          imageError: imageData,
-          message: "Image failed, sent text instead",
-        });
-      }
-
-      // ✅ Send follow-up text message
-      const followupPayload = {
+    } else {
+      payload = {
         messaging_product: "whatsapp",
         to: phone,
         type: "text",
-        text: {
-          body: "📞 للحجز أو الاستفسار، تواصل معنا الآن عبر واتساب!",
-        },
+        text: { body: text },
       };
-
-      console.log("💬 Sending follow-up text...");
-      const followupResponse = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(followupPayload),
-      });
-
-      const followupData = await followupResponse.json();
-      console.log("✅ Follow-up text response:", followupData);
-
-      return res.status(200).json({
-        success: true,
-        imageData,
-        followupData,
-        message: "Image and follow-up text sent successfully",
-      });
     }
 
-    // ✅ Case 2: No image — send plain text
-    const textPayload = {
-      messaging_product: "whatsapp",
-      to: phone,
-      type: "text",
-      text: {
-        body:
-          messageText +
-          "\n\n📞 للحجز أو الاستفسار، تواصل معنا الآن عبر واتساب!",
-      },
-    };
-
-    console.log("💬 Sending text message only...");
-    const textResponse = await fetch(url, {
+    const r = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify(textPayload),
+      body: JSON.stringify(payload),
     });
+    const body = await r.text();
+    const json = body.startsWith("{") ? JSON.parse(body) : { raw: body };
 
-    const textData = await textResponse.json();
-    console.log("✅ WhatsApp text response:", textData);
-
-    if (!textResponse.ok) {
-      console.error("❌ Text message failed:", textData);
-      return res.status(500).json({ success: false, error: textData });
+    if (!r.ok) {
+      console.error("❌ WhatsApp API failed:", json);
+      return res.status(r.status).json({
+        success: false,
+        error: json,
+        message: json?.error?.message || "WhatsApp API error",
+      });
     }
 
-    return res.status(200).json({
-      success: true,
-      textData,
-      message: "Text message sent successfully",
-    });
-  } catch (error) {
-    console.error("🚨 Server error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-      error: error.message,
-    });
+    console.log("✅ WhatsApp response:", json);
+    return res.status(200).json({ success: true, textData: json });
+  } catch (err) {
+    console.error("🚨 Server crash:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: err.message, stack: err.stack });
   }
 }
