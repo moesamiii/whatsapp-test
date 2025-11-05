@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clinic Dashboard - Booking Table</title>
 
-    <!-- Favicon -->
     <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
-
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -15,7 +13,6 @@
     <link rel="stylesheet" href="./dashboard.css" />
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
       @media (min-width: 1024px) {
@@ -56,15 +53,26 @@
         border-color: #555;
       }
 
-      .table-card h3 {
-        margin-bottom: 10px;
-      }
-
       .save-indicator {
         font-size: 12px;
         color: green;
         display: none;
         margin-right: 5px;
+      }
+
+      button.reminder-btn {
+        padding: 5px 10px;
+        background-color: #7c3aed;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background 0.3s;
+      }
+
+      button.reminder-btn:hover {
+        background-color: #5b21b6;
       }
     </style>
   </head>
@@ -81,27 +89,22 @@
             <i class="fa-solid fa-gauge"></i>
             لوحة القيادة
           </a>
-
           <a href="notifications.html">
             <i class="fa-solid fa-bell"></i>
             التنبيهات
           </a>
-
           <a href="analytics.html">
             <i class="fa-solid fa-rocket"></i>
             تحليلات
           </a>
-
           <a href="booking.html" class="active">
             <i class="fa-solid fa-table"></i>
-            جدول التواصل
+            جدول الحجوزات
           </a>
-
           <a href="AIsettings.html">
             <i class="fa-solid fa-robot"></i>
             إعدادات الذكاء الاصطناعي
           </a>
-
           <a href="offers.html">
             <i class="fa-solid fa-gift"></i>
             إرسال العروض المخصصة
@@ -138,28 +141,20 @@
                 <option value="Contacted">تم التواصل</option>
                 <option value="Still">قيد الانتظار</option>
                 <option value="Booking Complete">تم الحجز</option>
+                <option value="No Response">تم التواصل ولم يتم الرد</option>
               </select>
             </div>
 
             <table id="tbl">
               <thead>
                 <tr>
-                  <th onclick="sortTable(0)">
-                    الاسم <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(1)">
-                    الهاتف <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(2)">
-                    الخدمة <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(3)">
-                    الموعد <i class="fas fa-sort"></i>
-                  </th>
-                  <th onclick="sortTable(4)">
-                    الوقت <i class="fas fa-sort"></i>
-                  </th>
+                  <th>الاسم</th>
+                  <th>الهاتف</th>
+                  <th>الخدمة</th>
+                  <th>الموعد</th>
+                  <th>الوقت</th>
                   <th>الحالة</th>
+                  <th>إجراء</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -185,28 +180,58 @@
       // ✅ LOAD BOOKINGS FROM SUPABASE
       async function load() {
         const { data, error } = await supabase.from("bookings").select("*");
-
         if (error) {
           console.error("Error fetching bookings:", error);
           return;
         }
-
         allData = data.map((b) => ({
           ...b,
           status: b.status || "Still",
         }));
-
         renderTable(allData);
       }
 
-      // ✅ UPDATE STATUS IN SUPABASE
+      // ✅ UPDATE STATUS
       async function updateStatus(id, newStatus) {
         const { error } = await supabase
           .from("bookings")
           .update({ status: newStatus })
           .eq("id", id);
-
         if (error) console.error("Error updating status:", error);
+      }
+
+      // ✅ SEND WHATSAPP REMINDER
+      async function sendReminder(name, phone, service) {
+        const payload = {
+          name: name || "عميلنا الكريم",
+          phone: phone.startsWith("962") ? phone : "962" + phone,
+          service: "تذكير بالمتابعة - " + (service || "الخدمة"),
+          appointment:
+            "مرحباً! تواصلنا معك سابقاً بخصوص " +
+            service +
+            ". يسعدنا الرد على استفسارك أو تحديد موعد مناسب لك 😊",
+        };
+
+        try {
+          const res = await fetch(
+            "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }
+          );
+
+          const data = await res.json();
+          if (data.success) {
+            alert("✅ تم إرسال التذكير بنجاح إلى " + name);
+          } else {
+            alert("⚠️ فشل إرسال التذكير: " + (data.message || "خطأ غير معروف"));
+          }
+        } catch (err) {
+          alert("❌ خطأ أثناء الإرسال: " + err.message);
+          console.error(err);
+        }
       }
 
       // ✅ RENDER TABLE
@@ -223,22 +248,29 @@
             <td>${b.appointment || "-"}</td>
             <td>${b.time || "-"}</td>
             <td>
-              <div style="display:flex;align-items:center;gap:5px;">
-                <span class="save-indicator" id="saved-${idx}">✔</span>
-                <select class="status-dropdown" data-index="${idx}" data-id="${
+              <select class="status-dropdown" data-index="${idx}" data-id="${
             b.id
           }">
-                  <option value="Contacted" ${
-                    b.status === "Contacted" ? "selected" : ""
-                  }>تم التواصل</option>
-                  <option value="Still" ${
-                    b.status === "Still" ? "selected" : ""
-                  }>قيد الانتظار</option>
-                  <option value="Booking Complete" ${
-                    b.status === "Booking Complete" ? "selected" : ""
-                  }>تم الحجز</option>
-                </select>
-              </div>
+                <option value="Contacted" ${
+                  b.status === "Contacted" ? "selected" : ""
+                }>تم التواصل</option>
+                <option value="Still" ${
+                  b.status === "Still" ? "selected" : ""
+                }>قيد الانتظار</option>
+                <option value="Booking Complete" ${
+                  b.status === "Booking Complete" ? "selected" : ""
+                }>تم الحجز</option>
+                <option value="No Response" ${
+                  b.status === "No Response" ? "selected" : ""
+                }>تم التواصل ولم يتم الرد</option>
+              </select>
+            </td>
+            <td>
+              ${
+                b.status === "No Response"
+                  ? `<button class="reminder-btn" onclick="sendReminder('${b.name}','${b.phone}','${b.service}')">إرسال تذكير</button>`
+                  : "-"
+              }
             </td>
           `;
           tb.appendChild(r);
@@ -252,40 +284,17 @@
 
             allData[index].status = newStatus;
             await updateStatus(id, newStatus);
-
-            const indicator = document.getElementById(`saved-${index}`);
-            indicator.style.display = "inline";
-            setTimeout(() => (indicator.style.display = "none"), 1500);
-
-            applyFilter();
+            renderTable(allData);
           });
         });
       }
 
-      // ✅ SORTING FUNCTION
-      function sortTable(col) {
-        const tb = q("#tbl tbody");
-        const rows = Array.from(tb.rows);
-        rows.sort(
-          (a, b) =>
-            sortDirection *
-            a.cells[col].textContent.localeCompare(b.cells[col].textContent)
-        );
-        sortDirection *= -1;
-        tb.innerHTML = "";
-        rows.forEach((r) => tb.appendChild(r));
-      }
-
-      // ✅ FILTER BY STATUS
+      // ✅ FILTER FUNCTION
       function applyFilter() {
         const filterVal = q("#statusFilter").value;
-        if (filterVal === "all") {
-          renderTable(allData);
-        } else {
-          renderTable(allData.filter((b) => b.status === filterVal));
-        }
+        if (filterVal === "all") renderTable(allData);
+        else renderTable(allData.filter((b) => b.status === filterVal));
       }
-
       q("#statusFilter").addEventListener("change", applyFilter);
 
       // ✅ THEME TOGGLE
@@ -294,33 +303,29 @@
         document.body.classList.toggle("dark");
         const icon = themeToggle.querySelector("i");
         if (document.body.classList.contains("dark")) {
-          icon.classList.remove("fa-moon");
-          icon.classList.add("fa-sun");
+          icon.classList.replace("fa-moon", "fa-sun");
           localStorage.setItem("clinic_theme", "dark");
         } else {
-          icon.classList.remove("fa-sun");
-          icon.classList.add("fa-moon");
+          icon.classList.replace("fa-sun", "fa-moon");
           localStorage.setItem("clinic_theme", "light");
         }
       });
-
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
         const icon = themeToggle.querySelector("i");
-        icon.classList.remove("fa-moon");
-        icon.classList.add("fa-sun");
+        icon.classList.replace("fa-moon", "fa-sun");
       }
 
       // ✅ SIDEBAR TOGGLE
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
-      menuToggle.addEventListener("click", () => {
-        sidebar.classList.toggle("active");
-      });
+      menuToggle.addEventListener("click", () =>
+        sidebar.classList.toggle("active")
+      );
 
       // ✅ INITIAL LOAD
       load();
-      setInterval(load, 15000); // auto refresh every 15 seconds
+      setInterval(load, 15000);
     </script>
   </body>
 </html>
