@@ -36,15 +36,30 @@
         }
       }
 
-      .status-filter {
-        margin: 15px 0;
+      .status-tabs {
         display: flex;
-        align-items: center;
         gap: 10px;
+        margin: 15px 0;
+        border-bottom: 2px solid #ccc;
       }
 
-      select.status-dropdown,
-      select#statusFilter {
+      .status-tab {
+        padding: 8px 16px;
+        border: none;
+        cursor: pointer;
+        background: none;
+        font-weight: bold;
+        color: #555;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s;
+      }
+
+      .status-tab.active {
+        color: #007bff;
+        border-bottom: 3px solid #007bff;
+      }
+
+      select.status-dropdown {
         padding: 6px 8px;
         border-radius: 5px;
         border: 1px solid #ccc;
@@ -131,15 +146,18 @@
           <div class="table-card" style="width: 100%">
             <h3>جدول الحجوزات</h3>
 
-            <!-- STATUS FILTER -->
-            <div class="status-filter">
-              <label for="statusFilter">تصفية حسب الحالة:</label>
-              <select id="statusFilter">
-                <option value="all">الكل</option>
-                <option value="Contacted">تم التواصل</option>
-                <option value="Still">قيد الانتظار</option>
-                <option value="Booking Complete">تم الحجز</option>
-              </select>
+            <!-- STATUS TABS -->
+            <div class="status-tabs">
+              <button class="status-tab" data-status="all">الكل</button>
+              <button class="status-tab" data-status="Contacted">
+                تم التواصل
+              </button>
+              <button class="status-tab" data-status="Still">
+                قيد الانتظار
+              </button>
+              <button class="status-tab" data-status="Booking Complete">
+                تم الحجز
+              </button>
             </div>
 
             <table id="tbl">
@@ -181,6 +199,7 @@
 
       let allData = [];
       let sortDirection = 1;
+      let currentFilter = localStorage.getItem("booking_filter") || "all";
       const q = (s) => document.querySelector(s);
 
       async function load() {
@@ -194,6 +213,7 @@
         }));
 
         renderTable(allData);
+        highlightActiveTab();
       }
 
       async function updateStatus(id, newStatus) {
@@ -215,7 +235,12 @@
         const tb = q("#tbl tbody");
         tb.innerHTML = "";
 
-        d.forEach((b, idx) => {
+        let filtered =
+          currentFilter === "all"
+            ? d
+            : d.filter((b) => b.status === currentFilter);
+
+        filtered.forEach((b, idx) => {
           const r = document.createElement("tr");
           r.innerHTML = `
             <td>${b.name || "-"}</td>
@@ -255,15 +280,30 @@
             allData[index].status = newStatus;
             await updateStatus(id, newStatus);
 
-            // Show quick save check mark
             const indicator = document.getElementById(`saved-${index}`);
             indicator.style.display = "inline";
             setTimeout(() => (indicator.style.display = "none"), 1500);
 
-            applyFilter();
+            renderTable(allData); // refresh table with updated data
           });
         });
       }
+
+      // ========== TAB FILTERING ==========
+      function highlightActiveTab() {
+        document.querySelectorAll(".status-tab").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.status === currentFilter);
+        });
+      }
+
+      document.querySelectorAll(".status-tab").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          currentFilter = btn.dataset.status;
+          localStorage.setItem("booking_filter", currentFilter);
+          highlightActiveTab();
+          renderTable(allData);
+        });
+      });
 
       function sortTable(col) {
         const tb = q("#tbl tbody");
@@ -277,17 +317,6 @@
         tb.innerHTML = "";
         rows.forEach((r) => tb.appendChild(r));
       }
-
-      function applyFilter() {
-        const filterVal = q("#statusFilter").value;
-        if (filterVal === "all") {
-          renderTable(allData);
-        } else {
-          renderTable(allData.filter((b) => b.status === filterVal));
-        }
-      }
-
-      q("#statusFilter").addEventListener("change", applyFilter);
 
       // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
