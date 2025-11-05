@@ -181,19 +181,26 @@
 
       let allData = [];
       let sortDirection = 1;
+      let isEditing = false;
       const q = (s) => document.querySelector(s);
 
-      async function load() {
-        const res = await fetch("/api/bookings");
-        allData = await res.json();
+      async function fetchData() {
+        try {
+          const res = await fetch("/api/bookings");
+          const data = await res.json();
 
-        // Add default status if missing
-        allData = allData.map((b) => ({
-          ...b,
-          status: b.status || "Still",
-        }));
-
-        applyFilter(); // Apply filter after loading data
+          // Ensure default status exists and preserve local unsaved changes
+          return data.map((b) => {
+            const existing = allData.find((x) => x.id === b.id);
+            return {
+              ...b,
+              status: existing?.status || b.status || "Still",
+            };
+          });
+        } catch (e) {
+          console.error("Error fetching data:", e);
+          return allData; // fallback
+        }
       }
 
       async function updateStatus(id, newStatus) {
@@ -202,10 +209,7 @@
             .from("bookings")
             .update({ status: newStatus })
             .eq("id", id);
-
-          if (error) {
-            console.error("Error updating status:", error);
-          }
+          if (error) console.error("Error updating status:", error);
         } catch (e) {
           console.error("Network error updating status:", e);
         }
@@ -245,17 +249,16 @@
           tb.appendChild(r);
         });
 
-        // Attach change event
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
+          sel.addEventListener("focus", () => (isEditing = true));
+          sel.addEventListener("blur", () => (isEditing = false));
           sel.addEventListener("change", async (e) => {
             const index = e.target.dataset.index;
             const id = e.target.dataset.id;
             const newStatus = e.target.value;
-
             allData[index].status = newStatus;
             await updateStatus(id, newStatus);
 
-            // Show quick save check mark
             const indicator = document.getElementById(`saved-${index}`);
             indicator.style.display = "inline";
             setTimeout(() => (indicator.style.display = "none"), 1500);
@@ -280,7 +283,7 @@
 
       function applyFilter() {
         const filterVal = q("#statusFilter").value;
-        localStorage.setItem("selectedStatusFilter", filterVal); // remember filter
+        localStorage.setItem("selectedStatusFilter", filterVal);
         if (filterVal === "all") {
           renderTable(allData);
         } else {
@@ -321,20 +324,25 @@
       });
 
       // ===== INIT FUNCTION =====
-      async function init() {
-        await load();
+      async function init(refreshOnly = false) {
+        if (isEditing) return; // skip refresh while editing
 
-        // restore saved filter from localStorage
-        const savedFilter = localStorage.getItem("selectedStatusFilter");
-        if (savedFilter) {
-          q("#statusFilter").value = savedFilter;
-          applyFilter();
-        }
+        const prevFilter =
+          localStorage.getItem("selectedStatusFilter") || "all";
+        const prevScroll = window.scrollY;
+
+        const newData = await fetchData();
+        allData = newData;
+
+        q("#statusFilter").value = prevFilter;
+        applyFilter();
+
+        window.scrollTo(0, prevScroll);
       }
 
       // Run on start and refresh every 15 seconds
       init();
-      setInterval(init, 15000);
+      setInterval(() => init(true), 15000);
     </script>
   </body>
 </html>
