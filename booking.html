@@ -142,6 +142,7 @@
                 <option value="Still">قيد الانتظار</option>
                 <option value="Booking Complete">تم الحجز</option>
                 <option value="No Response">تم التواصل ولم يتم الرد</option>
+                <option value="Reminder Sent">تم إرسال التذكير</option>
               </select>
             </div>
 
@@ -174,7 +175,6 @@
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       let allData = [];
-      let sortDirection = 1;
       const q = (s) => document.querySelector(s);
 
       // ✅ LOAD BOOKINGS FROM SUPABASE
@@ -200,8 +200,8 @@
         if (error) console.error("Error updating status:", error);
       }
 
-      // ✅ SEND WHATSAPP REMINDER
-      async function sendReminder(name, phone, service) {
+      // ✅ SEND WHATSAPP REMINDER (fixed and improved)
+      async function sendReminder(name, phone, service, id) {
         const payload = {
           name: name || "عميلنا الكريم",
           phone: phone.startsWith("962") ? phone : "962" + phone,
@@ -210,6 +210,7 @@
             "مرحباً! تواصلنا معك سابقاً بخصوص " +
             service +
             ". يسعدنا الرد على استفسارك أو تحديد موعد مناسب لك 😊",
+          image: null,
         };
 
         try {
@@ -223,14 +224,21 @@
           );
 
           const data = await res.json();
+          console.log("📦 WhatsApp API response:", data);
+
           if (data.success) {
             alert("✅ تم إرسال التذكير بنجاح إلى " + name);
+            await updateStatus(id, "Reminder Sent");
+            load();
           } else {
-            alert("⚠️ فشل إرسال التذكير: " + (data.message || "خطأ غير معروف"));
+            const errMsg =
+              data.error?.message || data.message || "حدث خطأ أثناء الإرسال";
+            alert("⚠️ فشل إرسال التذكير: " + errMsg);
+            console.error("❌ API Error:", data);
           }
         } catch (err) {
+          console.error("🚨 Network error:", err);
           alert("❌ خطأ أثناء الإرسال: " + err.message);
-          console.error(err);
         }
       }
 
@@ -263,12 +271,15 @@
                 <option value="No Response" ${
                   b.status === "No Response" ? "selected" : ""
                 }>تم التواصل ولم يتم الرد</option>
+                <option value="Reminder Sent" ${
+                  b.status === "Reminder Sent" ? "selected" : ""
+                }>تم إرسال التذكير</option>
               </select>
             </td>
             <td>
               ${
                 b.status === "No Response"
-                  ? `<button class="reminder-btn" onclick="sendReminder('${b.name}','${b.phone}','${b.service}')">إرسال تذكير</button>`
+                  ? `<button class="reminder-btn" onclick="sendReminder('${b.name}','${b.phone}','${b.service}','${b.id}')">إرسال تذكير</button>`
                   : "-"
               }
             </td>
@@ -276,6 +287,7 @@
           tb.appendChild(r);
         });
 
+        // Dropdown change listener
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
           sel.addEventListener("change", async (e) => {
             const index = e.target.dataset.index;
