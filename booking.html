@@ -191,7 +191,7 @@
     </div>
 
     <script>
-      // ======= SUPABASE LOGIN LOGIC =======
+      // ======= SUPABASE CONFIG =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -202,11 +202,15 @@
       let currentFilter = localStorage.getItem("booking_filter") || "all";
       const q = (s) => document.querySelector(s);
 
+      // Highlight saved tab before data load
+      window.addEventListener("DOMContentLoaded", () => {
+        highlightActiveTab();
+      });
+
       async function load() {
         const res = await fetch("/api/bookings");
         allData = await res.json();
 
-        // Add default status if missing
         allData = allData.map((b) => ({
           ...b,
           status: b.status || "Still",
@@ -222,12 +226,9 @@
             .from("bookings")
             .update({ status: newStatus })
             .eq("id", id);
-
-          if (error) {
-            console.error("Error updating status:", error);
-          }
+          if (error) console.error("Error updating status:", error);
         } catch (e) {
-          console.error("Network error updating status:", e);
+          console.error("Network error:", e);
         }
       }
 
@@ -235,10 +236,15 @@
         const tb = q("#tbl tbody");
         tb.innerHTML = "";
 
-        let filtered =
+        const filtered =
           currentFilter === "all"
             ? d
             : d.filter((b) => b.status === currentFilter);
+
+        if (filtered.length === 0) {
+          tb.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#777;">لا توجد بيانات</td></tr>`;
+          return;
+        }
 
         filtered.forEach((b, idx) => {
           const r = document.createElement("tr");
@@ -270,7 +276,6 @@
           tb.appendChild(r);
         });
 
-        // Attach change event
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
           sel.addEventListener("change", async (e) => {
             const index = e.target.dataset.index;
@@ -284,12 +289,12 @@
             indicator.style.display = "inline";
             setTimeout(() => (indicator.style.display = "none"), 1500);
 
-            renderTable(allData); // refresh table with updated data
+            renderTable(allData);
           });
         });
       }
 
-      // ========== TAB FILTERING ==========
+      // ========== TAB LOGIC ==========
       function highlightActiveTab() {
         document.querySelectorAll(".status-tab").forEach((btn) => {
           btn.classList.toggle("active", btn.dataset.status === currentFilter);
@@ -320,7 +325,7 @@
 
       // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
-      themeToggle.addEventListener("click", function () {
+      themeToggle.addEventListener("click", () => {
         document.body.classList.toggle("dark");
         const icon = themeToggle.querySelector("i");
         if (document.body.classList.contains("dark")) {
@@ -348,7 +353,7 @@
         sidebar.classList.toggle("active");
       });
 
-      // Load bookings on page load
+      // Load bookings and refresh every 15s
       load();
       setInterval(load, 15000);
     </script>
