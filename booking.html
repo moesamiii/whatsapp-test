@@ -24,13 +24,11 @@
           display: flex;
           justify-content: center;
         }
-
         .table-card {
           width: 100% !important;
           max-width: none !important;
           margin: 0;
         }
-
         .main-content {
           width: 100%;
         }
@@ -93,6 +91,7 @@
             <i class="fa-solid fa-rocket"></i>
             تحليلات
           </a>
+
           <a href="booking.html" class="active">
             <i class="fa-solid fa-table"></i>
             جدول الحجوزات
@@ -173,7 +172,7 @@
     </div>
 
     <script>
-      // ======= SUPABASE LOGIN LOGIC =======
+      // ======= SUPABASE CONNECTION =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -183,12 +182,16 @@
       let sortDirection = 1;
       const q = (s) => document.querySelector(s);
 
+      // ✅ LOAD BOOKINGS FROM SUPABASE
       async function load() {
-        const res = await fetch("/api/bookings");
-        allData = await res.json();
+        const { data, error } = await supabase.from("bookings").select("*");
 
-        // Add default status if missing
-        allData = allData.map((b) => ({
+        if (error) {
+          console.error("Error fetching bookings:", error);
+          return;
+        }
+
+        allData = data.map((b) => ({
           ...b,
           status: b.status || "Still",
         }));
@@ -196,21 +199,17 @@
         renderTable(allData);
       }
 
+      // ✅ UPDATE STATUS IN SUPABASE
       async function updateStatus(id, newStatus) {
-        try {
-          const { error } = await supabase
-            .from("bookings")
-            .update({ status: newStatus })
-            .eq("id", id);
+        const { error } = await supabase
+          .from("bookings")
+          .update({ status: newStatus })
+          .eq("id", id);
 
-          if (error) {
-            console.error("Error updating status:", error);
-          }
-        } catch (e) {
-          console.error("Network error updating status:", e);
-        }
+        if (error) console.error("Error updating status:", error);
       }
 
+      // ✅ RENDER TABLE
       function renderTable(d) {
         const tb = q("#tbl tbody");
         tb.innerHTML = "";
@@ -245,7 +244,6 @@
           tb.appendChild(r);
         });
 
-        // Attach change event
         document.querySelectorAll(".status-dropdown").forEach((sel) => {
           sel.addEventListener("change", async (e) => {
             const index = e.target.dataset.index;
@@ -255,7 +253,6 @@
             allData[index].status = newStatus;
             await updateStatus(id, newStatus);
 
-            // Show quick save check mark
             const indicator = document.getElementById(`saved-${index}`);
             indicator.style.display = "inline";
             setTimeout(() => (indicator.style.display = "none"), 1500);
@@ -265,6 +262,7 @@
         });
       }
 
+      // ✅ SORTING FUNCTION
       function sortTable(col) {
         const tb = q("#tbl tbody");
         const rows = Array.from(tb.rows);
@@ -278,6 +276,7 @@
         rows.forEach((r) => tb.appendChild(r));
       }
 
+      // ✅ FILTER BY STATUS
       function applyFilter() {
         const filterVal = q("#statusFilter").value;
         if (filterVal === "all") {
@@ -289,7 +288,7 @@
 
       q("#statusFilter").addEventListener("change", applyFilter);
 
-      // Theme toggle
+      // ✅ THEME TOGGLE
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
@@ -312,16 +311,16 @@
         icon.classList.add("fa-sun");
       }
 
-      // Sidebar toggle
+      // ✅ SIDEBAR TOGGLE
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       menuToggle.addEventListener("click", () => {
         sidebar.classList.toggle("active");
       });
 
-      // Load bookings on page load
+      // ✅ INITIAL LOAD
       load();
-      setInterval(load, 15000);
+      setInterval(load, 15000); // auto refresh every 15 seconds
     </script>
   </body>
 </html>
