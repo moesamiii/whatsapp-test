@@ -485,28 +485,29 @@
       document.getElementById("downloadBtn").addEventListener("click", () => {
         const headers = ["الاسم", "الهاتف", "الخدمة", "الموعد", "الوقت"];
         const rows = filteredBookings.map((b) => [
-          `"${(b.name || "-").replace(/"/g, '""')}"`,
-          `"${(b.phone || "-").replace(/"/g, '""')}"`,
-          `"${(b.service || "-").replace(/"/g, '""')}"`,
-          `"${(b.appointment || "-").replace(/"/g, '""')}"`,
-          `"${(b.time || "-").replace(/"/g, '""')}"`,
+          b.name || "-",
+          b.phone || "-",
+          b.service || "-",
+          b.appointment || "-",
+          b.time || "-",
         ]);
 
-        const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join(
-          "\n"
-        );
-        const blob = new Blob(["\uFEFF" + csv], {
-          type: "text/csv;charset=utf-8;",
-        });
+        // 🟢 XLSX export logic
+        const worksheetData = [headers, ...rows];
+        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "الحجوزات");
+        const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
 
-        const link = document.createElement("a");
+        const blob = new Blob([wbout], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
         const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute(
-          "download",
-          `notifications_${new Date().toISOString().split("T")[0]}.csv`
-        );
-        link.style.display = "none";
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `notifications_${
+          new Date().toISOString().split("T")[0]
+        }.xlsx`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
