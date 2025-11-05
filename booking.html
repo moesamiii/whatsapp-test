@@ -131,7 +131,6 @@
             <h3>جدول الحجوزات</h3>
 
             <!-- STATUS FILTER -->
-
             <select id="statusFilter">
               <option value="all">الكل</option>
               <option value="Contacted">تم التواصل</option>
@@ -236,6 +235,9 @@
                   <option value="Booking Complete" ${
                     b.status === "Booking Complete" ? "selected" : ""
                   }>تم الحجز</option>
+                  <option value="SentNoReply" ${
+                    b.status === "SentNoReply" ? "selected" : ""
+                  }>تم الإرسال ولم يتم الرد</option>
                 </select>
               </div>
             </td>
