@@ -6,6 +6,7 @@
  * - Detect inappropriate content (ban words).
  * - Provide message-sending flows that use media assets (location link, offer images, doctor images).
  * - Perform transcription of audio using Groq Whisper integration.
+ * - Handle booking flow with interactive buttons
  *
  * Responsibilities kept here:
  * - Detection helpers: isLocationRequest, isOffersRequest, isDoctorsRequest, isEnglish, containsBanWords
@@ -14,6 +15,7 @@
  * - sendBanWordsResponse: handles inappropriate content gracefully with 10 random responses
  * - sendImageMessage: performs the network request to WhatsApp API (requires WHATSAPP_TOKEN)
  * - transcribeAudio: fetches media from WhatsApp and posts to Groq Whisper
+ * - Booking flow: handleInteractiveMessage, handleBookingFlow, completeBooking
  *
  * Moved to mediaAssets.js:
  * - CLINIC_NAME
@@ -31,6 +33,7 @@ const {
   sendTextMessage,
   sendServiceList,
   sendAppointmentButtons,
+  saveBooking,
 } = require("./helpers");
 const crypto = require("crypto");
 
@@ -47,6 +50,12 @@ const {
 // ---------------------------------------------
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+
+// ---------------------------------------------
+// 🧠 User Sessions for Booking Flow
+// ---------------------------------------------
+const userSessions = new Map();
+
 // ---------------------------------------------
 // 👋 Greeting Detector and Random Response
 // ---------------------------------------------
@@ -993,6 +1002,203 @@ async function startBookingFlow(to, language = "ar") {
 }
 
 // ---------------------------------------------
+// 🔘 Handle Interactive Messages (Button Clicks)
+// ---------------------------------------------
+async function handleInteractiveMessage(from, interactive) {
+  const type = interactive.type;
+
+  if (type === "button_reply") {
+    const buttonId = interactive.button_reply.id;
+    console.log(`🔘 Button clicked: ${buttonId}`);
+
+    // Handle different button actions
+    switch (buttonId) {
+      case "book_service":
+      case "book_doctor":
+        await startBookingFlow(from);
+        break;
+
+      case "more_info":
+        await sendTextMessage(
+          from,
+          "ℹ️ لمزيد من المعلومات، يمكنك الاتصال بنا على: 0123456789"
+        );
+        break;
+
+      case "doctor_info":
+        await sendTextMessage(
+          from,
+          "👨‍⚕️ أطباؤنا متخصصون في طب الأسنان والتجميل مع سنوات من الخبرة."
+        );
+        break;
+
+      // Handle time slot selection
+      case "slot_3pm":
+      case "slot_6pm":
+      case "slot_9pm":
+        await handleTimeSlotSelection(from, buttonId);
+        break;
+
+      // Handle service selection from old buttons
+      default:
+        if (buttonId.startsWith("service_")) {
+          const service = buttonId.replace("service_", "").replace(/_/g, " ");
+          await handleServiceSelection(from, service);
+        }
+    }
+  } else if (type === "list_reply") {
+    const listId = interactive.list_reply.id;
+    console.log(`📋 List item selected: ${listId}`);
+
+    if (listId.startsWith("service_")) {
+      const service = listId.replace("service_", "").replace(/_/g, " ");
+      await handleServiceSelection(from, service);
+    }
+  }
+}
+
+// ---------------------------------------------
+// 🔄 Handle Service Selection in Booking Flow
+// ---------------------------------------------
+async function handleServiceSelection(from, service) {
+  userSessions.set(from, {
+    step: "service_selected",
+    service: service,
+    phone: from,
+  });
+
+  await sendTextMessage(
+    from,
+    `✅ اخترت: ${service}\n\n📝 الآن، ما هو اسمك الكامل؟`
+  );
+}
+
+// ---------------------------------------------
+// ⏰ Handle Time Slot Selection
+// ---------------------------------------------
+async function handleTimeSlotSelection(from, timeSlotId) {
+  const session = userSessions.get(from);
+  if (session && session.step === "name_provided") {
+    const timeSlot = timeSlotId.replace("slot_", "").toUpperCase();
+    session.appointment = timeSlot;
+    userSessions.set(from, session);
+
+    // Complete booking
+    await completeBooking(from);
+  } else {
+    await sendTextMessage(
+      from,
+      "❌ يرجى البدء بحجز جديد عن طريق الضغط على زر 'احجز الآن' أولاً."
+    );
+  }
+}
+
+// ---------------------------------------------
+// 🔄 Handle Booking Flow Steps
+// ---------------------------------------------
+async function handleBookingFlow(from, userText) {
+  const session = userSessions.get(from);
+
+  if (!session) {
+    userSessions.delete(from);
+    return;
+  }
+
+  switch (session.step) {
+    case "service_selected":
+      // User entered their name
+      session.name = userText;
+      session.step = "name_provided";
+      userSessions.set(from, session);
+
+      await sendTextMessage(from, `👋 شكراً ${userText}!`);
+      await sendAppointmentButtons(from);
+      break;
+
+    case "name_provided":
+      // User might type time instead of using buttons
+      if (
+        userText.includes("3") ||
+        userText.includes("3 PM") ||
+        userText.includes("3 مساءً")
+      ) {
+        session.appointment = "3 PM";
+      } else if (
+        userText.includes("6") ||
+        userText.includes("6 PM") ||
+        userText.includes("6 مساءً")
+      ) {
+        session.appointment = "6 PM";
+      } else if (
+        userText.includes("9") ||
+        userText.includes("9 PM") ||
+        userText.includes("9 مساءً")
+      ) {
+        session.appointment = "9 PM";
+      } else {
+        await sendTextMessage(
+          from,
+          "❌ يرجى اختيار وقت من الأزرار أعلاه (3 PM, 6 PM, أو 9 PM)."
+        );
+        return;
+      }
+
+      userSessions.set(from, session);
+      await completeBooking(from);
+      break;
+  }
+}
+
+// ---------------------------------------------
+// ✅ Complete Booking and Save to Google Sheets
+// ---------------------------------------------
+async function completeBooking(from) {
+  const session = userSessions.get(from);
+
+  if (session && session.name && session.service && session.appointment) {
+    try {
+      // Save to Google Sheets
+      await saveBooking({
+        name: session.name,
+        phone: session.phone,
+        service: session.service,
+        appointment: session.appointment,
+      });
+
+      // Send confirmation message
+      await sendTextMessage(
+        from,
+        `🎉 تم حجز موعدك بنجاح!\n\n` +
+          `📋 تفاصيل الحجز:\n` +
+          `👤 الاسم: ${session.name}\n` +
+          `📞 الهاتف: ${session.phone}\n` +
+          `💊 الخدمة: ${session.service}\n` +
+          `⏰ الموعد: ${session.appointment}\n\n` +
+          `📍 العنوان: ${
+            process.env.CLINIC_ADDRESS || "عيادة ابتسامة الطبية"
+          }\n\n` +
+          `نشكرك على ثقتك بنا! 🤗`
+      );
+
+      // Clear session
+      userSessions.delete(from);
+    } catch (error) {
+      console.error("❌ Booking error:", error);
+      await sendTextMessage(
+        from,
+        "❌ حدث خطأ أثناء حفظ الحجز. يرجى المحاولة مرة أخرى."
+      );
+    }
+  } else {
+    await sendTextMessage(
+      from,
+      "❌ لم تكتمل بيانات الحجز. يرجى البدء من جديد."
+    );
+    userSessions.delete(from);
+  }
+}
+
+// ---------------------------------------------
 // 🧠 Voice Transcription Helper (using Groq Whisper)
 // ---------------------------------------------
 async function transcribeAudio(mediaId) {
@@ -1068,4 +1274,8 @@ module.exports = {
   isGreeting,
   getGreeting,
   startBookingFlow,
+  handleInteractiveMessage,
+  handleBookingFlow,
+  completeBooking,
+  userSessions, // Export for external access if needed
 };
