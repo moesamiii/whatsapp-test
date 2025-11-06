@@ -20,42 +20,161 @@ function delay(ms) {
 }
 
 // ---------------------------------------------
-// 📱 Send Booking Start Button
+// 📱 Send Booking Start Options (Interactive List)
 // ---------------------------------------------
-async function sendBookingStartButton(to, language = "ar") {
+async function sendBookingStartOptions(to, language = "ar") {
   try {
-    console.log(`📤 DEBUG => Sending booking start button to ${to}`);
+    console.log(`📤 DEBUG => Sending booking start options to ${to}`);
 
-    const bodyText =
+    if (language === "en") {
+      // English: Interactive List
+      await axios.post(
+        `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
+        {
+          messaging_product: "whatsapp",
+          to,
+          type: "interactive",
+          interactive: {
+            type: "list",
+            header: {
+              type: "text",
+              text: "📅 Book Your Appointment",
+            },
+            body: {
+              text: "Choose an option to start booking:",
+            },
+            action: {
+              button: "Booking Options",
+              sections: [
+                {
+                  title: "Appointment Types",
+                  rows: [
+                    {
+                      id: "book_regular",
+                      title: "🦷 Regular Appointment",
+                      description: "Book a standard dental appointment",
+                    },
+                    {
+                      id: "book_offer",
+                      title: "🎁 Book with Offer",
+                      description: "Book using one of our special offers",
+                    },
+                    {
+                      id: "book_emergency",
+                      title: "🚑 Emergency Visit",
+                      description: "Need immediate dental care",
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    } else {
+      // Arabic: Interactive List
+      await axios.post(
+        `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
+        {
+          messaging_product: "whatsapp",
+          to,
+          type: "interactive",
+          interactive: {
+            type: "list",
+            header: {
+              type: "text",
+              text: "📅 حجز موعدك",
+            },
+            body: {
+              text: "اختر خياراً لبدء الحجز:",
+            },
+            action: {
+              button: "خيارات الحجز",
+              sections: [
+                {
+                  title: "أنواع المواعيد",
+                  rows: [
+                    {
+                      id: "book_regular",
+                      title: "🦷 موعد عادي",
+                      description: "حجز موعد أسنان عادي",
+                    },
+                    {
+                      id: "book_offer",
+                      title: "🎁 حجز مع عرض",
+                      description: "احجز باستخدام أحد عروضنا الخاصة",
+                    },
+                    {
+                      id: "book_emergency",
+                      title: "🚑 زيارة طارئة",
+                      description: "تحتاج إلى رعاية فورية للأسنان",
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
+    console.log("✅ DEBUG => Booking start options sent successfully");
+  } catch (err) {
+    console.error("❌ DEBUG => Error sending booking options:", err.message);
+    // Fallback to quick reply buttons
+    await sendQuickReplyBooking(to, language);
+  }
+}
+
+// ---------------------------------------------
+// 🔄 Send Quick Reply Buttons (Alternative)
+// ---------------------------------------------
+async function sendQuickReplyBooking(to, language = "ar") {
+  try {
+    console.log(`📤 DEBUG => Sending quick reply booking to ${to}`);
+
+    const messageText =
       language === "en"
-        ? "📅 Ready to book your appointment? Click the button below to start!"
-        : "📅 جاهز لحجز موعدك؟ اضغط على الزر بالأسفل للبدء!";
-
-    const buttonText = language === "en" ? "Start Booking" : "بدء الحجز";
+        ? "📅 Ready to book your appointment? Choose an option below:"
+        : "📅 جاهز لحجز موعدك؟ اختر من الخيارات بالأسفل:";
 
     await axios.post(
       `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: "whatsapp",
         to,
-        type: "interactive",
-        interactive: {
-          type: "button",
-          body: {
-            text: bodyText,
-          },
-          action: {
-            buttons: [
-              {
-                type: "reply",
-                reply: {
-                  id: "start_booking_flow",
-                  title: buttonText,
-                },
-              },
-            ],
-          },
+        text: {
+          body: messageText,
         },
+        quick_replies: [
+          {
+            content_type: "text",
+            payload: "start_booking_yes",
+            title: language === "en" ? "✅ Yes, Book Now" : "✅ نعم، احجز الآن",
+          },
+          {
+            content_type: "text",
+            payload: "start_booking_later",
+            title: language === "en" ? "⏰ Maybe Later" : "⏰ ربما لاحقاً",
+          },
+          {
+            content_type: "text",
+            payload: "start_booking_info",
+            title: language === "en" ? "ℹ️ More Info" : "ℹ️ مزيد من المعلومات",
+          },
+        ],
       },
       {
         headers: {
@@ -65,23 +184,21 @@ async function sendBookingStartButton(to, language = "ar") {
       }
     );
 
-    console.log("✅ DEBUG => Booking start button sent successfully");
+    console.log("✅ DEBUG => Quick reply booking sent successfully");
   } catch (err) {
-    console.error("❌ DEBUG => Error sending booking button:", err.message);
-    // Fallback to text message
+    console.error("❌ DEBUG => Error sending quick reply:", err.message);
+    // Ultimate fallback - direct text with emoji options
     await sendTextMessage(
       to,
       language === "en"
-        ? "📅 Ready to book your appointment? Let's start!"
-        : "📅 جاهز لحجز موعدك؟ لنبدأ!"
+        ? "📅 Ready to book? Reply with:\n✅ YES - to start booking\n⏰ LATER - for later\nℹ️ INFO - for more information"
+        : "📅 جاهز للحجز؟ رد بـ:\n✅ نعم - لبدء الحجز\n⏰ لاحقاً - للحجز لاحقاً\nℹ️ معلومات - لمزيد من المعلومات"
     );
-    await delay(600);
-    await sendServiceList(to);
   }
 }
 
 // ---------------------------------------------
-// 📅 Start booking flow (entry point) - WITH BUTTON
+// 📅 Start booking flow (entry point)
 // ---------------------------------------------
 async function sendStartBookingButton(to, language = "ar") {
   try {
@@ -96,17 +213,17 @@ async function sendStartBookingButton(to, language = "ar") {
     await sendTextMessage(to, introText);
     await delay(800);
 
-    // Then send the booking start button
-    await sendBookingStartButton(to, language);
+    // Then send the booking start options (interactive list)
+    await sendBookingStartOptions(to, language);
 
-    console.log("✅ DEBUG => Booking start button sent successfully");
+    console.log("✅ DEBUG => Booking start flow initiated successfully");
   } catch (err) {
     console.error("❌ DEBUG => Error starting booking:", err.message);
   }
 }
 
 // ---------------------------------------------
-// 🎁 Send Offers (with booking button)
+// 🎁 Send Offers (with booking prompt)
 // ---------------------------------------------
 async function sendOffersImages(to, language = "ar") {
   try {
@@ -128,20 +245,28 @@ async function sendOffersImages(to, language = "ar") {
       if (i < OFFER_IMAGES.length - 1) await delay(900);
     }
 
-    // Step 3: Invite to booking WITH button (make sure this is the last message)
+    // Step 3: Invite to booking with interactive options
     await delay(1000);
 
-    // Send the booking button directly without additional text
-    await sendBookingStartButton(to, language);
+    const promptText =
+      language === "en"
+        ? "✨ Would you like to book an appointment for one of these offers?"
+        : "✨ هل ترغب بحجز موعد لأحد هذه العروض؟";
 
-    console.log("✅ Offers flow completed — booking button shown.");
+    await sendTextMessage(to, promptText);
+    await delay(600);
+
+    // Send booking options
+    await sendBookingStartOptions(to, language);
+
+    console.log("✅ Offers flow completed — booking options shown.");
   } catch (err) {
     console.error("❌ DEBUG => Error in offers flow:", err.message);
   }
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Send Doctors & Booking Flow (with button)
+// 👨‍⚕️ Send Doctors & Booking Flow
 // ---------------------------------------------
 async function sendDoctorsImages(to, language = "ar") {
   try {
@@ -163,26 +288,32 @@ async function sendDoctorsImages(to, language = "ar") {
       if (i < DOCTOR_IMAGES.length - 1) await delay(900);
     }
 
-    // Step 3: Invite to booking WITH button (make sure this is the last message)
+    // Step 3: Invite to booking with interactive options
     await delay(1000);
 
-    // Send the booking button directly without additional text
-    await sendBookingStartButton(to, language);
+    const promptText =
+      language === "en"
+        ? "✨ Would you like to book an appointment with one of our doctors?"
+        : "✨ هل ترغب بحجز موعد مع أحد أطبائنا؟";
 
-    console.log("✅ Doctors flow completed — booking button shown.");
+    await sendTextMessage(to, promptText);
+    await delay(600);
+
+    // Send booking options
+    await sendBookingStartOptions(to, language);
+
+    console.log("✅ Doctors flow completed — booking options shown.");
   } catch (err) {
     console.error("❌ DEBUG => Error in doctors flow:", err.message);
   }
 }
 
 // ---------------------------------------------
-// 🧾 Handle booking interaction (when button is clicked)
+// 🧾 Handle booking interaction
 // ---------------------------------------------
 async function handleBookingFlow(to, userData = {}, language = "ar") {
   try {
-    console.log(
-      `📥 DEBUG => Booking flow triggered for ${to} (button clicked)`
-    );
+    console.log(`📥 DEBUG => Booking flow triggered for ${to}`);
 
     // Send confirmation message
     await sendTextMessage(
@@ -204,59 +335,60 @@ async function handleBookingFlow(to, userData = {}, language = "ar") {
 }
 
 // ---------------------------------------------
-// 🆕 Quick Booking Button (standalone)
+// 🔄 Handle Quick Reply Responses
 // ---------------------------------------------
-async function sendQuickBookingButton(to, language = "ar") {
+async function handleQuickReplyResponse(to, payload, language = "ar") {
   try {
-    console.log(`📤 DEBUG => Sending quick booking button to ${to}`);
+    console.log(`📥 DEBUG => Quick reply received: ${payload}`);
 
-    const bodyText =
-      language === "en"
-        ? "💫 Need to book an appointment quickly? Click below to start!"
-        : "💫 تحتاج لحجز موعد بسرعة؟ اضغط بالأسفل للبدء!";
+    switch (payload) {
+      case "start_booking_yes":
+        await handleBookingFlow(to, {}, language);
+        break;
 
-    const buttonText = language === "en" ? "Book Now" : "احجز الآن";
+      case "start_booking_later":
+        await sendTextMessage(
+          to,
+          language === "en"
+            ? "⏰ No problem! We'll be here when you're ready. Just say 'book' when you want to start!"
+            : "⏰ لا مشكلة! سنكون هنا عندما تكون جاهزاً. فقط قل 'احجز' عندما تريد البدء!"
+        );
+        break;
 
-    await axios.post(
-      `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to,
-        type: "interactive",
-        interactive: {
-          type: "button",
-          body: {
-            text: bodyText,
-          },
-          action: {
-            buttons: [
-              {
-                type: "reply",
-                reply: {
-                  id: "quick_booking",
-                  title: buttonText,
-                },
-              },
-            ],
-          },
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+      case "start_booking_info":
+        await sendTextMessage(
+          to,
+          language === "en"
+            ? "ℹ️ We offer:\n• Dental cleaning\n• Teeth whitening\n• Fillings\n• Root canal\n• And more!\nSay 'book' to see all services."
+            : "ℹ️ نقدم:\n• تنظيف الأسنان\n• تبييض الأسنان\n• حشو الأسنان\n• علاج الجذور\n• والمزيد!\nقل 'احجز' لرؤية جميع الخدمات."
+        );
+        break;
 
-    console.log("✅ DEBUG => Quick booking button sent successfully");
+      default:
+        await handleBookingFlow(to, {}, language);
+    }
   } catch (err) {
-    console.error(
-      "❌ DEBUG => Error sending quick booking button:",
-      err.message
-    );
-    // Fallback
-    await handleBookingFlow(to, {}, language);
+    console.error("❌ DEBUG => Error handling quick reply:", err.message);
+  }
+}
+
+// ---------------------------------------------
+// 🆕 Direct Booking Start (Simple Text)
+// ---------------------------------------------
+async function sendDirectBookingPrompt(to, language = "ar") {
+  try {
+    console.log(`📤 DEBUG => Sending direct booking prompt to ${to}`);
+
+    const message =
+      language === "en"
+        ? "📅 To book an appointment, simply type: BOOK\n\nOr choose:\n✅ YES - Start booking now\n⏰ LATER - Remind me later\nℹ️ INFO - See services"
+        : "📅 لحجز موعد، اكتب ببساطة: احجز\n\nأو اختر:\n✅ نعم - ابدأ الحجز الآن\n⏰ لاحقاً - ذكرني لاحقاً\nℹ️ معلومات - رؤية الخدمات";
+
+    await sendTextMessage(to, message);
+
+    console.log("✅ DEBUG => Direct booking prompt sent successfully");
+  } catch (err) {
+    console.error("❌ DEBUG => Error sending direct prompt:", err.message);
   }
 }
 
@@ -268,6 +400,8 @@ module.exports = {
   sendDoctorsImages,
   handleBookingFlow,
   sendStartBookingButton,
-  sendBookingStartButton,
-  sendQuickBookingButton,
+  sendBookingStartOptions,
+  sendQuickReplyBooking,
+  sendDirectBookingPrompt,
+  handleQuickReplyResponse,
 };
