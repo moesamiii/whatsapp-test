@@ -35,6 +35,13 @@ const {
 
 const { handleAudioMessage } = require("./webhookProcessor");
 
+// ✅ ADD THESE IMPORTS
+const {
+  handleBookingFlow,
+  handleQuickReplyResponse,
+  sendBookingStartOptions,
+} = require("./sendMediaFlows");
+
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
   // Webhook verification
   app.get("/webhook", (req, res) => {
@@ -73,7 +80,34 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // 🎛️ Interactive messages (buttons / lists)
+      // ✅ ADD INTERACTIVE HANDLING HERE (before existing interactive handling)
+      // Handle interactive list selections for booking
+      if (message?.interactive?.type === "list_reply") {
+        const listId = message.interactive.list_reply.id;
+        console.log(`🔄 User selected from list: ${listId}`);
+
+        if (listId.startsWith("book_")) {
+          await handleBookingFlow(from, {}, isEnglish(listId) ? "en" : "ar");
+          return res.sendStatus(200);
+        }
+      }
+
+      // Handle quick reply buttons
+      if (message?.quick_reply?.payload) {
+        const payload = message.quick_reply.payload;
+        console.log(`🔄 Quick reply payload: ${payload}`);
+
+        if (payload.startsWith("start_booking_")) {
+          await handleQuickReplyResponse(
+            from,
+            payload,
+            isEnglish(payload) ? "en" : "ar"
+          );
+          return res.sendStatus(200);
+        }
+      }
+
+      // 🎛️ Existing Interactive messages (buttons / lists) - KEEP THIS
       if (message.type === "interactive") {
         const interactiveType = message.interactive?.type;
         const id =
@@ -147,6 +181,21 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       // 💬 Text messages
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
+
+      // ✅ ADD SIMPLE TEXT COMMANDS FOR BOOKING
+      // Handle simple text commands for booking
+      const lowerText = text.toLowerCase();
+      if (
+        lowerText.includes("book") ||
+        lowerText.includes("احجز") ||
+        lowerText.includes("نعم") ||
+        lowerText.includes("yes") ||
+        lowerText.includes("start booking") ||
+        lowerText.includes("بدء الحجز")
+      ) {
+        await handleBookingFlow(from, {}, isEnglish(text) ? "en" : "ar");
+        return res.sendStatus(200);
+      }
 
       // 👋 Greeting detection (before any other logic)
       if (isGreeting(text)) {
