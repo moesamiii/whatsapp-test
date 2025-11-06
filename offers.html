@@ -86,15 +86,21 @@
         color: #aaa;
       }
 
-      /* ✅ Preview styling */
+      /* ✅ Multiple image previews */
+      .image-preview-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
       .image-preview {
-        width: 150px;
-        height: 150px;
+        width: 120px;
+        height: 120px;
         border-radius: 10px;
         object-fit: cover;
-        display: none;
-        margin-top: 10px;
         border: 2px solid #ccc;
+        display: none;
       }
 
       /* ✅ Debug info box */
@@ -182,7 +188,7 @@
             ><i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي</a
           >
           <a href="offers.html" class="active"
-            ><i class="fa-solid fa-gift"></i>الحملات الاعلانية</a
+            ><i class="fa-solid fa-gift"></i> الحملات الاعلانية</a
           >
         </nav>
       </aside>
@@ -221,9 +227,12 @@
               placeholder="اكتب تفاصيل العرض هنا..."
             ></textarea>
 
-            <label>اختيار صورة العرض (اختياري)</label>
-            <input type="file" id="offerImage" accept="image/*" />
-            <img id="imagePreview" class="image-preview" alt="معاينة الصورة" />
+            <label>اختيار صور العرض (يمكن اختيار أكثر من صورة)</label>
+            <input type="file" id="offerImage" accept="image/*" multiple />
+            <div
+              id="imagePreviewContainer"
+              class="image-preview-container"
+            ></div>
 
             <label>تاريخ انتهاء العرض</label>
             <input type="date" id="offerDate" />
@@ -244,27 +253,24 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // 🔑 Supabase configuration
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      // 🔍 Debug helper
+      // Debug helper
       function addDebugLog(message, type = "info") {
         const debugContent = document.getElementById("debugContent");
         const debugInfo = document.getElementById("debugInfo");
         debugInfo.style.display = "block";
-
         const timestamp = new Date().toLocaleTimeString("ar-EG");
         const icon = type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
-
         debugContent.innerHTML += `<div>[${timestamp}] ${icon} ${message}</div>`;
         debugContent.scrollTop = debugContent.scrollHeight;
         console.log(`[${timestamp}] ${message}`);
       }
 
-      // 🔐 Login logic
+      // Login logic
       async function login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
@@ -296,7 +302,7 @@
         document.getElementById("dashboardContent").style.display = "block";
       }
 
-      // 🌙 Theme toggle
+      // Theme toggle
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", function () {
         document.body.classList.toggle("dark");
@@ -315,23 +321,29 @@
         icon.classList.replace("fa-moon", "fa-sun");
       }
 
-      // 🖼️ Preview image before upload
+      // 🖼️ Preview multiple images
       const offerImage = document.getElementById("offerImage");
-      const imagePreview = document.getElementById("imagePreview");
+      const imagePreviewContainer = document.getElementById(
+        "imagePreviewContainer"
+      );
+
       offerImage.addEventListener("change", () => {
-        const file = offerImage.files[0];
-        if (file) {
-          addDebugLog(
-            `تم اختيار صورة: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`
-          );
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            imagePreview.src = e.target.result;
-            imagePreview.style.display = "block";
-          };
-          reader.readAsDataURL(file);
-        } else {
-          imagePreview.style.display = "none";
+        imagePreviewContainer.innerHTML = "";
+        const files = Array.from(offerImage.files);
+
+        if (files.length > 0) {
+          files.forEach((file) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const img = document.createElement("img");
+              img.src = e.target.result;
+              img.classList.add("image-preview");
+              img.style.display = "block";
+              imagePreviewContainer.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+            addDebugLog(`تم اختيار صورة: ${file.name}`);
+          });
         }
       });
 
@@ -341,9 +353,8 @@
         const title = document.getElementById("offerTitle").value.trim();
         const desc = document.getElementById("offerDesc").value.trim();
         const date = document.getElementById("offerDate").value;
-        const file = offerImage.files[0];
+        const files = Array.from(offerImage.files);
 
-        // Clear previous debug logs
         document.getElementById("debugContent").innerHTML = "";
         document.getElementById("debugInfo").style.display = "block";
 
@@ -353,77 +364,60 @@
           return;
         }
 
-        // Disable button during send
         sendBtn.disabled = true;
         sendBtn.innerHTML = 'جاري الإرسال... <span class="spinner"></span>';
 
-        let imageUrl = null;
+        let imageUrls = [];
 
-        if (file) {
-          try {
-            addDebugLog(`بدء رفع الصورة: ${file.name}`);
-
-            const uniqueName = `${Date.now()}_${file.name}`;
-            const { data, error } = await supabase.storage
-              .from("offers")
-              .upload(uniqueName, file, {
-                cacheControl: "3600",
-                upsert: false,
-              });
-
-            if (error) {
-              addDebugLog(`خطأ في رفع الصورة: ${error.message}`, "error");
-              throw error;
-            }
-
-            const { data: urlData } = supabase.storage
-              .from("offers")
-              .getPublicUrl(uniqueName);
-
-            imageUrl = urlData.publicUrl;
-            addDebugLog(`✅ تم رفع الصورة بنجاح`, "success");
-            addDebugLog(`رابط الصورة: ${imageUrl}`);
-
-            // ⚠️ Test if image URL is accessible
+        if (files.length > 0) {
+          addDebugLog(`📸 بدء رفع ${files.length} صورة...`);
+          for (const file of files) {
             try {
-              const testResponse = await fetch(imageUrl, { method: "HEAD" });
-              if (testResponse.ok) {
-                addDebugLog(`✅ الصورة متاحة للوصول العام`, "success");
-              } else {
+              const uniqueName = `${Date.now()}_${file.name}`;
+              const { data, error } = await supabase.storage
+                .from("offers")
+                .upload(uniqueName, file, {
+                  cacheControl: "3600",
+                  upsert: false,
+                });
+
+              if (error) {
                 addDebugLog(
-                  `⚠️ الصورة غير متاحة (كود: ${testResponse.status})`,
+                  `❌ فشل رفع ${file.name}: ${error.message}`,
                   "error"
                 );
-                addDebugLog(
-                  `تأكد من أن bucket "offers" عام في إعدادات Supabase`,
-                  "error"
-                );
+                continue;
               }
-            } catch (e) {
-              addDebugLog(`⚠️ لم يتم التحقق من إمكانية الوصول للصورة`, "error");
+
+              const { data: urlData } = supabase.storage
+                .from("offers")
+                .getPublicUrl(uniqueName);
+
+              imageUrls.push(urlData.publicUrl);
+              addDebugLog(`✅ تم رفع ${file.name}`);
+            } catch (err) {
+              addDebugLog(
+                `❌ خطأ في رفع ${file.name}: ${err.message}`,
+                "error"
+              );
             }
-          } catch (err) {
-            console.error("❌ Image upload error:", err);
-            addDebugLog(`خطأ في رفع الصورة: ${err.message}`, "error");
-            alert("⚠️ حدث خطأ أثناء رفع الصورة. سيتم الإرسال بدون صورة.");
-            imageUrl = null;
           }
         } else {
-          addDebugLog("لم يتم اختيار صورة - سيتم الإرسال بدون صورة");
+          addDebugLog("لم يتم اختيار صور - سيتم الإرسال بدون صور");
         }
 
         try {
-          const phone = "962785050875"; // ✅ Replace with recipient phone number
+          const phone = "962785050875";
 
           const payload = {
             name: "Smile Clinic",
             phone: phone,
             service: title,
             appointment: `${desc}\n⏰ صالح حتى: ${date}`,
-            image: imageUrl,
+            images: imageUrls,
           };
 
-          addDebugLog("إرسال الطلب إلى WhatsApp API...");
+          addDebugLog("🚀 إرسال البيانات إلى WhatsApp API...");
           addDebugLog(`البيانات: ${JSON.stringify(payload, null, 2)}`);
 
           const res = await fetch(
@@ -436,43 +430,28 @@
           );
 
           const data = await res.json();
-          addDebugLog(`استجابة API: ${JSON.stringify(data, null, 2)}`);
+          addDebugLog(`📩 استجابة API: ${JSON.stringify(data, null, 2)}`);
 
           if (data.success) {
-            if (data.fallback) {
-              addDebugLog("⚠️ تم الإرسال بنجاح لكن بدون صورة", "error");
-              alert("⚠️ تم إرسال العرض بنجاح (نص فقط - فشل إرسال الصورة)");
-            } else {
-              addDebugLog("✅ تم إرسال العرض بنجاح مع الصورة!", "success");
-              alert("✅ تم إرسال العرض بنجاح!");
-            }
-
-            // Clear form
+            alert("✅ تم إرسال العرض بنجاح!");
             document.getElementById("offerTitle").value = "";
             document.getElementById("offerDesc").value = "";
             document.getElementById("offerDate").value = "";
-            document.getElementById("offerImage").value = "";
-            imagePreview.style.display = "none";
+            offerImage.value = "";
+            imagePreviewContainer.innerHTML = "";
           } else {
-            console.error("❌ Send failed:", data);
-            addDebugLog(`فشل الإرسال: ${JSON.stringify(data)}`, "error");
-            alert(
-              "⚠️ فشل إرسال العرض: " +
-                (data.error?.message || data.message || "خطأ غير معروف")
-            );
+            alert("⚠️ فشل إرسال العرض: " + (data.message || "خطأ غير معروف"));
           }
         } catch (err) {
-          console.error("❌ Error sending offer:", err);
-          addDebugLog(`خطأ في الإرسال: ${err.message}`, "error");
-          alert("❌ خطأ أثناء الإرسال: " + err.message);
+          addDebugLog(`❌ خطأ أثناء الإرسال: ${err.message}`, "error");
+          alert("❌ حدث خطأ أثناء الإرسال");
         } finally {
-          // Re-enable button
           sendBtn.disabled = false;
           sendBtn.innerHTML = "إرسال العرض الآن";
         }
       }
 
-      // 📱 Menu toggle for mobile
+      // 📱 Sidebar toggle
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       if (menuToggle) {
