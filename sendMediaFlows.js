@@ -81,13 +81,22 @@ async function sendBookingStartButton(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 📅 Start booking flow (entry point)
+// 📅 Start booking flow (entry point) - WITH BUTTON
 // ---------------------------------------------
 async function sendStartBookingButton(to, language = "ar") {
   try {
     console.log(`📤 DEBUG => Sending start booking intro to ${to}`);
 
-    // Send the booking start button instead of directly starting the flow
+    // First send intro text
+    const introText =
+      language === "en"
+        ? "🎉 Welcome! I can help you book an appointment at our clinic."
+        : "🎉 أهلاً وسهلاً! يمكنني مساعدتك في حجز موعد في عيادتنا.";
+
+    await sendTextMessage(to, introText);
+    await delay(800);
+
+    // Then send the booking start button
     await sendBookingStartButton(to, language);
 
     console.log("✅ DEBUG => Booking start button sent successfully");
@@ -119,18 +128,10 @@ async function sendOffersImages(to, language = "ar") {
       if (i < OFFER_IMAGES.length - 1) await delay(900);
     }
 
-    // Step 3: Invite to booking WITH button
-    await delay(800);
-    await sendTextMessage(
-      to,
-      language === "en"
-        ? "✨ Would you like to book an appointment for one of these offers?"
-        : "✨ هل ترغب بحجز موعد لأحد هذه العروض؟"
-    );
+    // Step 3: Invite to booking WITH button (make sure this is the last message)
+    await delay(1000);
 
-    await delay(800);
-
-    // Send booking start button instead of directly starting the flow
+    // Send the booking button directly without additional text
     await sendBookingStartButton(to, language);
 
     console.log("✅ Offers flow completed — booking button shown.");
@@ -162,18 +163,10 @@ async function sendDoctorsImages(to, language = "ar") {
       if (i < DOCTOR_IMAGES.length - 1) await delay(900);
     }
 
-    // Step 3: Invite to booking WITH button
+    // Step 3: Invite to booking WITH button (make sure this is the last message)
     await delay(1000);
-    await sendTextMessage(
-      to,
-      language === "en"
-        ? "✨ Would you like to book an appointment with one of our doctors?"
-        : "✨ هل ترغب بحجز موعد مع أحد أطبائنا؟"
-    );
 
-    await delay(700);
-
-    // Send booking start button instead of directly starting the flow
+    // Send the booking button directly without additional text
     await sendBookingStartButton(to, language);
 
     console.log("✅ Doctors flow completed — booking button shown.");
@@ -211,6 +204,63 @@ async function handleBookingFlow(to, userData = {}, language = "ar") {
 }
 
 // ---------------------------------------------
+// 🆕 Quick Booking Button (standalone)
+// ---------------------------------------------
+async function sendQuickBookingButton(to, language = "ar") {
+  try {
+    console.log(`📤 DEBUG => Sending quick booking button to ${to}`);
+
+    const bodyText =
+      language === "en"
+        ? "💫 Need to book an appointment quickly? Click below to start!"
+        : "💫 تحتاج لحجز موعد بسرعة؟ اضغط بالأسفل للبدء!";
+
+    const buttonText = language === "en" ? "Book Now" : "احجز الآن";
+
+    await axios.post(
+      `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: {
+            text: bodyText,
+          },
+          action: {
+            buttons: [
+              {
+                type: "reply",
+                reply: {
+                  id: "quick_booking",
+                  title: buttonText,
+                },
+              },
+            ],
+          },
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("✅ DEBUG => Quick booking button sent successfully");
+  } catch (err) {
+    console.error(
+      "❌ DEBUG => Error sending quick booking button:",
+      err.message
+    );
+    // Fallback
+    await handleBookingFlow(to, {}, language);
+  }
+}
+
+// ---------------------------------------------
 // ✅ Export everything
 // ---------------------------------------------
 module.exports = {
@@ -219,4 +269,5 @@ module.exports = {
   handleBookingFlow,
   sendStartBookingButton,
   sendBookingStartButton,
+  sendQuickBookingButton,
 };
