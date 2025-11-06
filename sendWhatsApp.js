@@ -14,14 +14,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const {
-    name,
-    phone,
-    service,
-    appointment,
-    image,
-    images = [],
-  } = req.body || {};
+  const { name, phone, service, appointment, image } = req.body || {};
 
   // ✅ Validate required fields
   if (!name || !phone) {
@@ -39,73 +32,9 @@ export default async function handler(req, res) {
   };
 
   try {
-    // 🟢 Case 1: Multiple images provided
-    if (Array.isArray(images) && images.length > 0) {
-      console.log(`📤 Received ${images.length} image(s) for sending`);
-
-      // 1️⃣ Send text message first (main message)
-      const textPayload = {
-        messaging_product: "whatsapp",
-        to: phone,
-        type: "text",
-        text: {
-          body:
-            messageText +
-            "\n\n📞 للحجز أو الاستفسار، تواصل معنا الآن عبر واتساب!",
-        },
-      };
-
-      console.log("💬 Sending main text message...");
-      const textResponse = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(textPayload),
-      });
-
-      const textData = await textResponse.json();
-      console.log("✅ Text message response:", textData);
-
-      // 2️⃣ Send all images one by one
-      const sentImages = [];
-      for (const img of images) {
-        if (!img || typeof img !== "string" || !img.startsWith("http"))
-          continue;
-
-        const imagePayload = {
-          messaging_product: "whatsapp",
-          to: phone,
-          type: "image",
-          image: {
-            link: img,
-            caption: `📸 عرض خاص من ${name}`,
-          },
-        };
-
-        console.log("📤 Sending image:", img);
-
-        const imageResponse = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(imagePayload),
-        });
-
-        const imageData = await imageResponse.json();
-        console.log("🖼️ Image response:", imageData);
-        sentImages.push(imageData);
-      }
-
-      // ✅ Return combined response
-      return res.status(200).json({
-        success: true,
-        textData,
-        sentImages,
-        message: "All images and text sent successfully",
-      });
-    }
-
-    // 🟠 Case 2: Single image provided
+    // ✅ Case 1: Send image message (if image exists and is valid URL)
     if (image && image.startsWith("http")) {
-      console.log("📤 Single image detected:", image);
+      console.log("📤 Image URL received:", image);
 
       const imagePayload = {
         messaging_product: "whatsapp",
@@ -117,7 +46,11 @@ export default async function handler(req, res) {
         },
       };
 
-      console.log("📤 Sending single image...");
+      console.log(
+        "📤 Sending image with caption...",
+        JSON.stringify(imagePayload, null, 2)
+      );
+
       const imageResponse = await fetch(url, {
         method: "POST",
         headers,
@@ -125,12 +58,17 @@ export default async function handler(req, res) {
       });
 
       const imageData = await imageResponse.json();
-      console.log("🖼️ Single image response:", imageData);
+      console.log(
+        "🖼️ WhatsApp image response:",
+        JSON.stringify(imageData, null, 2)
+      );
 
       if (!imageResponse.ok || imageData.error) {
-        console.error("❌ Image send failed:", imageData);
-        // fallback
-        const fallbackPayload = {
+        console.error("❌ Image message failed:", imageData);
+
+        // ⚠️ Fallback: Send text only if image fails
+        console.log("⚠️ Falling back to text-only message...");
+        const textPayload = {
           messaging_product: "whatsapp",
           to: phone,
           type: "text",
@@ -141,23 +79,24 @@ export default async function handler(req, res) {
           },
         };
 
-        const fallbackRes = await fetch(url, {
+        const textResponse = await fetch(url, {
           method: "POST",
           headers,
-          body: JSON.stringify(fallbackPayload),
+          body: JSON.stringify(textPayload),
         });
 
-        const fallbackData = await fallbackRes.json();
+        const textData = await textResponse.json();
 
         return res.status(200).json({
           success: true,
           fallback: true,
-          fallbackData,
+          textData,
+          imageError: imageData,
           message: "Image failed, sent text instead",
         });
       }
 
-      // Send follow-up text
+      // ✅ Send follow-up text message
       const followupPayload = {
         messaging_product: "whatsapp",
         to: phone,
@@ -167,25 +106,25 @@ export default async function handler(req, res) {
         },
       };
 
-      const followupRes = await fetch(url, {
+      console.log("💬 Sending follow-up text...");
+      const followupResponse = await fetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(followupPayload),
       });
 
-      const followupData = await followupRes.json();
-      console.log("✅ Follow-up text sent:", followupData);
+      const followupData = await followupResponse.json();
+      console.log("✅ Follow-up text response:", followupData);
 
       return res.status(200).json({
         success: true,
         imageData,
         followupData,
-        message: "Single image and text sent successfully",
+        message: "Image and follow-up text sent successfully",
       });
     }
 
-    // 🔵 Case 3: No image(s) — text only
-    console.log("💬 Sending text only...");
+    // ✅ Case 2: No image — send plain text
     const textPayload = {
       messaging_product: "whatsapp",
       to: phone,
@@ -197,17 +136,18 @@ export default async function handler(req, res) {
       },
     };
 
-    const textRes = await fetch(url, {
+    console.log("💬 Sending text message only...");
+    const textResponse = await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(textPayload),
     });
 
-    const textData = await textRes.json();
-    console.log("✅ Text response:", textData);
+    const textData = await textResponse.json();
+    console.log("✅ WhatsApp text response:", textData);
 
-    if (!textRes.ok) {
-      console.error("❌ Text send failed:", textData);
+    if (!textResponse.ok) {
+      console.error("❌ Text message failed:", textData);
       return res.status(500).json({ success: false, error: textData });
     }
 
