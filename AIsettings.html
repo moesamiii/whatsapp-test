@@ -265,240 +265,189 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // ===== LOGIN LOGIC =====
-      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
-      const SUPABASE_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            // ===== LOGIN LOGIC =====
+            const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+            const SUPABASE_KEY =
+              "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      async function login() {
-        const email = document.getElementById("email").value.trim();
-        const password = document.getElementById("password").value.trim();
+            async function login() {
+              const email = document.getElementById("email").value.trim();
+              const password = document.getElementById("password").value.trim();
 
-        const { data } = await supabase
-          .from("admin_auth")
-          .select("*")
-          .eq("email", email)
-          .eq("password", password)
-          .maybeSingle();
+              const { data } = await supabase
+                .from("admin_auth")
+                .select("*")
+                .eq("email", email)
+                .eq("password", password)
+                .maybeSingle();
 
-        if (data) {
-          document.getElementById("loginScreen").style.display = "none";
-          document.getElementById("dashboardContent").style.display = "block";
-          localStorage.setItem("clinic_logged_in", "true");
-        } else {
-          document.getElementById("errorMsg").style.display = "block";
-        }
-      }
-
-      function logout() {
-        localStorage.removeItem("clinic_logged_in");
-        document.getElementById("loginScreen").style.display = "flex";
-        document.getElementById("dashboardContent").style.display = "none";
-      }
-
-      if (localStorage.getItem("clinic_logged_in") === "true") {
-        document.getElementById("loginScreen").style.display = "none";
-        document.getElementById("dashboardContent").style.display = "block";
-      }
-
-      // ===== THEME TOGGLE =====
-      const themeToggle = document.getElementById("themeToggle");
-      themeToggle.addEventListener("click", function () {
-        document.body.classList.toggle("dark");
-        const icon = themeToggle.querySelector("i");
-        if (document.body.classList.contains("dark")) {
-          icon.classList.replace("fa-moon", "fa-sun");
-          localStorage.setItem("clinic_theme", "dark");
-        } else {
-          icon.classList.replace("fa-sun", "fa-moon");
-          localStorage.setItem("clinic_theme", "light");
-        }
-      });
-
-      if (localStorage.getItem("clinic_theme") === "dark") {
-        document.body.classList.add("dark");
-        const icon = themeToggle.querySelector("i");
-        icon.classList.replace("fa-moon", "fa-sun");
-      }
-
-      // ===== MENU TOGGLE =====
-      const menuToggle = document.getElementById("menuToggle");
-      const sidebar = document.getElementById("sidebar");
-      menuToggle.addEventListener("click", () =>
-        sidebar.classList.toggle("active")
-      );
-
-      document.addEventListener("click", (e) => {
-        if (
-          window.innerWidth <= 768 &&
-          sidebar.classList.contains("active") &&
-          !sidebar.contains(e.target) &&
-          e.target !== menuToggle
-        ) {
-          sidebar.classList.remove("active");
-        }
-      });
-
-      // ===== SETTINGS STORAGE + WHATSAPP REMINDERS =====
-      const reminderCount = document.getElementById("reminderCount");
-      const reminderInterval = document.getElementById("reminderInterval");
-      const reminderToggle = document.getElementById("reminderToggle");
-
-      reminderCount.value = localStorage.getItem("reminderCount") || "1";
-      reminderInterval.value = localStorage.getItem("reminderInterval") || "15";
-      reminderToggle.checked =
-        localStorage.getItem("reminderToggle") === "true";
-
-      document
-        .getElementById("saveSettings")
-        .addEventListener("click", async () => {
-          localStorage.setItem("reminderCount", reminderCount.value);
-          localStorage.setItem("reminderInterval", reminderInterval.value);
-          localStorage.setItem("reminderToggle", reminderToggle.checked);
-          alert("✅ تم حفظ الإعدادات بنجاح!");
-
-          if (reminderToggle.checked) {
-            const count = parseInt(reminderCount.value);
-            const interval = parseInt(reminderInterval.value);
-            alert(`⏳ سيتم إرسال ${count} تذكير كل ${interval} دقيقة.`);
-
-            for (let i = 0; i < count; i++) {
-              setTimeout(async () => {
-                try {
-                  const payload = {
-                    name: "Smile Clinic",
-                    phone: "962785050875",
-                    service: "تذكير تلقائي",
-                    appointment: `بعد ${interval * i} دقيقة`,
-                  };
-
-                  const res = await fetch(
-                    "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(payload),
-                    }
-                  );
-
-                  const data = await res.json();
-                  console.log(`📬 تذكير رقم ${i + 1}:`, data);
-
-                  if (data.success) {
-                    console.log(`✅ تم إرسال التذكير رقم ${i + 1}`);
-                  } else {
-                    console.error(`⚠️ فشل التذكير رقم ${i + 1}`);
-                  }
-                } catch (err) {
-                  console.error("❌ WhatsApp Send Error:", err);
-                }
-              }, i * interval * 60 * 1000);
-            }
-          }
-        });
-
-      // ====== REMIND LAST MONTH BOOKINGS ======
-      document
-        .getElementById("remindLastMonth")
-        .addEventListener("click", async () => {
-          const confirmSend = confirm(
-            "هل أنت متأكد أنك تريد إرسال التذكيرات للعملاء من الشهر الماضي؟"
-          );
-          if (!confirmSend) return;
-
-          const now = new Date();
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(now.getDate() - 30);
-
-          try {
-            // 1️⃣ Fetch bookings from last 30 days with specific statuses
-            const { data, error } = await supabase
-              .from("bookings")
-              .select("*")
-              .gte("created_at", thirtyDaysAgo.toISOString())
-              .in("status", ["Still", "SentNoReply"]);
-
-            if (error) {
-              console.error("❌ خطأ في جلب الحجوزات:", error);
-              alert("❌ خطأ في جلب الحجوزات: " + error.message);
-              return;
-            }
-
-            if (!data || data.length === 0) {
-              alert("✅ لا يوجد عملاء بحاجة لتذكير خلال الشهر الماضي.");
-              return;
-            }
-
-            alert(`📬 سيتم إرسال ${data.length} تذكير للعملاء.`);
-
-            // 2️⃣ Loop through and send WhatsApp reminders sequentially
-            for (const [index, booking] of data.entries()) {
-              // 🧩 Validate required fields
-              if (!booking.phone) {
-                console.warn(
-                  `⚠️ تم تجاوز سجل بدون رقم هاتف: ${booking.name || "بدون اسم"}`
-                );
-                continue;
+              if (data) {
+                document.getElementById("loginScreen").style.display = "none";
+                document.getElementById("dashboardContent").style.display = "block";
+                localStorage.setItem("clinic_logged_in", "true");
+              } else {
+                document.getElementById("errorMsg").style.display = "block";
               }
-
-              const payload = {
-                name:
-                  booking.name && booking.name.trim() !== ""
-                    ? booking.name
-                    : "عميلنا الكريم",
-                phone: booking.phone.toString().replace(/\s+/g, ""), // remove spaces
-                service: booking.service || "خدمة غير محددة",
-                appointment: booking.appointment || "موعد غير محدد",
-                image: null,
-              };
-
-              console.log(`📤 إرسال تذكير رقم ${index + 1}:`, payload);
-
-              try {
-                const res = await fetch(
-                  "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
-                  }
-                );
-
-                const result = await res.json();
-
-                if (res.ok && result.success) {
-                  console.log(
-                    `✅ تم إرسال تذكير إلى ${payload.name} (${payload.phone})`
-                  );
-                  // 3️⃣ Update status in Supabase
-                  await supabase
-                    .from("bookings")
-                    .update({ status: "SentNoReply" })
-                    .eq("id", booking.id);
-                } else {
-                  console.warn(
-                    `⚠️ فشل الإرسال لـ ${payload.name}:`,
-                    result.error || result.message
-                  );
-                }
-              } catch (err) {
-                console.error(
-                  `❌ خطأ في إرسال التذكير للعميل ${payload.name}:`,
-                  err
-                );
-              }
-
-              // ⏱ تأخير بسيط بين الرسائل (لتجنب حظر API)
-              await new Promise((resolve) => setTimeout(resolve, 1500));
             }
 
-            alert("✅ تم الانتهاء من إرسال كل التذكيرات بنجاح!");
-          } catch (err) {
-            console.error("❌ Unexpected Error:", err);
-            alert("حدث خطأ غير متوقع أثناء الإرسال.");
+            function logout() {
+              localStorage.removeItem("clinic_logged_in");
+              document.getElementById("loginScreen").style.display = "flex";
+              document.getElementById("dashboardContent").style.display = "none";
+            }
+
+            if (localStorage.getItem("clinic_logged_in") === "true") {
+              document.getElementById("loginScreen").style.display = "none";
+              document.getElementById("dashboardContent").style.display = "block";
+            }
+
+            // ===== THEME TOGGLE =====
+            const themeToggle = document.getElementById("themeToggle");
+            themeToggle.addEventListener("click", function () {
+              document.body.classList.toggle("dark");
+              const icon = themeToggle.querySelector("i");
+              if (document.body.classList.contains("dark")) {
+                icon.classList.replace("fa-moon", "fa-sun");
+                localStorage.setItem("clinic_theme", "dark");
+              } else {
+                icon.classList.replace("fa-sun", "fa-moon");
+                localStorage.setItem("clinic_theme", "light");
+              }
+            });
+
+            if (localStorage.getItem("clinic_theme") === "dark") {
+              document.body.classList.add("dark");
+              const icon = themeToggle.querySelector("i");
+              icon.classList.replace("fa-moon", "fa-sun");
+            }
+
+            // ===== MENU TOGGLE =====
+            const menuToggle = document.getElementById("menuToggle");
+            const sidebar = document.getElementById("sidebar");
+            menuToggle.addEventListener("click", () =>
+              sidebar.classList.toggle("active")
+            );
+
+            document.addEventListener("click", (e) => {
+              if (
+                window.innerWidth <= 768 &&
+                sidebar.classList.contains("active") &&
+                !sidebar.contains(e.target) &&
+                e.target !== menuToggle
+              ) {
+                sidebar.classList.remove("active");
+              }
+            });
+
+            // ===== SETTINGS STORAGE + WHATSAPP REMINDERS =====
+            const reminderCount = document.getElementById("reminderCount");
+            const reminderInterval = document.getElementById("reminderInterval");
+            const reminderToggle = document.getElementById("reminderToggle");
+
+            reminderCount.value = localStorage.getItem("reminderCount") || "1";
+            reminderInterval.value = localStorage.getItem("reminderInterval") || "15";
+            reminderToggle.checked =
+              localStorage.getItem("reminderToggle") === "true";
+
+            document
+              .getElementById("saveSettings")
+              .addEventListener("click", async () => {
+                localStorage.setItem("reminderCount", reminderCount.value);
+                localStorage.setItem("reminderInterval", reminderInterval.value);
+                localStorage.setItem("reminderToggle", reminderToggle.checked);
+                alert("✅ تم حفظ الإعدادات بنجاح!");
+
+                if (reminderToggle.checked) {
+                  const count = parseInt(reminderCount.value);
+                  const interval = parseInt(reminderInterval.value);
+                  alert(`⏳ سيتم إرسال ${count} تذكير كل ${interval} دقيقة.`);
+
+                  for (let i = 0; i < count; i++) {
+                    setTimeout(async () => {
+                      try {
+                        const payload = {
+                          name: "Smile Clinic",
+                          phone: "962785050875",
+                          service: "تذكير تلقائي",
+                          appointment: `بعد ${interval * i} دقيقة`,
+                        };
+
+                        const res = await fetch(
+                          "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(payload),
+                          }
+                        );
+
+                        const data = await res.json();
+                        console.log(`📬 تذكير رقم ${i + 1}:`, data);
+
+                        if (data.success) {
+                          console.log(`✅ تم إرسال التذكير رقم ${i + 1}`);
+                        } else {
+                          console.error(`⚠️ فشل التذكير رقم ${i + 1}`);
+                        }
+                      } catch (err) {
+                        console.error("❌ WhatsApp Send Error:", err);
+                      }
+                    }, i * interval * 60 * 1000);
+                  }
+                }
+              });
+
+
+             // ====== REMIND LAST MONTH BOOKINGS ======
+      for (const [index, booking] of data.entries()) {
+        if (!booking.phone) {
+          console.warn(`⚠️ سجل بدون رقم هاتف: ${booking.name || "بدون اسم"}`);
+          continue;
+        }
+
+        const formattedPhone =
+          booking.phone.toString().startsWith("962")
+            ? booking.phone
+            : `962${booking.phone.replace(/^0+/, "")}`;
+
+        const appointmentText =
+          booking.appointment && !booking.appointment.startsWith("1899")
+            ? booking.appointment
+            : "موعد سيتم تأكيده قريبًا";
+
+        const payload = {
+          name: booking.name || "عميلنا الكريم",
+          phone: formattedPhone,
+          service: booking.service || "خدمة غير محددة",
+          appointment: appointmentText,
+          image: null,
+        };
+
+        console.log(`📤 إرسال تذكير رقم ${index + 1}:`, payload);
+
+        try {
+          const res = await fetch("https://whatsapp-test-rosy.vercel.app/sendWhatsApp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const result = await res.json();
+          console.log("📬 استجابة السيرفر:", result);
+
+          if (res.ok && result.success) {
+            console.log(`✅ تم إرسال تذكير إلى ${payload.name} (${payload.phone})`);
+            await supabase.from("bookings").update({ status: "SentNoReply" }).eq("id", booking.id);
+          } else {
+            console.warn(`⚠️ فشل الإرسال لـ ${payload.name}:`, result.error || result.message);
           }
-        });
+        } catch (err) {
+          console.error(`❌ خطأ في إرسال التذكير للعميل ${payload.name}:`, err);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
     </script>
   </body>
 </html>
