@@ -10,14 +10,9 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     />
+    <link rel="stylesheet" href="./dashboard.css" />
 
     <style>
-      body {
-        font-family: "Tahoma", sans-serif;
-        margin: 0;
-        background: #fafafa;
-      }
-
       .settings-container {
         padding: 30px;
         display: flex;
@@ -91,19 +86,14 @@
         color: #aaa;
       }
 
-      /* ✅ Multiple image preview styling */
-      #imagePreviewContainer {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 10px;
-      }
-
-      #imagePreviewContainer img {
-        width: 100px;
-        height: 100px;
-        border-radius: 8px;
+      /* ✅ Preview styling */
+      .image-preview {
+        width: 150px;
+        height: 150px;
+        border-radius: 10px;
         object-fit: cover;
+        display: none;
+        margin-top: 10px;
         border: 2px solid #ccc;
       }
 
@@ -152,111 +142,6 @@
           transform: rotate(360deg);
         }
       }
-
-      /* ✅ Login screen */
-      #loginScreen {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        background: linear-gradient(270deg, #7c3aed, #a855f7);
-      }
-
-      #loginBox {
-        background: white;
-        padding: 30px;
-        border-radius: 12px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        width: 300px;
-        text-align: center;
-      }
-
-      #loginBox input {
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-      }
-
-      #loginBox h2 {
-        margin-bottom: 15px;
-      }
-
-      #errorMsg {
-        color: red;
-      }
-
-      .container {
-        display: flex;
-        min-height: 100vh;
-      }
-
-      aside.sidebar {
-        width: 220px;
-        background: #111827;
-        color: #fff;
-        display: flex;
-        flex-direction: column;
-        padding: 20px;
-      }
-
-      aside.sidebar .logo {
-        font-weight: bold;
-        font-size: 18px;
-        margin-bottom: 20px;
-      }
-
-      aside.sidebar .menu a {
-        color: #ddd;
-        padding: 10px 0;
-        display: block;
-        text-decoration: none;
-        transition: 0.3s;
-      }
-
-      aside.sidebar .menu a.active,
-      aside.sidebar .menu a:hover {
-        color: #fff;
-      }
-
-      main.main-content {
-        flex: 1;
-        background: #fafafa;
-      }
-
-      header.header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px 25px;
-        background: #fff;
-        border-bottom: 1px solid #ddd;
-      }
-
-      .icon-btn {
-        background: none;
-        border: none;
-        font-size: 18px;
-        cursor: pointer;
-        color: #555;
-      }
-
-      .icon-btn:hover {
-        color: #000;
-      }
-
-      @media (max-width: 768px) {
-        aside.sidebar {
-          display: none;
-        }
-        aside.sidebar.active {
-          display: block;
-          position: absolute;
-          z-index: 10;
-        }
-      }
     </style>
   </head>
 
@@ -297,7 +182,7 @@
             ><i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي</a
           >
           <a href="offers.html" class="active"
-            ><i class="fa-solid fa-gift"></i> الحملات الاعلانية</a
+            ><i class="fa-solid fa-gift"></i>الحملات الاعلانية</a
           >
         </nav>
       </aside>
@@ -336,15 +221,16 @@
               placeholder="اكتب تفاصيل العرض هنا..."
             ></textarea>
 
-            <label>اختيار صور العرض (يمكن اختيار أكثر من صورة)</label>
-            <input type="file" id="offerImage" accept="image/*" multiple />
-            <div id="imagePreviewContainer"></div>
+            <label>اختيار صورة العرض (اختياري)</label>
+            <input type="file" id="offerImage" accept="image/*" />
+            <img id="imagePreview" class="image-preview" alt="معاينة الصورة" />
 
             <label>تاريخ انتهاء العرض</label>
             <input type="date" id="offerDate" />
 
             <button id="sendBtn" onclick="sendOffer()">إرسال العرض الآن</button>
 
+            <!-- Debug Info -->
             <div class="debug-info" id="debugInfo">
               <h4>🔍 معلومات التشخيص</h4>
               <div id="debugContent"></div>
@@ -358,25 +244,31 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+      // 🔑 Supabase configuration
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+      // 🔍 Debug helper
       function addDebugLog(message, type = "info") {
         const debugContent = document.getElementById("debugContent");
         const debugInfo = document.getElementById("debugInfo");
         debugInfo.style.display = "block";
+
         const timestamp = new Date().toLocaleTimeString("ar-EG");
         const icon = type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
+
         debugContent.innerHTML += `<div>[${timestamp}] ${icon} ${message}</div>`;
         debugContent.scrollTop = debugContent.scrollHeight;
+        console.log(`[${timestamp}] ${message}`);
       }
 
-      // 🔐 Login
+      // 🔐 Login logic
       async function login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
+
         const { data } = await supabase
           .from("admin_auth")
           .select("*")
@@ -419,28 +311,27 @@
       });
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
-        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
+        const icon = themeToggle.querySelector("i");
+        icon.classList.replace("fa-moon", "fa-sun");
       }
 
-      // 🖼️ Multiple image preview
+      // 🖼️ Preview image before upload
       const offerImage = document.getElementById("offerImage");
-      const imagePreviewContainer = document.getElementById(
-        "imagePreviewContainer"
-      );
+      const imagePreview = document.getElementById("imagePreview");
       offerImage.addEventListener("change", () => {
-        const files = offerImage.files;
-        imagePreviewContainer.innerHTML = "";
-        if (files.length > 0) {
-          Array.from(files).forEach((file) => {
-            addDebugLog(`📸 تم اختيار الصورة: ${file.name}`);
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const img = document.createElement("img");
-              img.src = e.target.result;
-              imagePreviewContainer.appendChild(img);
-            };
-            reader.readAsDataURL(file);
-          });
+        const file = offerImage.files[0];
+        if (file) {
+          addDebugLog(
+            `تم اختيار صورة: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`
+          );
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            imagePreview.src = e.target.result;
+            imagePreview.style.display = "block";
+          };
+          reader.readAsDataURL(file);
+        } else {
+          imagePreview.style.display = "none";
         }
       });
 
@@ -450,8 +341,9 @@
         const title = document.getElementById("offerTitle").value.trim();
         const desc = document.getElementById("offerDesc").value.trim();
         const date = document.getElementById("offerDate").value;
-        const files = offerImage.files;
+        const file = offerImage.files[0];
 
+        // Clear previous debug logs
         document.getElementById("debugContent").innerHTML = "";
         document.getElementById("debugInfo").style.display = "block";
 
@@ -461,59 +353,74 @@
           return;
         }
 
+        // Disable button during send
         sendBtn.disabled = true;
         sendBtn.innerHTML = 'جاري الإرسال... <span class="spinner"></span>';
 
-        let imageUrls = [];
+        let imageUrl = null;
 
-        if (files.length > 0) {
-          addDebugLog(`📤 بدء رفع ${files.length} صورة...`);
-          for (const file of files) {
+        if (file) {
+          try {
+            addDebugLog(`بدء رفع الصورة: ${file.name}`);
+
+            const uniqueName = `${Date.now()}_${file.name}`;
+            const { data, error } = await supabase.storage
+              .from("offers")
+              .upload(uniqueName, file, {
+                cacheControl: "3600",
+                upsert: false,
+              });
+
+            if (error) {
+              addDebugLog(`خطأ في رفع الصورة: ${error.message}`, "error");
+              throw error;
+            }
+
+            const { data: urlData } = supabase.storage
+              .from("offers")
+              .getPublicUrl(uniqueName);
+
+            imageUrl = urlData.publicUrl;
+            addDebugLog(`✅ تم رفع الصورة بنجاح`, "success");
+            addDebugLog(`رابط الصورة: ${imageUrl}`);
+
+            // ⚠️ Test if image URL is accessible
             try {
-              const uniqueName = `${Date.now()}_${file.name}`;
-              const { data, error } = await supabase.storage
-                .from("offers")
-                .upload(uniqueName, file, {
-                  cacheControl: "3600",
-                  upsert: false,
-                });
-
-              if (error) {
+              const testResponse = await fetch(imageUrl, { method: "HEAD" });
+              if (testResponse.ok) {
+                addDebugLog(`✅ الصورة متاحة للوصول العام`, "success");
+              } else {
                 addDebugLog(
-                  `❌ خطأ في رفع ${file.name}: ${error.message}`,
+                  `⚠️ الصورة غير متاحة (كود: ${testResponse.status})`,
                   "error"
                 );
-                continue;
+                addDebugLog(
+                  `تأكد من أن bucket "offers" عام في إعدادات Supabase`,
+                  "error"
+                );
               }
-
-              const { data: urlData } = supabase.storage
-                .from("offers")
-                .getPublicUrl(uniqueName);
-
-              imageUrls.push(urlData.publicUrl);
-              addDebugLog(`✅ تم رفع ${file.name} بنجاح`);
-            } catch (err) {
-              addDebugLog(
-                `⚠️ خطأ أثناء رفع ${file.name}: ${err.message}`,
-                "error"
-              );
+            } catch (e) {
+              addDebugLog(`⚠️ لم يتم التحقق من إمكانية الوصول للصورة`, "error");
             }
+          } catch (err) {
+            console.error("❌ Image upload error:", err);
+            addDebugLog(`خطأ في رفع الصورة: ${err.message}`, "error");
+            alert("⚠️ حدث خطأ أثناء رفع الصورة. سيتم الإرسال بدون صورة.");
+            imageUrl = null;
           }
-          addDebugLog(
-            `📦 تم رفع ${imageUrls.length} من أصل ${files.length} صورة.`
-          );
         } else {
-          addDebugLog("لم يتم اختيار صور - سيتم الإرسال بدون صور");
+          addDebugLog("لم يتم اختيار صورة - سيتم الإرسال بدون صورة");
         }
 
         try {
-          const phone = "962785050875";
+          const phone = "962785050875"; // ✅ Replace with recipient phone number
+
           const payload = {
             name: "Smile Clinic",
             phone: phone,
             service: title,
             appointment: `${desc}\n⏰ صالح حتى: ${date}`,
-            images: imageUrls,
+            image: imageUrl,
           };
 
           addDebugLog("إرسال الطلب إلى WhatsApp API...");
@@ -532,27 +439,40 @@
           addDebugLog(`استجابة API: ${JSON.stringify(data, null, 2)}`);
 
           if (data.success) {
-            addDebugLog("✅ تم إرسال العرض بنجاح!", "success");
-            alert("✅ تم إرسال العرض بنجاح!");
+            if (data.fallback) {
+              addDebugLog("⚠️ تم الإرسال بنجاح لكن بدون صورة", "error");
+              alert("⚠️ تم إرسال العرض بنجاح (نص فقط - فشل إرسال الصورة)");
+            } else {
+              addDebugLog("✅ تم إرسال العرض بنجاح مع الصورة!", "success");
+              alert("✅ تم إرسال العرض بنجاح!");
+            }
+
+            // Clear form
             document.getElementById("offerTitle").value = "";
             document.getElementById("offerDesc").value = "";
             document.getElementById("offerDate").value = "";
             document.getElementById("offerImage").value = "";
-            imagePreviewContainer.innerHTML = "";
+            imagePreview.style.display = "none";
           } else {
-            addDebugLog(`❌ فشل الإرسال: ${JSON.stringify(data)}`, "error");
-            alert("⚠️ فشل إرسال العرض.");
+            console.error("❌ Send failed:", data);
+            addDebugLog(`فشل الإرسال: ${JSON.stringify(data)}`, "error");
+            alert(
+              "⚠️ فشل إرسال العرض: " +
+                (data.error?.message || data.message || "خطأ غير معروف")
+            );
           }
         } catch (err) {
+          console.error("❌ Error sending offer:", err);
           addDebugLog(`خطأ في الإرسال: ${err.message}`, "error");
           alert("❌ خطأ أثناء الإرسال: " + err.message);
         } finally {
+          // Re-enable button
           sendBtn.disabled = false;
           sendBtn.innerHTML = "إرسال العرض الآن";
         }
       }
 
-      // 📱 Menu toggle
+      // 📱 Menu toggle for mobile
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       if (menuToggle) {
