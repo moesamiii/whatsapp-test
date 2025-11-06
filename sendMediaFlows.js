@@ -232,9 +232,7 @@ async function handleBookingFlow(to, userData = {}, language = "ar") {
     // Send service list (dropdown)
     await sendServiceList(to);
 
-    // Note: Appointment buttons will be sent AFTER user selects a service
-    // Your webhook should handle the service selection and then call sendAppointmentButtons
-
+    // Appointment buttons will be sent after service selection via webhook
     console.log("✅ Booking flow initiated (waiting for service selection)");
   } catch (err) {
     console.error("❌ DEBUG => Failed booking flow:", err.message);
