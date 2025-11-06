@@ -43,7 +43,6 @@ const {
 // ---------------------------------------------
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-
 // ---------------------------------------------
 // 👋 Greeting Detector and Random Response
 // ---------------------------------------------
@@ -67,7 +66,7 @@ function getGreeting(isEnglish = false) {
     "Hey! 👋 Glad to see you at *Ibtisama Clinic*! What can I do for you today?",
     "✨ Hello and welcome to *Ibtisama Clinic*! Are you interested in our offers or booking a visit?",
     "Good day! 💚 How can I assist you with your dental or beauty needs today?",
-    "😊 Hi! You’ve reached *Ibtisama Clinic*, your smile is our priority!",
+    "😊 Hi! You've reached *Ibtisama Clinic*, your smile is our priority!",
     "👋 Hello there! Would you like to see our latest offers or book an appointment?",
     "Welcome! 🌸 How can I help you take care of your smile today?",
     "💬 Hi! How can I help you find the right service or offer at *Ibtisama Clinic*?",
@@ -118,7 +117,9 @@ function isGreeting(text = "") {
 // 🚫 Ban Words List
 // ---------------------------------------------
 const BAN_WORDS = {
+  // English inappropriate words
   english: [
+    // Sexual/Inappropriate
     "fuck",
     "fck",
     "fuk",
@@ -158,6 +159,8 @@ const BAN_WORDS = {
     "sexy",
     "hentai",
     "cumming",
+
+    // Racist slurs
     "nigger",
     "nigga",
     "negro",
@@ -181,6 +184,8 @@ const BAN_WORDS = {
     "colored",
     "oriental",
     "muzzie",
+
+    // Terrorist/Violence related
     "terrorist",
     "terrorism",
     "jihad",
@@ -208,7 +213,10 @@ const BAN_WORDS = {
     "execute",
     "behead",
   ],
+
+  // Arabic inappropriate words
   arabic: [
+    // Sexual/Inappropriate
     "كس",
     "عرص",
     "شرموط",
@@ -260,6 +268,8 @@ const BAN_WORDS = {
     "ولاياك",
     "عمتك",
     "خالتك",
+
+    // Racist/Discriminatory
     "زنجي",
     "يهودي نجس",
     "صهيوني",
@@ -274,6 +284,8 @@ const BAN_WORDS = {
     "عرق حقير",
     "حقير",
     "سلالة حقيرة",
+
+    // Terrorist/Violence related
     "إرهاب",
     "إرهابي",
     "داعش",
@@ -318,6 +330,7 @@ const BAN_WORDS_RESPONSES = {
       "👨‍⚕️ Our medical team\n" +
       "📅 Booking appointments\n\n" +
       "Please let me know how I can help you with your dental care needs. 🦷✨",
+
     "I understand you might be upset, and that's okay. 🤗\n\n" +
       "I'm here to help you with:\n" +
       "🏥 Information about Smiles Clinic\n" +
@@ -325,6 +338,7 @@ const BAN_WORDS_RESPONSES = {
       "💰 Current offers and pricing\n" +
       "👨‍⚕️ Meeting our doctors\n\n" +
       "Let's focus on how I can assist you today! 😊",
+
     "Hey there! I sense some tension. Let's take a deep breath together. 😌\n\n" +
       "I'm designed to help you with:\n" +
       "✨ Dental care information\n" +
@@ -332,6 +346,7 @@ const BAN_WORDS_RESPONSES = {
       "🎁 Special offers\n" +
       "👨‍⚕️ Our expert team\n\n" +
       "How can I make your day better? 🦷💙",
+
     "I appreciate your honesty, even when frustrated. 💭\n\n" +
       "Let me redirect our conversation to something helpful:\n" +
       "🔹 Clinic services and treatments\n" +
@@ -339,6 +354,7 @@ const BAN_WORDS_RESPONSES = {
       "🔹 Special promotions\n" +
       "🔹 Appointment booking\n\n" +
       "What would you like to know? 😊",
+
     "Sometimes we all need to let off steam, I get it! 🌈\n\n" +
       "But I'm here for more positive things like:\n" +
       "🦷 Professional dental care info\n" +
@@ -346,6 +362,7 @@ const BAN_WORDS_RESPONSES = {
       "💎 Exclusive offers\n" +
       "👨‍⚕️ Qualified doctors\n\n" +
       "Shall we start fresh? I'm here to help! ✨",
+
     "I understand emotions can be overwhelming sometimes. 🫂\n\n" +
       "Let me help you with practical information:\n" +
       "📌 Smiles Clinic location\n" +
@@ -353,6 +370,7 @@ const BAN_WORDS_RESPONSES = {
       "🎯 Current promotions\n" +
       "👥 Our medical professionals\n\n" +
       "What brings you here today? 😊",
+
     "No worries! Let's turn this around together. 🔄\n\n" +
       "I can assist you with:\n" +
       "🏥 Comprehensive dental services\n" +
@@ -360,6 +378,7 @@ const BAN_WORDS_RESPONSES = {
       "💝 Special deals\n" +
       "👨‍⚕️ Our experienced team\n\n" +
       "How may I help with your dental needs? 🦷",
+
     "I'm here to help, not to judge. 😊\n\n" +
       "Let me share what I can do for you:\n" +
       "✅ Provide clinic information\n" +
@@ -367,6 +386,7 @@ const BAN_WORDS_RESPONSES = {
       "✅ Show current offers\n" +
       "✅ Introduce our doctors\n\n" +
       "What information would be most useful for you? 💙",
+
     "Every conversation is a fresh start! 🌟\n\n" +
       "I'm here to help you with:\n" +
       "🔸 Finding Smiles Clinic\n" +
@@ -374,6 +394,7 @@ const BAN_WORDS_RESPONSES = {
       "🔸 Discovering special offers\n" +
       "🔸 Connecting with our doctors\n\n" +
       "What can I assist you with today? 😊",
+
     "Let's keep things respectful and productive! 🤝\n\n" +
       "I'm available to help you with:\n" +
       "🌟 Dental care information\n" +
@@ -382,6 +403,7 @@ const BAN_WORDS_RESPONSES = {
       "👨‍⚕️ Our professional staff\n\n" +
       "How can I support your dental health journey? 🦷✨",
   ],
+
   arabic: [
     "أعتذر إذا كنت تشعر بالإحباط. أتفهم أن المشاعر قد تكون قوية أحياناً. 😊\n\n" +
       "ومع ذلك، أنا هنا لمساعدتك بمعلومات حول Smiles Clinic، بما في ذلك:\n" +
@@ -390,6 +412,7 @@ const BAN_WORDS_RESPONSES = {
       "👨‍⚕️ فريقنا الطبي\n" +
       "📅 حجز المواعيد\n\n" +
       "من فضلك دعني أعرف كيف يمكنني مساعدتك في احتياجات العناية بأسنانك. 🦷✨",
+
     "أتفهم أنك قد تكون منزعجاً، وهذا طبيعي. 🤗\n\n" +
       "أنا هنا لمساعدتك في:\n" +
       "🏥 معلومات عن Smiles Clinic\n" +
@@ -397,6 +420,7 @@ const BAN_WORDS_RESPONSES = {
       "💰 العروض والأسعار الحالية\n" +
       "👨‍⚕️ التعرف على أطبائنا\n\n" +
       "دعنا نركز على كيف يمكنني مساعدتك اليوم! 😊",
+
     "مرحباً! أشعر ببعض التوتر. لنأخذ نفساً عميقاً معاً. 😌\n\n" +
       "أنا مصمم لمساعدتك في:\n" +
       "✨ معلومات العناية بالأسنان\n" +
@@ -404,6 +428,7 @@ const BAN_WORDS_RESPONSES = {
       "🎁 العروض الخاصة\n" +
       "👨‍⚕️ فريقنا المتخصص\n\n" +
       "كيف يمكنني أن أجعل يومك أفضل؟ 🦷💙",
+
     "أقدر صراحتك، حتى عند الإحباط. 💭\n\n" +
       "دعني أوجه محادثتنا إلى شيء مفيد:\n" +
       "🔹 خدمات العيادة والعلاجات\n" +
@@ -411,6 +436,7 @@ const BAN_WORDS_RESPONSES = {
       "🔹 العروض الترويجية الخاصة\n" +
       "🔹 حجز المواعيد\n\n" +
       "ماذا تريد أن تعرف؟ 😊",
+
     "في بعض الأحيان نحتاج جميعاً لتنفيس عن الضغط، أفهم ذلك! \n\n" +
       "لكنني هنا لأشياء أكثر إيجابية مثل:\n" +
       "🦷 معلومات العناية المهنية بالأسنان\n" +
@@ -418,6 +444,7 @@ const BAN_WORDS_RESPONSES = {
       "💎 عروض حصرية\n" +
       "👨‍⚕️ أطباء مؤهلون\n\n" +
       "هل نبدأ من جديد؟ أنا هنا للمساعدة! ✨",
+
     "أفهم أن العواطف يمكن أن تكون طاغية في بعض الأحيان. 🫂\n\n" +
       "دعني أساعدك بمعلومات عملية:\n" +
       "📌 موقع Smiles Clinic\n" +
@@ -425,6 +452,7 @@ const BAN_WORDS_RESPONSES = {
       "🎯 العروض الحالية\n" +
       "👥 محترفينا الطبيين\n\n" +
       "ما الذي يجلبك هنا اليوم؟ 😊",
+
     "لا تقلق! دعنا نغير هذا معاً. 🔄\n\n" +
       "يمكنني مساعدتك في:\n" +
       "🏥 خدمات الأسنان الشاملة\n" +
@@ -432,6 +460,7 @@ const BAN_WORDS_RESPONSES = {
       "💝 صفقات خاصة\n" +
       "👨‍⚕️ فريقنا ذو الخبرة\n\n" +
       "كيف يمكنني المساعدة في احتياجاتك لطب الأسنان؟ 🦷",
+
     "أنا هنا للمساعدة، لا للحكم. 😊\n\n" +
       "دعني أشارك ما يمكنني القيام به من أجلك:\n" +
       "✅ تقديم معلومات العيادة\n" +
@@ -439,6 +468,7 @@ const BAN_WORDS_RESPONSES = {
       "✅ عرض العروض الحالية\n" +
       "✅ تقديم أطبائنا\n\n" +
       "ما المعلومات التي ستكون أكثر فائدة لك؟ 💙",
+
     "كل محادثة هي بداية جديدة! 🌟\n\n" +
       "أنا هنا لمساعدتك في:\n" +
       "🔸 إيجاد Smiles Clinic\n" +
@@ -446,6 +476,7 @@ const BAN_WORDS_RESPONSES = {
       "🔸 اكتشاف العروض الخاصة\n" +
       "🔸 التواصل مع أطبائنا\n\n" +
       "بماذا يمكنني مساعدتك اليوم؟ 😊",
+
     "دعنا نحافظ على الأمور محترمة ومنتجة! 🤝\n\n" +
       "أنا متاح لمساعدتك في:\n" +
       "🌟 معلومات العناية بالأسنان\n" +
@@ -461,27 +492,33 @@ const BAN_WORDS_RESPONSES = {
 // ---------------------------------------------
 function containsBanWords(text = "") {
   if (!text || typeof text !== "string") return false;
+
   const lowerText = text.toLowerCase();
   const originalText = text;
 
+  // Check English ban words (case-insensitive)
   for (const word of BAN_WORDS.english) {
+    // Use word boundaries to avoid false positives
     const regex = new RegExp(`\\b${word}\\b`, "i");
     if (regex.test(lowerText)) {
       console.log(`🚫 Detected banned English word: ${word}`);
       return true;
     }
   }
+
+  // Check Arabic ban words (exact match, Arabic is case-sensitive in nature)
   for (const word of BAN_WORDS.arabic) {
     if (originalText.includes(word)) {
       console.log(`🚫 Detected banned Arabic word: ${word}`);
       return true;
     }
   }
+
   return false;
 }
 
 // ---------------------------------------------
-// 🚫 Send Ban Words Response
+// 🚫 Send Ban Words Response (Random from 10 variations)
 // ---------------------------------------------
 async function sendBanWordsResponse(to, language = "ar") {
   try {
@@ -489,9 +526,16 @@ async function sendBanWordsResponse(to, language = "ar") {
       language === "en"
         ? BAN_WORDS_RESPONSES.english
         : BAN_WORDS_RESPONSES.arabic;
+
+    // Get random response from the 10 available
     const randomIndex = Math.floor(Math.random() * responses.length);
-    await sendTextMessage(to, responses[randomIndex]);
-    console.log(`✅ Sent ban words response #${randomIndex + 1} (${language})`);
+    const selectedResponse = responses[randomIndex];
+
+    await sendTextMessage(to, selectedResponse);
+
+    console.log(
+      `✅ Sent ban words response #${randomIndex + 1} to user (${language})`
+    );
   } catch (err) {
     console.error("❌ Failed to send ban words response:", err.message);
   }
@@ -518,15 +562,16 @@ function isLocationRequest(text = "") {
     "وينكم",
     "فينكم",
   ];
-  const lower = String(text).toLowerCase();
-  return locationKeywords.some((k) => lower.includes(k));
+  const lowerText = String(text).toLowerCase();
+  return locationKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
 // ---------------------------------------------
-// 🎁 Offers & Services Detection Helper
+// 🎁 Offers & Services Detection Helper (Expanded for Saudi Dialect)
 // ---------------------------------------------
 function isOffersRequest(text = "") {
   const offersKeywords = [
+    // ----- Arabic (Formal) -----
     "عروض",
     "عرض",
     "خدمات",
@@ -541,6 +586,8 @@ function isOffersRequest(text = "") {
     "بكج",
     "عرض خاص",
     "عرض اليوم",
+
+    // ----- Saudi Dialect & Common Chat Phrases -----
     "وش عروضكم",
     "وش عندكم عروض",
     "فيه عروض",
@@ -577,6 +624,8 @@ function isOffersRequest(text = "") {
     "ودي بعرض",
     "ابي اعرف وش عندكم",
     "وش تسوون بالعروض",
+
+    // ----- English -----
     "offer",
     "offers",
     "service",
@@ -588,14 +637,17 @@ function isOffersRequest(text = "") {
     "package",
     "packages",
     "session",
+
+    // ----- Emoji triggers (common in chats) -----
     "💰",
     "🎁",
     "🔥",
     "💸",
     "⭐",
   ];
+
   const lowerText = String(text).toLowerCase();
-  return offersKeywords.some((k) => lowerText.includes(k));
+  return offersKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
 // ---------------------------------------------
@@ -616,15 +668,16 @@ function isDoctorsRequest(text = "") {
     "اطباء",
     "الاطباء",
   ];
-  const lower = String(text).toLowerCase();
-  return doctorsKeywords.some((k) => lower.includes(k));
+  const lowerText = String(text).toLowerCase();
+  return doctorsKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
 // ---------------------------------------------
-// 📅 Booking Detection Helper
+// 📅 Booking Detection Helper (with typo tolerance)
 // ---------------------------------------------
 function isBookingRequest(text = "") {
   const bookingKeywords = [
+    // ----- English -----
     "book",
     "booking",
     "boocing",
@@ -645,12 +698,14 @@ function isBookingRequest(text = "") {
     "schedual",
     "resrv",
     "appoint",
-    "appoinment",
+    "appoinment", // common typo
+
+    // ----- Arabic -----
     "احجز",
     "احجر",
     "احجد",
     "اجحر",
-    "احجذ",
+    "احجذ", // common keyboard typo
     "ابغى احجز",
     "ابي احجز",
     "ابي موعد",
@@ -661,10 +716,11 @@ function isBookingRequest(text = "") {
     "اريد حجز",
     "ودي احجز",
     "ودّي احجز",
-    "احجوز",
+    "احجوز", // colloquial typo
   ];
+
   const lower = String(text).toLowerCase();
-  return bookingKeywords.some((k) => lower.includes(k));
+  return bookingKeywords.some((keyword) => lower.includes(keyword));
 }
 
 // ---------------------------------------------
@@ -679,8 +735,13 @@ function isEnglish(text = "") {
 // 📍 Send Location Messages
 // ---------------------------------------------
 async function sendLocationMessages(to, language = "ar") {
+  // First message: Just the link
   await sendTextMessage(to, CLINIC_LOCATION_LINK);
+
+  // Small delay for better UX
   await new Promise((resolve) => setTimeout(resolve, 500));
+
+  // Second message: Explanation
   if (language === "en") {
     await sendTextMessage(
       to,
@@ -695,7 +756,7 @@ async function sendLocationMessages(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 📸 Send Image Helper (WhatsApp network call)
+// 📸 Send Image Helper (performs network call to WhatsApp)
 // ---------------------------------------------
 async function sendImageMessage(to, imageUrl) {
   try {
@@ -703,9 +764,11 @@ async function sendImageMessage(to, imageUrl) {
       `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: "whatsapp",
-        to,
+        to: to,
         type: "image",
-        image: { link: imageUrl },
+        image: {
+          link: imageUrl,
+        },
       },
       {
         headers: {
@@ -723,11 +786,54 @@ async function sendImageMessage(to, imageUrl) {
 }
 
 // ---------------------------------------------
-// 🎁 Send Offers & Services Images (with Booking Buttons)
+// 📝 Send Interactive Message with Buttons
+// ---------------------------------------------
+async function sendInteractiveMessage(to, message, buttons, language = "ar") {
+  try {
+    const buttonComponents = buttons.map((button, index) => ({
+      type: "reply",
+      reply: {
+        id: `btn_${index + 1}`,
+        title: button.title,
+      },
+    }));
+
+    await axios.post(
+      `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: to,
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: {
+            text: message,
+          },
+          action: {
+            buttons: buttonComponents,
+          },
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  } catch (err) {
+    console.error(
+      "❌ Failed to send interactive message:",
+      err.response?.data || err.message
+    );
+  }
+}
+
+// ---------------------------------------------
+// 🎁 Send Offers & Services Images with Booking Buttons
 // ---------------------------------------------
 async function sendOffersImages(to, language = "ar") {
   try {
-    // Intro message
     if (language === "en") {
       await sendTextMessage(to, "💊 Here are our offers and services:");
     } else {
@@ -736,70 +842,48 @@ async function sendOffersImages(to, language = "ar") {
 
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Loop through offers
+    // Send each offer image
     for (let i = 0; i < OFFER_IMAGES.length; i++) {
-      // Send the offer image
       await sendImageMessage(to, OFFER_IMAGES[i]);
+
+      // Small delay between image and button
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      // Send booking button message right after image
-      const bookingUrl = process.env.BOOKING_LINK || CLINIC_LOCATION_LINK;
-      const buttonText =
-        language === "en" ? "📅 Book Appointment" : "📅 احجز موعد";
-      const buttonBody =
-        language === "en"
-          ? "Tap below to book your appointment now 👇"
-          : "اضغط الزر بالأسفل لحجز موعدك الآن 👇";
-
-      try {
-        await axios.post(
-          `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`,
-          {
-            messaging_product: "whatsapp",
-            to,
-            type: "interactive",
-            interactive: {
-              type: "button",
-              body: { text: buttonBody },
-              action: {
-                buttons: [
-                  {
-                    type: "url",
-                    url: bookingUrl,
-                    title: buttonText,
-                  },
-                ],
-              },
-            },
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-              "Content-Type": "application/json",
-            },
-          }
+      // Send booking button after each image
+      if (language === "en") {
+        await sendInteractiveMessage(
+          to,
+          `Would you like to book this service? 📅`,
+          [{ title: "📅 Book Now" }, { title: "💬 More Info" }],
+          language
         );
-      } catch (err) {
-        console.error("❌ Failed to send booking button:", err.message);
+      } else {
+        await sendInteractiveMessage(
+          to,
+          `هل ترغب في حجز هذه الخدمة؟ 📅`,
+          [{ title: "📅 احجز الآن" }, { title: "💬 مزيد من المعلومات" }],
+          language
+        );
       }
 
-      // Delay between each offer
+      // Delay before next image
       if (i < OFFER_IMAGES.length - 1) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
-    // Final message
     await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Final message
     if (language === "en") {
       await sendTextMessage(
         to,
-        "✨ For more details or to book an appointment, tap any button above!"
+        "✨ For more details or to book an appointment, just let me know! You can also click 'Book Now' buttons above to quickly book any service."
       );
     } else {
       await sendTextMessage(
         to,
-        "✨ لمزيد من التفاصيل أو لحجز موعد، اضغط أي زر أعلاه!"
+        "✨ لمزيد من التفاصيل أو لحجز موعد، أخبرني فقط! يمكنك أيضاً الضغط على أزرار 'احجز الآن' أعلاه لحجز أي خدمة بسرعة."
       );
     }
   } catch (err) {
@@ -808,7 +892,7 @@ async function sendOffersImages(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Send Doctors Images
+// 👨‍⚕️ Send Doctors Images with Booking Buttons
 // ---------------------------------------------
 async function sendDoctorsImages(to, language = "ar") {
   try {
@@ -820,29 +904,55 @@ async function sendDoctorsImages(to, language = "ar") {
 
     await new Promise((resolve) => setTimeout(resolve, 500));
 
+    // Send each doctor image
     for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
       await sendImageMessage(to, DOCTOR_IMAGES[i]);
+
+      // Small delay between image and button
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Send booking button after each doctor image
+      if (language === "en") {
+        await sendInteractiveMessage(
+          to,
+          `Would you like to book an appointment with this doctor? 🩺`,
+          [{ title: "📅 Book Doctor" }, { title: "💬 Doctor Info" }],
+          language
+        );
+      } else {
+        await sendInteractiveMessage(
+          to,
+          `هل ترغب في حجز موعد مع هذا الطبيب؟ 🩺`,
+          [{ title: "📅 احجز مع الطبيب" }, { title: "💬 معلومات الطبيب" }],
+          language
+        );
+      }
+
+      // Delay before next image
       if (i < DOCTOR_IMAGES.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
     await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Final message
     if (language === "en") {
       await sendTextMessage(
         to,
-        "✨ Our experienced doctors are here to provide you with the best care! To book an appointment, just tap the booking button above 😊"
+        "✨ Our experienced doctors are here to provide you with the best care! To book an appointment, just let us know or click the 'Book Doctor' buttons above 😊"
       );
     } else {
       await sendTextMessage(
         to,
-        "✨ أطباؤنا ذوو الخبرة هنا لتقديم أفضل رعاية لك! لحجز موعد، فقط اضغط زر الحجز أعلاه 😊"
+        "✨ أطباؤنا ذوو الخبرة هنا لتقديم أفضل رعاية لك! لحجز موعد، فقط أخبرنا أو اضغط على أزرار 'احجز مع الطبيب' أعلاه 😊"
       );
     }
   } catch (err) {
     console.error("❌ Failed to send doctors images:", err.message || err);
   }
 }
+
 // ---------------------------------------------
 // 🧠 Voice Transcription Helper (using Groq Whisper)
 // ---------------------------------------------
@@ -850,7 +960,6 @@ async function transcribeAudio(mediaId) {
   try {
     console.log("🎙️ Starting transcription for media ID:", mediaId);
 
-    // Get WhatsApp media URL
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
       {
@@ -863,10 +972,11 @@ async function transcribeAudio(mediaId) {
     const mediaUrl = mediaUrlResponse.data.url;
     if (!mediaUrl) return null;
 
-    // Fetch the actual audio file
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
-      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+      },
     });
 
     const form = new FormData();
@@ -878,7 +988,6 @@ async function transcribeAudio(mediaId) {
     form.append("language", "ar");
     form.append("response_format", "json");
 
-    // Send to Groq Whisper API
     const result = await axios.post(
       "https://api.groq.com/openai/v1/audio/transcriptions",
       form,
@@ -890,7 +999,6 @@ async function transcribeAudio(mediaId) {
       }
     );
 
-    console.log("✅ Transcription complete");
     return result.data.text;
   } catch (err) {
     console.error(
@@ -905,23 +1013,19 @@ async function transcribeAudio(mediaId) {
 // Exports
 // ---------------------------------------------
 module.exports = {
-  // Detection
   isLocationRequest,
   isOffersRequest,
   isDoctorsRequest,
   isBookingRequest,
   isEnglish,
   containsBanWords,
-  isGreeting,
-  getGreeting,
-
-  // Responses
   sendBanWordsResponse,
   sendLocationMessages,
   sendOffersImages,
   sendDoctorsImages,
   sendImageMessage,
-
-  // Voice
+  sendInteractiveMessage,
   transcribeAudio,
+  isGreeting,
+  getGreeting,
 };
