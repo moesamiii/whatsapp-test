@@ -20,31 +20,84 @@ function delay(ms) {
 }
 
 // ---------------------------------------------
+// 📱 Send Booking Start Button
+// ---------------------------------------------
+async function sendBookingStartButton(to, language = "ar") {
+  try {
+    console.log(`📤 DEBUG => Sending booking start button to ${to}`);
+
+    const bodyText =
+      language === "en"
+        ? "📅 Ready to book your appointment? Click the button below to start!"
+        : "📅 جاهز لحجز موعدك؟ اضغط على الزر بالأسفل للبدء!";
+
+    const buttonText = language === "en" ? "Start Booking" : "بدء الحجز";
+
+    await axios.post(
+      `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: {
+            text: bodyText,
+          },
+          action: {
+            buttons: [
+              {
+                type: "reply",
+                reply: {
+                  id: "start_booking_flow",
+                  title: buttonText,
+                },
+              },
+            ],
+          },
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("✅ DEBUG => Booking start button sent successfully");
+  } catch (err) {
+    console.error("❌ DEBUG => Error sending booking button:", err.message);
+    // Fallback to text message
+    await sendTextMessage(
+      to,
+      language === "en"
+        ? "📅 Ready to book your appointment? Let's start!"
+        : "📅 جاهز لحجز موعدك؟ لنبدأ!"
+    );
+    await delay(600);
+    await sendServiceList(to);
+  }
+}
+
+// ---------------------------------------------
 // 📅 Start booking flow (entry point)
 // ---------------------------------------------
 async function sendStartBookingButton(to, language = "ar") {
   try {
     console.log(`📤 DEBUG => Sending start booking intro to ${to}`);
 
-    const text =
-      language === "en"
-        ? "📅 Ready to book your appointment? Let's start!"
-        : "📅 جاهز لحجز موعدك؟ لنبدأ!";
+    // Send the booking start button instead of directly starting the flow
+    await sendBookingStartButton(to, language);
 
-    await sendTextMessage(to, text);
-    await delay(600);
-
-    // Directly show service list (no buttons)
-    await sendServiceList(to);
-
-    console.log("✅ DEBUG => Booking flow started successfully");
+    console.log("✅ DEBUG => Booking start button sent successfully");
   } catch (err) {
     console.error("❌ DEBUG => Error starting booking:", err.message);
   }
 }
 
 // ---------------------------------------------
-// 🎁 Send Offers (auto booking prompt)
+// 🎁 Send Offers (with booking button)
 // ---------------------------------------------
 async function sendOffersImages(to, language = "ar") {
   try {
@@ -66,28 +119,28 @@ async function sendOffersImages(to, language = "ar") {
       if (i < OFFER_IMAGES.length - 1) await delay(900);
     }
 
-    // Step 3: Invite to booking (without button)
+    // Step 3: Invite to booking WITH button
     await delay(800);
     await sendTextMessage(
       to,
       language === "en"
-        ? "✨ Would you like to book an appointment for one of these offers? Let’s start!"
-        : "✨ هل ترغب بحجز موعد لأحد هذه العروض؟ لنبدأ الآن!"
+        ? "✨ Would you like to book an appointment for one of these offers?"
+        : "✨ هل ترغب بحجز موعد لأحد هذه العروض؟"
     );
 
     await delay(800);
-    await sendServiceList(to);
 
-    console.log(
-      "✅ Offers flow completed — booking flow started automatically."
-    );
+    // Send booking start button instead of directly starting the flow
+    await sendBookingStartButton(to, language);
+
+    console.log("✅ Offers flow completed — booking button shown.");
   } catch (err) {
     console.error("❌ DEBUG => Error in offers flow:", err.message);
   }
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Send Doctors & Booking Flow
+// 👨‍⚕️ Send Doctors & Booking Flow (with button)
 // ---------------------------------------------
 async function sendDoctorsImages(to, language = "ar") {
   try {
@@ -109,33 +162,48 @@ async function sendDoctorsImages(to, language = "ar") {
       if (i < DOCTOR_IMAGES.length - 1) await delay(900);
     }
 
-    // Step 3: Smooth transition into booking
+    // Step 3: Invite to booking WITH button
     await delay(1000);
     await sendTextMessage(
       to,
       language === "en"
-        ? "✨ Would you like to book an appointment with one of our doctors? Let's start!"
-        : "✨ هل ترغب بحجز موعد مع أحد أطبائنا؟ لنبدأ!"
+        ? "✨ Would you like to book an appointment with one of our doctors?"
+        : "✨ هل ترغب بحجز موعد مع أحد أطبائنا؟"
     );
 
     await delay(700);
-    await sendServiceList(to);
 
-    console.log(
-      "✅ Doctors flow completed — booking flow initiated automatically."
-    );
+    // Send booking start button instead of directly starting the flow
+    await sendBookingStartButton(to, language);
+
+    console.log("✅ Doctors flow completed — booking button shown.");
   } catch (err) {
     console.error("❌ DEBUG => Error in doctors flow:", err.message);
   }
 }
 
 // ---------------------------------------------
-// 🧾 Handle booking interaction (fallback entry)
+// 🧾 Handle booking interaction (when button is clicked)
 // ---------------------------------------------
 async function handleBookingFlow(to, userData = {}, language = "ar") {
   try {
-    console.log(`📥 DEBUG => Booking flow triggered for ${to}`);
+    console.log(
+      `📥 DEBUG => Booking flow triggered for ${to} (button clicked)`
+    );
+
+    // Send confirmation message
+    await sendTextMessage(
+      to,
+      language === "en"
+        ? "🎉 Great! Let's book your appointment. Please choose a service:"
+        : "🎉 ممتاز! لنحجز موعدك. يرجى اختيار الخدمة:"
+    );
+
+    await delay(600);
+
+    // Start the service selection
     await sendServiceList(to);
+
     console.log("✅ Booking flow initiated — awaiting service selection.");
   } catch (err) {
     console.error("❌ DEBUG => Failed to handle booking flow:", err.message);
@@ -150,4 +218,5 @@ module.exports = {
   sendDoctorsImages,
   handleBookingFlow,
   sendStartBookingButton,
+  sendBookingStartButton,
 };
