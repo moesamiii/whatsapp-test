@@ -7,7 +7,7 @@
  * - Includes full booking integration (Book Appointment button ➜ services ➜ time).
  */
 
-const axios = require("axios"); // ✅ Add axios import
+const axios = require("axios");
 const {
   sendTextMessage,
   sendAppointmentButtons,
@@ -15,7 +15,7 @@ const {
   saveBooking,
 } = require("./helpers");
 const { OFFER_IMAGES, DOCTOR_IMAGES } = require("./mediaAssets");
-const { sendImageMessage } = require("./messageHandlers"); // unified import
+const { sendImageMessage } = require("./messageHandlers");
 
 // ---------------------------------------------
 // ⏱️ Helper: delay
@@ -41,7 +41,6 @@ async function sendStartBookingButton(to, language = "ar") {
         ? "Click below to start booking 👇"
         : "اضغط أدناه لبدء عملية الحجز 👇";
 
-    // Send an interactive button for booking
     await axios.post(
       `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
       {
@@ -82,7 +81,7 @@ async function sendStartBookingButton(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 🎁 Send Offers & Booking Flow (UPDATED WITH BOOKING BUTTON)
+// 🎁 Send Offers & Booking Flow (WITH "احجز" BUTTON)
 // ---------------------------------------------
 async function sendOffersImages(to, language = "ar") {
   try {
@@ -106,7 +105,7 @@ async function sendOffersImages(to, language = "ar") {
 
     await delay(800);
 
-    // Step 3: Send booking button directly (احجز)
+    // Step 3: Send "احجز" booking button directly
     console.log(`📤 DEBUG => Sending 'احجز' booking button to ${to}`);
 
     await axios.post(
@@ -151,7 +150,7 @@ async function sendOffersImages(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Send Doctors & Booking Flow
+// 👨‍⚕️ Send Doctors & Booking Flow (WITH "احجز" BUTTON)
 // ---------------------------------------------
 async function sendDoctorsImages(to, language = "ar") {
   try {
@@ -175,7 +174,7 @@ async function sendDoctorsImages(to, language = "ar") {
 
     await delay(600);
 
-    // Step 3: Send booking button directly (احجز)
+    // Step 3: Send "احجز" booking button directly
     console.log(`📤 DEBUG => Sending 'احجز' booking button to ${to}`);
 
     await axios.post(
@@ -228,12 +227,11 @@ async function handleBookingFlow(to, userData = {}, language = "ar") {
   try {
     console.log(`📥 DEBUG => Booking flow started for ${to}`);
 
-    // Step 1: Send service list (dropdown)
+    // Send service list (dropdown)
     await sendServiceList(to);
 
-    // Note: Don't send appointment buttons here yet!
-    // Wait for user to select service first, then send appointment buttons
-    // Your webhook will handle the flow step by step
+    // Note: Appointment buttons will be sent AFTER user selects a service
+    // Your webhook should handle the service selection and then call sendAppointmentButtons
 
     console.log("✅ Booking flow initiated (waiting for service selection)");
   } catch (err) {
