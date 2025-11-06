@@ -420,24 +420,40 @@
               .in("status", ["Still", "SentNoReply"]);
 
             if (error) {
+              console.error("❌ خطأ في جلب الحجوزات:", error);
               alert("❌ خطأ في جلب الحجوزات: " + error.message);
               return;
             }
 
-            if (!data.length) {
+            if (!data || data.length === 0) {
               alert("✅ لا يوجد عملاء بحاجة لتذكير خلال الشهر الماضي.");
               return;
             }
 
-            // 2️⃣ Loop through and send WhatsApp reminders
             alert(`📬 سيتم إرسال ${data.length} تذكير للعملاء.`);
-            for (const booking of data) {
+
+            // 2️⃣ Loop through and send WhatsApp reminders sequentially
+            for (const [index, booking] of data.entries()) {
+              // 🧩 Validate required fields
+              if (!booking.phone) {
+                console.warn(
+                  `⚠️ تم تجاوز سجل بدون رقم هاتف: ${booking.name || "بدون اسم"}`
+                );
+                continue;
+              }
+
               const payload = {
-                name: booking.name || "عميلنا الكريم",
-                phone: booking.phone,
+                name:
+                  booking.name && booking.name.trim() !== ""
+                    ? booking.name
+                    : "عميلنا الكريم",
+                phone: booking.phone.toString().replace(/\s+/g, ""), // remove spaces
                 service: booking.service || "خدمة غير محددة",
-                appointment: booking.appointment || "",
+                appointment: booking.appointment || "موعد غير محدد",
+                image: null,
               };
+
+              console.log(`📤 إرسال تذكير رقم ${index + 1}:`, payload);
 
               try {
                 const res = await fetch(
@@ -451,23 +467,30 @@
 
                 const result = await res.json();
 
-                if (result.success) {
+                if (res.ok && result.success) {
                   console.log(
-                    `✅ تم إرسال تذكير إلى ${booking.name} (${booking.phone})`
+                    `✅ تم إرسال تذكير إلى ${payload.name} (${payload.phone})`
                   );
-                  // 3️⃣ Update status if needed
+                  // 3️⃣ Update status in Supabase
                   await supabase
                     .from("bookings")
                     .update({ status: "SentNoReply" })
                     .eq("id", booking.id);
                 } else {
                   console.warn(
-                    `⚠️ فشل الإرسال لـ ${booking.name}: ${result.message}`
+                    `⚠️ فشل الإرسال لـ ${payload.name}:`,
+                    result.error || result.message
                   );
                 }
               } catch (err) {
-                console.error("❌ خطأ في إرسال التذكير:", err);
+                console.error(
+                  `❌ خطأ في إرسال التذكير للعميل ${payload.name}:`,
+                  err
+                );
               }
+
+              // ⏱ تأخير بسيط بين الرسائل (لتجنب حظر API)
+              await new Promise((resolve) => setTimeout(resolve, 1500));
             }
 
             alert("✅ تم الانتهاء من إرسال كل التذكيرات بنجاح!");
