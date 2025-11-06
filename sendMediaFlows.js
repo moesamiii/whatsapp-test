@@ -81,23 +81,23 @@ async function sendStartBookingButton(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 🎁 Send Offers & Booking Flow (WITH "احجز" BUTTON)
+// 🎁 Send Offers & Start Booking (auto after images)
 // ---------------------------------------------
 async function sendOffersImages(to, language = "ar") {
   try {
     console.log(`📤 DEBUG => Sending offers & booking flow to ${to}...`);
 
-    // Step 1: Send intro message
+    // Step 1: Intro message
     await sendTextMessage(
       to,
       language === "en"
-        ? "💊 Here are our offers and services:"
+        ? "💊 Here are our current offers and services:"
         : "💊 هذه عروضنا وخدماتنا الحالية:"
     );
 
     await delay(500);
 
-    // Step 2: Send offers images
+    // Step 2: Send offer images one by one
     for (let i = 0; i < OFFER_IMAGES.length; i++) {
       await sendImageMessage(to, OFFER_IMAGES[i]);
       if (i < OFFER_IMAGES.length - 1) await delay(800);
@@ -105,8 +105,8 @@ async function sendOffersImages(to, language = "ar") {
 
     await delay(800);
 
-    // Step 3: Send "احجز" booking button directly
-    console.log(`📤 DEBUG => Sending 'احجز' booking button to ${to}`);
+    // Step 3: Send the "Book Now" button automatically after last image
+    console.log(`📤 DEBUG => Sending 'Book Now' button after offers to ${to}`);
 
     await axios.post(
       `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
@@ -119,7 +119,7 @@ async function sendOffersImages(to, language = "ar") {
           body: {
             text:
               language === "en"
-                ? "✨ Would you like to book an appointment for one of these offers?\n\nClick below to start your booking 👇"
+                ? "✨ Would you like to book an appointment for one of these offers?\n\nClick below to start booking 👇"
                 : "✨ هل ترغب بحجز موعد لأحد هذه العروض؟\n\nاضغط أدناه لبدء الحجز 👇",
           },
           action: {
@@ -127,8 +127,8 @@ async function sendOffersImages(to, language = "ar") {
               {
                 type: "reply",
                 reply: {
-                  id: "start_booking_offers",
-                  title: language === "en" ? "Book Now" : "احجز",
+                  id: "start_booking_auto",
+                  title: language === "en" ? "Book Now" : "احجز الآن",
                 },
               },
             ],
@@ -143,7 +143,9 @@ async function sendOffersImages(to, language = "ar") {
       }
     );
 
-    console.log("✅ Offers flow with 'احجز' booking button sent successfully.");
+    console.log(
+      "✅ Offers flow completed — booking button shown automatically."
+    );
   } catch (err) {
     console.error("❌ DEBUG => Error in offers flow:", err.message);
   }
