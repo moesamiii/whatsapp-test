@@ -27,7 +27,11 @@
 
 const axios = require("axios");
 const FormData = require("form-data");
-const { sendTextMessage } = require("./helpers");
+const {
+  sendTextMessage,
+  sendServiceList,
+  sendAppointmentButtons,
+} = require("./helpers");
 const crypto = require("crypto");
 
 // Import static media assets from mediaAssets.js
@@ -793,7 +797,7 @@ async function sendInteractiveMessage(to, message, buttons, language = "ar") {
     const buttonComponents = buttons.map((button, index) => ({
       type: "reply",
       reply: {
-        id: `btn_${index + 1}`,
+        id: button.id || `btn_${index + 1}`,
         title: button.title,
       },
     }));
@@ -854,14 +858,20 @@ async function sendOffersImages(to, language = "ar") {
         await sendInteractiveMessage(
           to,
           `Would you like to book this service? 📅`,
-          [{ title: "📅 Book Now" }, { title: "💬 More Info" }],
+          [
+            { id: "book_service", title: "📅 Book Now" },
+            { id: "more_info", title: "💬 More Info" },
+          ],
           language
         );
       } else {
         await sendInteractiveMessage(
           to,
           `هل ترغب في حجز هذه الخدمة؟ 📅`,
-          [{ title: "📅 احجز الآن" }, { title: "💬 مزيد من المعلومات" }],
+          [
+            { id: "book_service", title: "📅 احجز الآن" },
+            { id: "more_info", title: "💬 مزيد من المعلومات" },
+          ],
           language
         );
       }
@@ -916,14 +926,20 @@ async function sendDoctorsImages(to, language = "ar") {
         await sendInteractiveMessage(
           to,
           `Would you like to book an appointment with this doctor? 🩺`,
-          [{ title: "📅 Book Doctor" }, { title: "💬 Doctor Info" }],
+          [
+            { id: "book_doctor", title: "📅 Book Doctor" },
+            { id: "doctor_info", title: "💬 Doctor Info" },
+          ],
           language
         );
       } else {
         await sendInteractiveMessage(
           to,
           `هل ترغب في حجز موعد مع هذا الطبيب؟ 🩺`,
-          [{ title: "📅 احجز مع الطبيب" }, { title: "💬 معلومات الطبيب" }],
+          [
+            { id: "book_doctor", title: "📅 احجز مع الطبيب" },
+            { id: "doctor_info", title: "💬 معلومات الطبيب" },
+          ],
           language
         );
       }
@@ -950,6 +966,29 @@ async function sendDoctorsImages(to, language = "ar") {
     }
   } catch (err) {
     console.error("❌ Failed to send doctors images:", err.message || err);
+  }
+}
+
+// ---------------------------------------------
+// 📅 Start Booking Flow
+// ---------------------------------------------
+async function startBookingFlow(to, language = "ar") {
+  try {
+    if (language === "en") {
+      await sendTextMessage(
+        to,
+        "📅 Great! Let's book your appointment. First, please choose the service you need:"
+      );
+      await sendServiceList(to);
+    } else {
+      await sendTextMessage(
+        to,
+        "📅 ممتاز! دعنا نحجز موعدك. أولاً، اختر الخدمة المطلوبة:"
+      );
+      await sendServiceList(to);
+    }
+  } catch (err) {
+    console.error("❌ Failed to start booking flow:", err.message);
   }
 }
 
@@ -1028,4 +1067,5 @@ module.exports = {
   transcribeAudio,
   isGreeting,
   getGreeting,
+  startBookingFlow,
 };
