@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>قائمة التواصل - Smile Clinic</title>
+
+    <link rel="icon" type="image/png" href="./img/dummy-conan.jpeg" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="./dashboard.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+      @media (min-width: 1024px) {
+        .dashboard-grid {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+        }
+        .table-card {
+          width: 100% !important;
+          max-width: none !important;
+          margin: 0;
+        }
+      }
+
+      input,
+      button {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+      }
+
+      body.dark input {
+        background: #333;
+        color: #fff;
+        border-color: #555;
+      }
+
+      .add-contact-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+        align-items: center;
+      }
+
+      .add-contact-form input {
+        flex: 1 1 200px;
+      }
+
+      .add-contact-form button {
+        background: #7c3aed;
+        color: white;
+        border: none;
+        cursor: pointer;
+        padding: 8px 16px;
+      }
+
+      .success-msg {
+        color: green;
+        margin-top: 10px;
+        display: none;
+      }
+
+      .error-msg {
+        color: red;
+        margin-top: 10px;
+        display: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <!-- SIDEBAR -->
+      <aside class="sidebar" id="sidebar">
+        <div class="logo"><span>CONAN DASHBOARD</span></div>
+        <nav class="menu">
+          <a href="dashboard.html"
+            ><i class="fa-solid fa-gauge"></i> لوحة القيادة</a
+          >
+          <a href="notifications.html"
+            ><i class="fa-solid fa-bell"></i> التنبيهات</a
+          >
+          <a href="analytics.html"
+            ><i class="fa-solid fa-rocket"></i> تحليلات</a
+          >
+          <a href="booking.html"
+            ><i class="fa-solid fa-table"></i> جدول الحجوزات</a
+          >
+          <a href="contactlist.html" class="active"
+            ><i class="fa-solid fa-address-book"></i> قائمة التواصل</a
+          >
+          <a href="AIsettings.html"
+            ><i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي</a
+          >
+          <a href="offers.html"
+            ><i class="fa-solid fa-gift"></i> الحملات الاعلانية</a
+          >
+        </nav>
+      </aside>
+
+      <!-- MAIN -->
+      <main class="main-content" id="dashboardContent">
+        <header class="header">
+          <div class="header-left">
+            <button class="menu-toggle icon-btn" id="menuToggle">
+              <i class="fa-solid fa-bars"></i>
+            </button>
+            <h1>قائمة التواصل</h1>
+          </div>
+          <div class="header-right">
+            <button class="icon-btn" id="themeToggle">
+              <i class="fa-regular fa-moon"></i>
+            </button>
+          </div>
+        </header>
+
+        <section class="dashboard-grid">
+          <div class="table-card">
+            <h3>إدارة قائمة التواصل</h3>
+
+            <!-- ✅ Add new contact form -->
+            <div class="add-contact-form">
+              <input type="text" id="contactName" placeholder="الاسم" />
+              <input type="text" id="contactPhone" placeholder="رقم الهاتف" />
+              <button id="addContactBtn">
+                <i class="fa-solid fa-plus"></i> إضافة جهة اتصال
+              </button>
+            </div>
+            <p class="success-msg" id="successMsg">
+              ✅ تم إضافة جهة الاتصال بنجاح
+            </p>
+            <p class="error-msg" id="errorMsg">❌ حدث خطأ أثناء الإضافة</p>
+
+            <table id="contactTable">
+              <thead>
+                <tr>
+                  <th>الاسم</th>
+                  <th>الهاتف</th>
+                  <th>تاريخ الإضافة</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer>© 2025 Smile Clinic</footer>
+      </main>
+    </div>
+
+    <script>
+      // ✅ Supabase setup
+      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      let contacts = [];
+
+      // ✅ Load contacts (from bookings + contact_list)
+      async function loadContacts() {
+        const { data: bookingData, error: bookingError } = await supabase
+          .from("bookings")
+          .select("name, phone");
+
+        const { data: contactData, error: contactError } = await supabase
+          .from("contact_list")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (bookingError || contactError) {
+          console.error("Error loading data:", bookingError || contactError);
+          return;
+        }
+
+        // Merge bookings + saved contacts, filter duplicates
+        const combined = [...(bookingData || []), ...(contactData || [])];
+        const unique = [];
+        const seen = new Set();
+
+        combined.forEach((c) => {
+          if (!c.phone || seen.has(c.phone)) return;
+          seen.add(c.phone);
+          unique.push({
+            name: c.name || "بدون اسم",
+            phone: c.phone,
+            created_at: c.created_at || new Date().toISOString(),
+          });
+        });
+
+        contacts = unique;
+        renderContacts();
+      }
+
+      // ✅ Add new contact
+      async function addContact() {
+        const name = document.getElementById("contactName").value.trim();
+        const phone = document.getElementById("contactPhone").value.trim();
+        const successMsg = document.getElementById("successMsg");
+        const errorMsg = document.getElementById("errorMsg");
+
+        successMsg.style.display = "none";
+        errorMsg.style.display = "none";
+
+        if (!name || !phone) {
+          errorMsg.textContent = "⚠️ الرجاء إدخال الاسم ورقم الهاتف";
+          errorMsg.style.display = "block";
+          return;
+        }
+
+        const { error } = await supabase
+          .from("contact_list")
+          .insert([{ name, phone }]);
+
+        if (error) {
+          console.error("Error inserting contact:", error);
+          errorMsg.textContent = "❌ حدث خطأ أثناء الإضافة";
+          errorMsg.style.display = "block";
+        } else {
+          successMsg.style.display = "block";
+          document.getElementById("contactName").value = "";
+          document.getElementById("contactPhone").value = "";
+          loadContacts();
+          setTimeout(() => (successMsg.style.display = "none"), 2000);
+        }
+      }
+
+      // ✅ Render table
+      function renderContacts() {
+        const tbody = document.querySelector("#contactTable tbody");
+        tbody.innerHTML = "";
+
+        if (!contacts.length) {
+          tbody.innerHTML = "<tr><td colspan='3'>لا توجد بيانات</td></tr>";
+          return;
+        }
+
+        contacts.forEach((c) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${c.name}</td>
+            <td>${c.phone}</td>
+            <td>${new Date(c.created_at).toLocaleString("ar-EG")}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      // ✅ Theme toggle
+      const themeToggle = document.getElementById("themeToggle");
+      themeToggle.addEventListener("click", () => {
+        document.body.classList.toggle("dark");
+        const icon = themeToggle.querySelector("i");
+        if (document.body.classList.contains("dark")) {
+          icon.classList.replace("fa-moon", "fa-sun");
+          localStorage.setItem("clinic_theme", "dark");
+        } else {
+          icon.classList.replace("fa-sun", "fa-moon");
+          localStorage.setItem("clinic_theme", "light");
+        }
+      });
+      if (localStorage.getItem("clinic_theme") === "dark") {
+        document.body.classList.add("dark");
+        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
+      }
+
+      // ✅ Sidebar toggle
+      const menuToggle = document.getElementById("menuToggle");
+      const sidebar = document.getElementById("sidebar");
+      menuToggle.addEventListener("click", () =>
+        sidebar.classList.toggle("active")
+      );
+
+      // ✅ Add contact listener
+      document
+        .getElementById("addContactBtn")
+        .addEventListener("click", addContact);
+
+      // ✅ Initial load + auto refresh
+      loadContacts();
+      setInterval(loadContacts, 20000);
+    </script>
+  </body>
+</html>

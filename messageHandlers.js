@@ -6,7 +6,6 @@
  * - Detect inappropriate content (ban words).
  * - Provide message-sending flows that use media assets (location link, offer images, doctor images).
  * - Perform transcription of audio using Groq Whisper integration.
- * - Handle booking flow with interactive buttons
  *
  * Responsibilities kept here:
  * - Detection helpers: isLocationRequest, isOffersRequest, isDoctorsRequest, isEnglish, containsBanWords
@@ -15,7 +14,6 @@
  * - sendBanWordsResponse: handles inappropriate content gracefully with 10 random responses
  * - sendImageMessage: performs the network request to WhatsApp API (requires WHATSAPP_TOKEN)
  * - transcribeAudio: fetches media from WhatsApp and posts to Groq Whisper
- * - Booking flow: handleInteractiveMessage, handleBookingFlow, completeBooking
  *
  * Moved to mediaAssets.js:
  * - CLINIC_NAME
@@ -29,12 +27,7 @@
 
 const axios = require("axios");
 const FormData = require("form-data");
-const {
-  sendTextMessage,
-  sendServiceList,
-  sendAppointmentButtons,
-  saveBooking,
-} = require("./helpers");
+const { sendTextMessage } = require("./helpers");
 const crypto = require("crypto");
 
 // Import static media assets from mediaAssets.js
@@ -50,12 +43,6 @@ const {
 // ---------------------------------------------
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-
-// ---------------------------------------------
-// 🧠 User Sessions for Booking Flow
-// ---------------------------------------------
-const userSessions = new Map();
-
 // ---------------------------------------------
 // 👋 Greeting Detector and Random Response
 // ---------------------------------------------
@@ -79,7 +66,7 @@ function getGreeting(isEnglish = false) {
     "Hey! 👋 Glad to see you at *Ibtisama Clinic*! What can I do for you today?",
     "✨ Hello and welcome to *Ibtisama Clinic*! Are you interested in our offers or booking a visit?",
     "Good day! 💚 How can I assist you with your dental or beauty needs today?",
-    "😊 Hi! You've reached *Ibtisama Clinic*, your smile is our priority!",
+    "😊 Hi! You’ve reached *Ibtisama Clinic*, your smile is our priority!",
     "👋 Hello there! Would you like to see our latest offers or book an appointment?",
     "Welcome! 🌸 How can I help you take care of your smile today?",
     "💬 Hi! How can I help you find the right service or offer at *Ibtisama Clinic*?",
@@ -580,6 +567,9 @@ function isLocationRequest(text = "") {
 }
 
 // ---------------------------------------------
+// 🎁 Offers & Services Detection Helper
+// ---------------------------------------------
+// ---------------------------------------------
 // 🎁 Offers & Services Detection Helper (Expanded for Saudi Dialect)
 // ---------------------------------------------
 function isOffersRequest(text = "") {
@@ -799,51 +789,7 @@ async function sendImageMessage(to, imageUrl) {
 }
 
 // ---------------------------------------------
-// 📝 Send Interactive Message with Buttons
-// ---------------------------------------------
-async function sendInteractiveMessage(to, message, buttons, language = "ar") {
-  try {
-    const buttonComponents = buttons.map((button, index) => ({
-      type: "reply",
-      reply: {
-        id: button.id || `btn_${index + 1}`,
-        title: button.title,
-      },
-    }));
-
-    await axios.post(
-      `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: to,
-        type: "interactive",
-        interactive: {
-          type: "button",
-          body: {
-            text: message,
-          },
-          action: {
-            buttons: buttonComponents,
-          },
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-  } catch (err) {
-    console.error(
-      "❌ Failed to send interactive message:",
-      err.response?.data || err.message
-    );
-  }
-}
-
-// ---------------------------------------------
-// 🎁 Send Offers & Services Images with Booking Buttons
+// 🎁 Send Offers & Services Images (uses OFFER_IMAGES from mediaAssets)
 // ---------------------------------------------
 async function sendOffersImages(to, language = "ar") {
   try {
@@ -855,54 +801,23 @@ async function sendOffersImages(to, language = "ar") {
 
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Send each offer image
     for (let i = 0; i < OFFER_IMAGES.length; i++) {
       await sendImageMessage(to, OFFER_IMAGES[i]);
-
-      // Small delay between image and button
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Send booking button after each image
-      if (language === "en") {
-        await sendInteractiveMessage(
-          to,
-          `Would you like to book this service? 📅`,
-          [
-            { id: "book_service", title: "📅 Book Now" },
-            { id: "more_info", title: "💬 More Info" },
-          ],
-          language
-        );
-      } else {
-        await sendInteractiveMessage(
-          to,
-          `هل ترغب في حجز هذه الخدمة؟ 📅`,
-          [
-            { id: "book_service", title: "📅 احجز الآن" },
-            { id: "more_info", title: "💬 مزيد من المعلومات" },
-          ],
-          language
-        );
-      }
-
-      // Delay before next image
       if (i < OFFER_IMAGES.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 800));
       }
     }
 
     await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Final message
     if (language === "en") {
       await sendTextMessage(
         to,
-        "✨ For more details or to book an appointment, just let me know! You can also click 'Book Now' buttons above to quickly book any service."
+        "✨ For more details or to book an appointment, just let me know!"
       );
     } else {
       await sendTextMessage(
         to,
-        "✨ لمزيد من التفاصيل أو لحجز موعد، أخبرني فقط! يمكنك أيضاً الضغط على أزرار 'احجز الآن' أعلاه لحجز أي خدمة بسرعة."
+        "✨ لمزيد من التفاصيل أو لحجز موعد، أخبرني فقط!"
       );
     }
   } catch (err) {
@@ -911,7 +826,7 @@ async function sendOffersImages(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Send Doctors Images with Booking Buttons
+// 👨‍⚕️ Send Doctors Images (uses DOCTOR_IMAGES from mediaAssets)
 // ---------------------------------------------
 async function sendDoctorsImages(to, language = "ar") {
   try {
@@ -923,278 +838,27 @@ async function sendDoctorsImages(to, language = "ar") {
 
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Send each doctor image
     for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
       await sendImageMessage(to, DOCTOR_IMAGES[i]);
-
-      // Small delay between image and button
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Send booking button after each doctor image
-      if (language === "en") {
-        await sendInteractiveMessage(
-          to,
-          `Would you like to book an appointment with this doctor? 🩺`,
-          [
-            { id: "book_doctor", title: "📅 Book Doctor" },
-            { id: "doctor_info", title: "💬 Doctor Info" },
-          ],
-          language
-        );
-      } else {
-        await sendInteractiveMessage(
-          to,
-          `هل ترغب في حجز موعد مع هذا الطبيب؟ 🩺`,
-          [
-            { id: "book_doctor", title: "📅 احجز مع الطبيب" },
-            { id: "doctor_info", title: "💬 معلومات الطبيب" },
-          ],
-          language
-        );
-      }
-
-      // Delay before next image
       if (i < DOCTOR_IMAGES.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 800));
       }
     }
 
     await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Final message
     if (language === "en") {
       await sendTextMessage(
         to,
-        "✨ Our experienced doctors are here to provide you with the best care! To book an appointment, just let us know or click the 'Book Doctor' buttons above 😊"
+        "✨ Our experienced doctors are here to provide you with the best care! To book an appointment, just let us know 😊"
       );
     } else {
       await sendTextMessage(
         to,
-        "✨ أطباؤنا ذوو الخبرة هنا لتقديم أفضل رعاية لك! لحجز موعد، فقط أخبرنا أو اضغط على أزرار 'احجز مع الطبيب' أعلاه 😊"
+        "✨ أطباؤنا ذوو الخبرة هنا لتقديم أفضل رعاية لك! لحجز موعد، فقط أخبرنا 😊"
       );
     }
   } catch (err) {
     console.error("❌ Failed to send doctors images:", err.message || err);
-  }
-}
-
-// ---------------------------------------------
-// 📅 Start Booking Flow
-// ---------------------------------------------
-async function startBookingFlow(to, language = "ar") {
-  try {
-    if (language === "en") {
-      await sendTextMessage(
-        to,
-        "📅 Great! Let's book your appointment. First, please choose the service you need:"
-      );
-      await sendServiceList(to);
-    } else {
-      await sendTextMessage(
-        to,
-        "📅 ممتاز! دعنا نحجز موعدك. أولاً، اختر الخدمة المطلوبة:"
-      );
-      await sendServiceList(to);
-    }
-  } catch (err) {
-    console.error("❌ Failed to start booking flow:", err.message);
-  }
-}
-
-// ---------------------------------------------
-// 🔘 Handle Interactive Messages (Button Clicks)
-// ---------------------------------------------
-async function handleInteractiveMessage(from, interactive) {
-  const type = interactive.type;
-
-  if (type === "button_reply") {
-    const buttonId = interactive.button_reply.id;
-    console.log(`🔘 Button clicked: ${buttonId}`);
-
-    // Handle different button actions
-    switch (buttonId) {
-      case "book_service":
-      case "book_doctor":
-        await startBookingFlow(from);
-        break;
-
-      case "more_info":
-        await sendTextMessage(
-          from,
-          "ℹ️ لمزيد من المعلومات، يمكنك الاتصال بنا على: 0123456789"
-        );
-        break;
-
-      case "doctor_info":
-        await sendTextMessage(
-          from,
-          "👨‍⚕️ أطباؤنا متخصصون في طب الأسنان والتجميل مع سنوات من الخبرة."
-        );
-        break;
-
-      // Handle time slot selection
-      case "slot_3pm":
-      case "slot_6pm":
-      case "slot_9pm":
-        await handleTimeSlotSelection(from, buttonId);
-        break;
-
-      // Handle service selection from old buttons
-      default:
-        if (buttonId.startsWith("service_")) {
-          const service = buttonId.replace("service_", "").replace(/_/g, " ");
-          await handleServiceSelection(from, service);
-        }
-    }
-  } else if (type === "list_reply") {
-    const listId = interactive.list_reply.id;
-    console.log(`📋 List item selected: ${listId}`);
-
-    if (listId.startsWith("service_")) {
-      const service = listId.replace("service_", "").replace(/_/g, " ");
-      await handleServiceSelection(from, service);
-    }
-  }
-}
-
-// ---------------------------------------------
-// 🔄 Handle Service Selection in Booking Flow
-// ---------------------------------------------
-async function handleServiceSelection(from, service) {
-  userSessions.set(from, {
-    step: "service_selected",
-    service: service,
-    phone: from,
-  });
-
-  await sendTextMessage(
-    from,
-    `✅ اخترت: ${service}\n\n📝 الآن، ما هو اسمك الكامل؟`
-  );
-}
-
-// ---------------------------------------------
-// ⏰ Handle Time Slot Selection
-// ---------------------------------------------
-async function handleTimeSlotSelection(from, timeSlotId) {
-  const session = userSessions.get(from);
-  if (session && session.step === "name_provided") {
-    const timeSlot = timeSlotId.replace("slot_", "").toUpperCase();
-    session.appointment = timeSlot;
-    userSessions.set(from, session);
-
-    // Complete booking
-    await completeBooking(from);
-  } else {
-    await sendTextMessage(
-      from,
-      "❌ يرجى البدء بحجز جديد عن طريق الضغط على زر 'احجز الآن' أولاً."
-    );
-  }
-}
-
-// ---------------------------------------------
-// 🔄 Handle Booking Flow Steps
-// ---------------------------------------------
-async function handleBookingFlow(from, userText) {
-  const session = userSessions.get(from);
-
-  if (!session) {
-    userSessions.delete(from);
-    return;
-  }
-
-  switch (session.step) {
-    case "service_selected":
-      // User entered their name
-      session.name = userText;
-      session.step = "name_provided";
-      userSessions.set(from, session);
-
-      await sendTextMessage(from, `👋 شكراً ${userText}!`);
-      await sendAppointmentButtons(from);
-      break;
-
-    case "name_provided":
-      // User might type time instead of using buttons
-      if (
-        userText.includes("3") ||
-        userText.includes("3 PM") ||
-        userText.includes("3 مساءً")
-      ) {
-        session.appointment = "3 PM";
-      } else if (
-        userText.includes("6") ||
-        userText.includes("6 PM") ||
-        userText.includes("6 مساءً")
-      ) {
-        session.appointment = "6 PM";
-      } else if (
-        userText.includes("9") ||
-        userText.includes("9 PM") ||
-        userText.includes("9 مساءً")
-      ) {
-        session.appointment = "9 PM";
-      } else {
-        await sendTextMessage(
-          from,
-          "❌ يرجى اختيار وقت من الأزرار أعلاه (3 PM, 6 PM, أو 9 PM)."
-        );
-        return;
-      }
-
-      userSessions.set(from, session);
-      await completeBooking(from);
-      break;
-  }
-}
-
-// ---------------------------------------------
-// ✅ Complete Booking and Save to Google Sheets
-// ---------------------------------------------
-async function completeBooking(from) {
-  const session = userSessions.get(from);
-
-  if (session && session.name && session.service && session.appointment) {
-    try {
-      // Save to Google Sheets
-      await saveBooking({
-        name: session.name,
-        phone: session.phone,
-        service: session.service,
-        appointment: session.appointment,
-      });
-
-      // Send confirmation message
-      await sendTextMessage(
-        from,
-        `🎉 تم حجز موعدك بنجاح!\n\n` +
-          `📋 تفاصيل الحجز:\n` +
-          `👤 الاسم: ${session.name}\n` +
-          `📞 الهاتف: ${session.phone}\n` +
-          `💊 الخدمة: ${session.service}\n` +
-          `⏰ الموعد: ${session.appointment}\n\n` +
-          `📍 العنوان: ${
-            process.env.CLINIC_ADDRESS || "عيادة ابتسامة الطبية"
-          }\n\n` +
-          `نشكرك على ثقتك بنا! 🤗`
-      );
-
-      // Clear session
-      userSessions.delete(from);
-    } catch (error) {
-      console.error("❌ Booking error:", error);
-      await sendTextMessage(
-        from,
-        "❌ حدث خطأ أثناء حفظ الحجز. يرجى المحاولة مرة أخرى."
-      );
-    }
-  } else {
-    await sendTextMessage(
-      from,
-      "❌ لم تكتمل بيانات الحجز. يرجى البدء من جديد."
-    );
-    userSessions.delete(from);
   }
 }
 
@@ -1269,13 +933,7 @@ module.exports = {
   sendOffersImages,
   sendDoctorsImages,
   sendImageMessage,
-  sendInteractiveMessage,
   transcribeAudio,
   isGreeting,
   getGreeting,
-  startBookingFlow,
-  handleInteractiveMessage,
-  handleBookingFlow,
-  completeBooking,
-  userSessions, // Export for external access if needed
 };
