@@ -789,10 +789,11 @@ async function sendImageMessage(to, imageUrl) {
 }
 
 // ---------------------------------------------
-// 🎁 Send Offers & Services Images (uses OFFER_IMAGES from mediaAssets)
+// 🎁 Send Offers & Services Images (with Booking Button under each offer)
 // ---------------------------------------------
 async function sendOffersImages(to, language = "ar") {
   try {
+    // Intro message
     if (language === "en") {
       await sendTextMessage(to, "💊 Here are our offers and services:");
     } else {
@@ -801,23 +802,66 @@ async function sendOffersImages(to, language = "ar") {
 
     await new Promise((resolve) => setTimeout(resolve, 500));
 
+    // Loop through offers
     for (let i = 0; i < OFFER_IMAGES.length; i++) {
+      // Send offer image
       await sendImageMessage(to, OFFER_IMAGES[i]);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Then send a booking button message right after each image
+      const bookingUrl = process.env.BOOKING_LINK || CLINIC_LOCATION_LINK;
+      const buttonText =
+        language === "en" ? "📅 Book Appointment" : "📅 احجز موعد";
+      const buttonBody =
+        language === "en"
+          ? "Tap below to book your appointment now 👇"
+          : "اضغط الزر بالأسفل لحجز موعدك الآن 👇";
+
+      await axios.post(
+        `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`,
+        {
+          messaging_product: "whatsapp",
+          to,
+          type: "interactive",
+          interactive: {
+            type: "button",
+            body: { text: buttonBody },
+            action: {
+              buttons: [
+                {
+                  type: "url",
+                  url: bookingUrl,
+                  title: buttonText,
+                },
+              ],
+            },
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
       if (i < OFFER_IMAGES.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
+    // Final follow-up text
     await new Promise((resolve) => setTimeout(resolve, 500));
+
     if (language === "en") {
       await sendTextMessage(
         to,
-        "✨ For more details or to book an appointment, just let me know!"
+        "✨ For more details or to book an appointment, just tap any button above!"
       );
     } else {
       await sendTextMessage(
         to,
-        "✨ لمزيد من التفاصيل أو لحجز موعد، أخبرني فقط!"
+        "✨ لمزيد من التفاصيل أو لحجز موعد، اضغط أي زر أعلاه!"
       );
     }
   } catch (err) {
