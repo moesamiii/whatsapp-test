@@ -86,15 +86,81 @@
         color: #aaa;
       }
 
-      /* ✅ Preview styling */
-      .image-preview {
-        width: 150px;
-        height: 150px;
+      /* ✅ Multiple images preview */
+      .images-preview-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .image-preview-item {
+        position: relative;
+        width: 120px;
+        height: 120px;
+      }
+
+      .image-preview-item img {
+        width: 100%;
+        height: 100%;
         border-radius: 10px;
         object-fit: cover;
-        display: none;
-        margin-top: 10px;
         border: 2px solid #ccc;
+      }
+
+      .image-preview-item .remove-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        padding: 0;
+        margin: 0;
+      }
+
+      .image-preview-item .remove-btn:hover {
+        background: #dc2626;
+      }
+
+      .file-input-label {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #7c3aed;
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      .file-input-label:hover {
+        background: #6d28d9;
+      }
+
+      .file-input-label i {
+        margin-left: 8px;
+      }
+
+      #offerImages {
+        display: none;
+      }
+
+      .images-counter {
+        font-size: 13px;
+        color: #666;
+        margin-top: 5px;
+      }
+
+      body.dark .images-counter {
+        color: #aaa;
       }
 
       /* ✅ Debug info box */
@@ -221,9 +287,16 @@
               placeholder="اكتب تفاصيل العرض هنا..."
             ></textarea>
 
-            <label>اختيار صورة العرض (اختياري)</label>
-            <input type="file" id="offerImage" accept="image/*" />
-            <img id="imagePreview" class="image-preview" alt="معاينة الصورة" />
+            <label>اختيار صور العرض (اختياري - حتى 10 صور)</label>
+            <label for="offerImages" class="file-input-label">
+              <i class="fas fa-images"></i>
+              اختر الصور
+            </label>
+            <input type="file" id="offerImages" accept="image/*" multiple />
+            <div class="images-counter" id="imagesCounter">
+              لم يتم اختيار صور
+            </div>
+            <div class="images-preview-container" id="imagesPreview"></div>
 
             <label>تاريخ انتهاء العرض</label>
             <input type="date" id="offerDate" />
@@ -249,6 +322,9 @@
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      // Store selected files
+      let selectedFiles = [];
 
       // 🔍 Debug helper
       function addDebugLog(message, type = "info") {
@@ -315,33 +391,66 @@
         icon.classList.replace("fa-moon", "fa-sun");
       }
 
-      // 🖼️ Preview image before upload
-      const offerImage = document.getElementById("offerImage");
-      const imagePreview = document.getElementById("imagePreview");
-      offerImage.addEventListener("change", () => {
-        const file = offerImage.files[0];
-        if (file) {
-          addDebugLog(
-            `تم اختيار صورة: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`
-          );
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            imagePreview.src = e.target.result;
-            imagePreview.style.display = "block";
-          };
-          reader.readAsDataURL(file);
-        } else {
-          imagePreview.style.display = "none";
+      // 🖼️ Handle multiple images preview
+      const offerImages = document.getElementById("offerImages");
+      const imagesPreview = document.getElementById("imagesPreview");
+      const imagesCounter = document.getElementById("imagesCounter");
+
+      offerImages.addEventListener("change", () => {
+        const files = Array.from(offerImages.files);
+
+        // Limit to 10 images
+        if (files.length > 10) {
+          alert("⚠️ يمكنك اختيار حتى 10 صور فقط");
+          offerImages.value = "";
+          return;
         }
+
+        selectedFiles = files;
+        updateImagesPreview();
       });
 
-      // 🚀 Send offer
+      function updateImagesPreview() {
+        imagesPreview.innerHTML = "";
+
+        if (selectedFiles.length === 0) {
+          imagesCounter.textContent = "لم يتم اختيار صور";
+          return;
+        }
+
+        imagesCounter.textContent = `تم اختيار ${selectedFiles.length} صورة`;
+
+        selectedFiles.forEach((file, index) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const div = document.createElement("div");
+            div.className = "image-preview-item";
+            div.innerHTML = `
+              <img src="${e.target.result}" alt="صورة ${index + 1}">
+              <button class="remove-btn" onclick="removeImage(${index})">
+                <i class="fas fa-times"></i>
+              </button>
+            `;
+            imagesPreview.appendChild(div);
+          };
+          reader.readAsDataURL(file);
+        });
+
+        addDebugLog(`تم اختيار ${selectedFiles.length} صورة`);
+      }
+
+      function removeImage(index) {
+        selectedFiles.splice(index, 1);
+        updateImagesPreview();
+        addDebugLog(`تم حذف الصورة رقم ${index + 1}`);
+      }
+
+      // 🚀 Send offer with multiple images
       async function sendOffer() {
         const sendBtn = document.getElementById("sendBtn");
         const title = document.getElementById("offerTitle").value.trim();
         const desc = document.getElementById("offerDesc").value.trim();
         const date = document.getElementById("offerDate").value;
-        const file = offerImage.files[0];
 
         // Clear previous debug logs
         document.getElementById("debugContent").innerHTML = "";
@@ -357,59 +466,79 @@
         sendBtn.disabled = true;
         sendBtn.innerHTML = 'جاري الإرسال... <span class="spinner"></span>';
 
-        let imageUrl = null;
+        const imageUrls = [];
 
-        if (file) {
-          try {
-            addDebugLog(`بدء رفع الصورة: ${file.name}`);
+        // Upload all images to Supabase
+        if (selectedFiles.length > 0) {
+          addDebugLog(`بدء رفع ${selectedFiles.length} صورة...`);
 
-            const uniqueName = `${Date.now()}_${file.name}`;
-            const { data, error } = await supabase.storage
-              .from("offers")
-              .upload(uniqueName, file, {
-                cacheControl: "3600",
-                upsert: false,
-              });
-
-            if (error) {
-              addDebugLog(`خطأ في رفع الصورة: ${error.message}`, "error");
-              throw error;
-            }
-
-            const { data: urlData } = supabase.storage
-              .from("offers")
-              .getPublicUrl(uniqueName);
-
-            imageUrl = urlData.publicUrl;
-            addDebugLog(`✅ تم رفع الصورة بنجاح`, "success");
-            addDebugLog(`رابط الصورة: ${imageUrl}`);
-
-            // ⚠️ Test if image URL is accessible
+          for (let i = 0; i < selectedFiles.length; i++) {
+            const file = selectedFiles[i];
             try {
-              const testResponse = await fetch(imageUrl, { method: "HEAD" });
-              if (testResponse.ok) {
-                addDebugLog(`✅ الصورة متاحة للوصول العام`, "success");
-              } else {
+              addDebugLog(
+                `رفع الصورة ${i + 1}/${selectedFiles.length}: ${file.name}`
+              );
+
+              const uniqueName = `${Date.now()}_${i}_${file.name}`;
+              const { data, error } = await supabase.storage
+                .from("offers")
+                .upload(uniqueName, file, {
+                  cacheControl: "3600",
+                  upsert: false,
+                });
+
+              if (error) {
                 addDebugLog(
-                  `⚠️ الصورة غير متاحة (كود: ${testResponse.status})`,
+                  `خطأ في رفع الصورة ${i + 1}: ${error.message}`,
                   "error"
                 );
+                throw error;
+              }
+
+              const { data: urlData } = supabase.storage
+                .from("offers")
+                .getPublicUrl(uniqueName);
+
+              imageUrls.push(urlData.publicUrl);
+              addDebugLog(`✅ تم رفع الصورة ${i + 1} بنجاح`, "success");
+
+              // Test if image URL is accessible
+              try {
+                const testResponse = await fetch(urlData.publicUrl, {
+                  method: "HEAD",
+                });
+                if (testResponse.ok) {
+                  addDebugLog(
+                    `✅ الصورة ${i + 1} متاحة للوصول العام`,
+                    "success"
+                  );
+                } else {
+                  addDebugLog(
+                    `⚠️ الصورة ${i + 1} غير متاحة (كود: ${
+                      testResponse.status
+                    })`,
+                    "error"
+                  );
+                }
+              } catch (e) {
                 addDebugLog(
-                  `تأكد من أن bucket "offers" عام في إعدادات Supabase`,
+                  `⚠️ لم يتم التحقق من إمكانية الوصول للصورة ${i + 1}`,
                   "error"
                 );
               }
-            } catch (e) {
-              addDebugLog(`⚠️ لم يتم التحقق من إمكانية الوصول للصورة`, "error");
+            } catch (err) {
+              console.error(`❌ Image ${i + 1} upload error:`, err);
+              addDebugLog(
+                `خطأ في رفع الصورة ${i + 1}: ${err.message}`,
+                "error"
+              );
             }
-          } catch (err) {
-            console.error("❌ Image upload error:", err);
-            addDebugLog(`خطأ في رفع الصورة: ${err.message}`, "error");
-            alert("⚠️ حدث خطأ أثناء رفع الصورة. سيتم الإرسال بدون صورة.");
-            imageUrl = null;
           }
-        } else {
-          addDebugLog("لم يتم اختيار صورة - سيتم الإرسال بدون صورة");
+
+          addDebugLog(
+            `✅ تم رفع ${imageUrls.length}/${selectedFiles.length} صورة بنجاح`,
+            "success"
+          );
         }
 
         try {
@@ -420,7 +549,7 @@
             phone: phone,
             service: title,
             appointment: `${desc}\n⏰ صالح حتى: ${date}`,
-            image: imageUrl,
+            images: imageUrls, // Send array of images
           };
 
           addDebugLog("إرسال الطلب إلى WhatsApp API...");
@@ -439,20 +568,36 @@
           addDebugLog(`استجابة API: ${JSON.stringify(data, null, 2)}`);
 
           if (data.success) {
-            if (data.fallback) {
-              addDebugLog("⚠️ تم الإرسال بنجاح لكن بدون صورة", "error");
-              alert("⚠️ تم إرسال العرض بنجاح (نص فقط - فشل إرسال الصورة)");
+            const imagesSent = data.imagesSent || 0;
+            const totalImages = imageUrls.length;
+
+            if (imagesSent === 0 && totalImages > 0) {
+              addDebugLog("⚠️ تم إرسال النص فقط - فشل إرسال الصور", "error");
+              alert("⚠️ تم إرسال العرض بنجاح (نص فقط - فشل إرسال الصور)");
+            } else if (imagesSent < totalImages) {
+              addDebugLog(
+                `⚠️ تم إرسال ${imagesSent}/${totalImages} صورة فقط`,
+                "error"
+              );
+              alert(
+                `⚠️ تم إرسال العرض مع ${imagesSent} من ${totalImages} صورة`
+              );
             } else {
-              addDebugLog("✅ تم إرسال العرض بنجاح مع الصورة!", "success");
-              alert("✅ تم إرسال العرض بنجاح!");
+              addDebugLog(
+                `✅ تم إرسال العرض بنجاح مع ${imagesSent} صورة!`,
+                "success"
+              );
+              alert(`✅ تم إرسال العرض بنجاح مع ${imagesSent} صورة!`);
             }
 
             // Clear form
             document.getElementById("offerTitle").value = "";
             document.getElementById("offerDesc").value = "";
             document.getElementById("offerDate").value = "";
-            document.getElementById("offerImage").value = "";
-            imagePreview.style.display = "none";
+            document.getElementById("offerImages").value = "";
+            selectedFiles = [];
+            imagesPreview.innerHTML = "";
+            imagesCounter.textContent = "لم يتم اختيار صور";
           } else {
             console.error("❌ Send failed:", data);
             addDebugLog(`فشل الإرسال: ${JSON.stringify(data)}`, "error");
