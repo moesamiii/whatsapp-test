@@ -95,17 +95,26 @@ async function sendOffersImages(to, language = "ar") {
         : "💊 هذه عروضنا وخدماتنا الحالية:"
     );
 
-    await delay(500);
+    await delay(600);
 
     // Step 2: Send offer images one by one
     for (let i = 0; i < OFFER_IMAGES.length; i++) {
       await sendImageMessage(to, OFFER_IMAGES[i]);
-      if (i < OFFER_IMAGES.length - 1) await delay(800);
+      if (i < OFFER_IMAGES.length - 1) await delay(900);
     }
 
-    await delay(800);
+    // ✅ FIX: Always send a short text before the button
+    await delay(1000);
+    await sendTextMessage(
+      to,
+      language === "en"
+        ? "✨ Would you like to book an appointment for one of these offers?"
+        : "✨ هل ترغب بحجز موعد لأحد هذه العروض؟"
+    );
 
-    // Step 3: Send the "Book Now" button automatically after last image
+    await delay(700);
+
+    // Step 3: Send the "Book Now" button
     console.log(`📤 DEBUG => Sending 'Book Now' button after offers to ${to}`);
 
     await axios.post(
@@ -119,8 +128,8 @@ async function sendOffersImages(to, language = "ar") {
           body: {
             text:
               language === "en"
-                ? "✨ Would you like to book an appointment for one of these offers?\n\nClick below to start booking 👇"
-                : "✨ هل ترغب بحجز موعد لأحد هذه العروض؟\n\nاضغط أدناه لبدء الحجز 👇",
+                ? "Click below to start booking 👇"
+                : "اضغط أدناه لبدء الحجز 👇",
           },
           action: {
             buttons: [
@@ -166,15 +175,24 @@ async function sendDoctorsImages(to, language = "ar") {
         : "👨‍⚕️ تعرف على فريقنا الطبي المتخصص:"
     );
 
-    await delay(500);
+    await delay(600);
 
     // Step 2: Send doctors images
     for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
       await sendImageMessage(to, DOCTOR_IMAGES[i]);
-      if (i < DOCTOR_IMAGES.length - 1) await delay(800);
+      if (i < DOCTOR_IMAGES.length - 1) await delay(900);
     }
 
-    await delay(600);
+    // ✅ FIX: Send a short text before the button
+    await delay(1000);
+    await sendTextMessage(
+      to,
+      language === "en"
+        ? "✨ Would you like to book an appointment with one of our doctors?"
+        : "✨ هل ترغب بحجز موعد مع أحد أطبائنا؟"
+    );
+
+    await delay(700);
 
     // Step 3: Send "احجز" booking button directly
     console.log(`📤 DEBUG => Sending 'احجز' booking button to ${to}`);
@@ -190,8 +208,8 @@ async function sendDoctorsImages(to, language = "ar") {
           body: {
             text:
               language === "en"
-                ? "✨ Would you like to book an appointment with one of our doctors?\n\nClick below to start your booking 👇"
-                : "✨ هل ترغب بحجز موعد مع أحد أطبائنا؟\n\nاضغط أدناه لبدء الحجز 👇",
+                ? "Click below to start your booking 👇"
+                : "اضغط أدناه لبدء الحجز 👇",
           },
           action: {
             buttons: [
@@ -232,7 +250,6 @@ async function handleBookingFlow(to, userData = {}, language = "ar") {
     // Send service list (dropdown)
     await sendServiceList(to);
 
-    // Appointment buttons will be sent after service selection via webhook
     console.log("✅ Booking flow initiated (waiting for service selection)");
   } catch (err) {
     console.error("❌ DEBUG => Failed booking flow:", err.message);
