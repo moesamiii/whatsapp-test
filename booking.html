@@ -71,7 +71,6 @@
         }
       }
 
-      /* ✅ Debug box same as offers.html */
       .debug-info {
         background: #f8f8f8;
         border: 1px solid #ccc;
@@ -92,6 +91,37 @@
       .debug-info h4 {
         color: #7c3aed;
         margin-top: 0;
+      }
+
+      /* Modal styles */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+      }
+      .modal-content {
+        background: #fff;
+        padding: 20px;
+        border-radius: 10px;
+        width: 400px;
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+      .modal-content h3 {
+        color: #7c3aed;
+        text-align: center;
+        margin-top: 0;
+      }
+      body.dark .modal-content {
+        background: #222;
+        color: #fff;
       }
     </style>
   </head>
@@ -117,7 +147,7 @@
             ><i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي</a
           >
           <a href="offers.html"
-            ><i class="fa-solid fa-gift"></i>الحملات الاعلانية</a
+            ><i class="fa-solid fa-gift"></i> الحملات الاعلانية</a
           >
         </nav>
       </aside>
@@ -163,7 +193,6 @@
               <tbody></tbody>
             </table>
 
-            <!-- ✅ Debug Info like offers -->
             <div class="debug-info" id="debugInfo">
               <h4>🔍 معلومات التشخيص</h4>
               <div id="debugContent"></div>
@@ -173,6 +202,29 @@
 
         <footer>© 2025 Smile Clinic</footer>
       </main>
+    </div>
+
+    <!-- ✅ History Modal -->
+    <div id="historyModal" class="modal">
+      <div class="modal-content">
+        <h3>سجل التعديلات</h3>
+        <div id="historyContent"></div>
+        <button
+          onclick='document.getElementById("historyModal").style.display="none"'
+          style="
+            margin-top: 10px;
+            width: 100%;
+            padding: 8px;
+            background: #7c3aed;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+          "
+        >
+          إغلاق
+        </button>
+      </div>
     </div>
 
     <script>
@@ -207,23 +259,54 @@
         renderTable(allData);
       }
 
-      // ✅ Update status in Supabase
-      async function updateStatus(id, newStatus) {
-        const { error } = await supabase
+      // ✅ Update status and log history
+      async function updateStatus(id, newStatus, oldStatus) {
+        const { error: updateError } = await supabase
           .from("bookings")
           .update({ status: newStatus })
           .eq("id", id);
-        if (error) console.error("Error updating status:", error);
+
+        if (updateError) {
+          console.error("Error updating status:", updateError);
+          addDebugLog(
+            `❌ خطأ في تحديث الحالة: ${updateError.message}`,
+            "error"
+          );
+          return;
+        }
+
+        const { error: logError } = await supabase
+          .from("booking_history")
+          .insert([
+            {
+              booking_id: id,
+              old_status: oldStatus,
+              new_status: newStatus,
+              changed_by: "Admin",
+            },
+          ]);
+
+        if (logError) {
+          console.error("Error logging history:", logError);
+          addDebugLog(
+            `⚠️ فشل تسجيل التعديل في التاريخ: ${logError.message}`,
+            "error"
+          );
+        } else {
+          addDebugLog(
+            `✅ تم تسجيل تعديل الحالة (${oldStatus} → ${newStatus})`,
+            "success"
+          );
+        }
       }
 
-      // ✅ Send WhatsApp reminder (to fixed test number)
+      // ✅ Send WhatsApp reminder
       async function sendWhatsAppReminder(booking, idx) {
         const indicator = document.getElementById(`sending-${idx}`);
         indicator.style.display = "inline";
         addDebugLog(`بدء إرسال تذكير للعميل ${booking.name}`);
 
-        // 🟣 Send only to verified test number (like offers)
-        const testPhone = "962785050875"; // ← Replace with your allowed number
+        const testPhone = "962785050875";
 
         const payload = {
           name: booking.name || "عميلنا الكريم",
@@ -235,8 +318,6 @@
 
         try {
           addDebugLog("إرسال الطلب إلى WhatsApp API...");
-          addDebugLog(`البيانات: ${JSON.stringify(payload, null, 2)}`);
-
           const res = await fetch(
             "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
             {
@@ -247,10 +328,8 @@
           );
 
           const data = await res.json();
-          addDebugLog(`استجابة API: ${JSON.stringify(data, null, 2)}`);
-
           if (data.success) {
-            await updateStatus(booking.id, "SentNoReply");
+            await updateStatus(booking.id, "SentNoReply", booking.status);
             addDebugLog(
               `✅ تم إرسال التذكير بنجاح إلى ${booking.name}`,
               "success"
@@ -269,7 +348,7 @@
         }
       }
 
-      // ✅ Render bookings table
+      // ✅ Render table
       function renderTable(data) {
         const tb = document.querySelector("#tbl tbody");
         tb.innerHTML = "";
@@ -304,6 +383,9 @@
                     b.status === "SentNoReply" ? "selected" : ""
                   }>تم الإرسال ولم يتم الرد</option>
                 </select>
+                <button class="history-btn" data-id="${b.id}">
+                  <i class="fa-solid fa-clock-rotate-left"></i> السجل
+                </button>
               </div>
             </td>
           `;
@@ -316,9 +398,10 @@
             const id = e.target.dataset.id;
             const newStatus = e.target.value;
             const booking = allData[index];
+            const oldStatus = booking.status; // Capture old status before updating
 
             allData[index].status = newStatus;
-            await updateStatus(id, newStatus);
+            await updateStatus(id, newStatus, oldStatus);
 
             const saved = document.getElementById(`saved-${index}`);
             saved.style.display = "inline";
@@ -368,7 +451,49 @@
         sidebar.classList.toggle("active")
       );
 
-      // ✅ Load bookings
+      // ✅ Show booking history
+      async function showHistory(bookingId) {
+        const { data, error } = await supabase
+          .from("booking_history")
+          .select("*")
+          .eq("booking_id", bookingId)
+          .order("timestamp", { ascending: false });
+
+        const content = document.getElementById("historyContent");
+        if (error) {
+          content.innerHTML = `<p style="color:red;">خطأ في جلب السجل</p>`;
+          return;
+        }
+
+        if (!data.length) {
+          content.innerHTML = `<p>لا يوجد تعديلات سابقة لهذا الحجز</p>`;
+          return;
+        }
+
+        content.innerHTML = data
+          .map(
+            (h) => `
+            <div style="border-bottom:1px solid #ddd;padding:6px 0;">
+              <b>${h.changed_by || "غير معروف"}</b><br>
+              الحالة: <span style="color:#7c3aed;">${
+                h.old_status
+              }</span> → <span style="color:green;">${h.new_status}</span><br>
+              <small>${new Date(h.timestamp).toLocaleString("ar-EG")}</small>
+            </div>`
+          )
+          .join("");
+
+        document.getElementById("historyModal").style.display = "flex";
+      }
+
+      document.addEventListener("click", (e) => {
+        if (e.target.closest(".history-btn")) {
+          const id = e.target.closest(".history-btn").dataset.id;
+          showHistory(id);
+        }
+      });
+
+      // ✅ Auto refresh bookings
       load();
       setInterval(load, 15000);
     </script>
