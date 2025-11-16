@@ -464,9 +464,21 @@
       // ✅ Filter
       function applyFilter() {
         const val = document.getElementById("statusFilter").value;
-        if (val === "all") renderTable(allData);
-        else renderTable(allData.filter((b) => b.status === val));
+
+        if (val === "all") {
+          renderTable(allData);
+          return;
+        }
+
+        // Normalize both sides
+        const filtered = allData.filter((b) => {
+          const status = (b.status || "").trim().toLowerCase();
+          return status === val.trim().toLowerCase();
+        });
+
+        renderTable(filtered);
       }
+
       document
         .getElementById("statusFilter")
         .addEventListener("change", applyFilter);
