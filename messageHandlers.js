@@ -368,8 +368,6 @@ function isLocationRequest(text = "") {
     "address",
     "place",
     "maps",
-    "العيادة",
-    "clinic",
     "وينكم",
     "فينكم",
   ];
