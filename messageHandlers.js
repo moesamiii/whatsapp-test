@@ -11,7 +11,7 @@
  * - Detection helpers: isLocationRequest, isOffersRequest, isDoctorsRequest, isEnglish, containsBanWords
  * - sendLocationMessages: uses CLINIC_LOCATION_LINK from mediaAssets
  * - sendOffersImages & sendDoctorsImages: orchestrate sending multiple images and follow-up text
- * - sendBanWordsResponse: handles inappropriate content gracefully with 10 random responses
+ * - sendBanWordsResponse: handles inappropriate content gracefully
  * - sendImageMessage: performs the network request to WhatsApp API (requires WHATSAPP_TOKEN)
  * - transcribeAudio: fetches media from WhatsApp and posts to Groq Whisper
  *
@@ -270,7 +270,6 @@ const BAN_WORDS = {
     "عنصري",
     "دونية",
     "عرق حقير",
-    "حقير",
     "سلالة حقيرة",
     "إرهاب",
     "إرهابي",
@@ -305,37 +304,49 @@ const BAN_WORDS = {
 };
 
 // ---------------------------------------------
-// 🚫 Ban Words Responses (10 random English + Arabic)
+// 🔧 Arabic Normalizer (fix WhatsApp invisible chars)
 // ---------------------------------------------
-const BAN_WORDS_RESPONSES = {
-  /* (identical 10 responses from your version) */
-};
-// (I keep them full as in your original file for brevity you can copy them from your version above)
+function normalizeArabic(text = "") {
+  return text
+    .replace(/\u200F/g, "")
+    .replace(/\u200E/g, "")
+    .replace(/\u0640/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 // ---------------------------------------------
-// 🚫 Detection + sendBanWordsResponse
+// 🚫 Updated Ban Words Detection (final + fixed)
 // ---------------------------------------------
 function containsBanWords(text = "") {
   if (!text || typeof text !== "string") return false;
+
   const lower = text.toLowerCase();
+  const normalizedArabic = normalizeArabic(text);
+
+  // English words with strict boundaries
   for (const word of BAN_WORDS.english) {
     const regex = new RegExp(`\\b${word}\\b`, "i");
     if (regex.test(lower)) return true;
   }
+
+  // Arabic detection (normalized)
   for (const word of BAN_WORDS.arabic) {
-    if (text.includes(word)) return true;
+    if (normalizedArabic.includes(word)) return true;
   }
+
   return false;
 }
 
-async function sendBanWordsResponse(to, language = "ar") {
+// ---------------------------------------------
+// 🚫 Single Fixed Ban Words Response
+// ---------------------------------------------
+async function sendBanWordsResponse(to) {
   try {
-    const responses =
-      language === "en"
-        ? BAN_WORDS_RESPONSES.english
-        : BAN_WORDS_RESPONSES.arabic;
-    const randomIndex = Math.floor(Math.random() * responses.length);
-    await sendTextMessage(to, responses[randomIndex]);
+    await sendTextMessage(
+      to,
+      "Sorry for your frustration 🙏 Please avoid inappropriate words."
+    );
   } catch (err) {
     console.error("❌ Ban words response error:", err.message);
   }
