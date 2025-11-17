@@ -218,7 +218,7 @@
 
             <select id="statusFilter">
               <option value="all">الكل</option>
-
+              <option value="Contacted">تم التواصل</option>
               <option value="Still">قيد الانتظار</option>
               <option value="Booking Complete">تم الحجز</option>
               <option value="SentNoReply">تم الإرسال ولم يتم الرد</option>
@@ -415,7 +415,9 @@
                 <select class="status-dropdown" data-index="${idx}" data-id="${
             b.id
           }">
-                  
+                  <option value="Contacted" ${
+                    b.status === "Contacted" ? "selected" : ""
+                  }>تم التواصل</option>
                   <option value="Still" ${
                     b.status === "Still" ? "selected" : ""
                   }>قيد الانتظار</option>
