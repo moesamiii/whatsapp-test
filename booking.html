@@ -97,7 +97,6 @@
         margin-top: 0;
       }
 
-      /* Modal styles */
       .modal {
         display: none;
         position: fixed;
@@ -118,36 +117,22 @@
         width: 400px;
         max-height: 70vh;
         overflow-y: auto;
-        color: #222; /* readable on white */
+        color: #222;
       }
 
-      .modal-content h3 {
-        color: #7c3aed;
-        text-align: center;
-        margin-top: 0;
-      }
-
-      /* ✅ Dark mode fixes */
       body.dark .modal-content {
         background: #222;
-        color: #e5e7eb; /* light gray text for readability */
+        color: #e5e7eb;
       }
 
       body.dark .modal-content h3 {
-        color: #b48cf0; /* soft purple to match dark theme */
+        color: #b48cf0;
       }
 
-      /* ✅ Table + general dark text fix */
-      body.dark table,
-      body.dark th,
-      body.dark td {
-        color: #d1d5db; /* balanced light gray text */
-        border-color: #333;
-      }
-
-      body.dark .table-card {
-        background: #252535;
-        color: #d1d5db;
+      table,
+      th,
+      td {
+        color: inherit;
       }
     </style>
   </head>
@@ -164,26 +149,44 @@
             لوحة القيادة
           </a>
 
-          <a href="notifications.html" id="notificationLink">
+          <a
+            href="notifications.html"
+            id="notificationLink"
+            style="position: relative"
+          >
             <i class="fa-solid fa-bell"></i>
             التنبيهات
+            <span
+              id="notifBadge"
+              style="
+                position: absolute;
+                top: 5px;
+                left: 10px;
+                background: red;
+                color: white;
+                padding: 2px 6px;
+                font-size: 12px;
+                border-radius: 50%;
+                display: none;
+              "
+            >
+            </span>
           </a>
 
           <a href="analytics.html">
             <i class="fa-solid fa-rocket"></i>
             تحليلات
           </a>
+
           <a href="booking.html" class="active">
             <i class="fa-solid fa-table"></i>
             جدول التواصل
           </a>
 
-          <!-- ✅ NEW MENU ITEM ADDED HERE -->
           <a href="contactlist.html">
             <i class="fa-solid fa-address-book"></i>
             قائمة التواصل
           </a>
-          <!-- ✅ END NEW ITEM -->
 
           <a href="AIsettings.html">
             <i class="fa-solid fa-robot"></i>
@@ -239,7 +242,7 @@
             </table>
 
             <div class="debug-info" id="debugInfo">
-              <h4>🔍 معلومات التشخيص</h4>
+              <h4>🔍 Debug Info</h4>
               <div id="debugContent"></div>
             </div>
           </div>
@@ -249,7 +252,6 @@
       </main>
     </div>
 
-    <!-- ✅ History Modal -->
     <div id="historyModal" class="modal">
       <div class="modal-content">
         <h3>سجل التعديلات</h3>
@@ -273,96 +275,77 @@
     </div>
 
     <script>
-      // ✅ Supabase setup
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       let allData = [];
+      let lastBookingCount = Number(localStorage.getItem("booking_prev")) || 0;
 
-      // ✅ Debug log
-      function addDebugLog(msg, type = "info") {
-        const box = document.getElementById("debugInfo");
-        const content = document.getElementById("debugContent");
-        box.style.display = "block";
-        const time = new Date().toLocaleTimeString("ar-EG");
-        const icon = type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
-        content.innerHTML += `<div>[${time}] ${icon} ${msg}</div>`;
-        content.scrollTop = content.scrollHeight;
-        console.log(`[${time}] ${msg}`);
+      function updateBadge() {
+        const badge = document.getElementById("notifBadge");
+        const saved = Number(localStorage.getItem("booking_new")) || 0;
+
+        if (saved > 0) {
+          badge.style.display = "inline-block";
+          badge.textContent = saved;
+        } else {
+          badge.style.display = "none";
+        }
       }
 
-      // ✅ Load bookings
       async function load() {
         const { data, error } = await supabase.from("bookings").select("*");
-        if (error) {
-          console.error("Error fetching bookings:", error);
-          return;
+
+        if (error) return;
+
+        // ------ NOTIFICATION BADGE FIX ------
+        if (data.length > lastBookingCount) {
+          const diff = data.length - lastBookingCount;
+          localStorage.setItem("booking_new", diff);
         }
+
+        lastBookingCount = data.length;
+        localStorage.setItem("booking_prev", lastBookingCount);
+        updateBadge();
+        // ------------------------------------
+
         allData = data.map((b) => ({ ...b, status: b.status || "Still" }));
         applyFilter();
       }
 
-      // ✅ Update status and log history
       async function updateStatus(id, newStatus, oldStatus) {
         const { error: updateError } = await supabase
           .from("bookings")
           .update({ status: newStatus })
           .eq("id", id);
 
-        if (updateError) {
-          console.error("Error updating status:", updateError);
-          addDebugLog(
-            `❌ خطأ في تحديث الحالة: ${updateError.message}`,
-            "error"
-          );
-          return;
-        }
+        if (updateError) return;
 
-        const { error: logError } = await supabase
-          .from("booking_history")
-          .insert([
-            {
-              booking_id: id,
-              old_status: oldStatus,
-              new_status: newStatus,
-              changed_by: "Admin",
-            },
-          ]);
-
-        if (logError) {
-          console.error("Error logging history:", logError);
-          addDebugLog(
-            `⚠️ فشل تسجيل التعديل في التاريخ: ${logError.message}`,
-            "error"
-          );
-        } else {
-          addDebugLog(
-            `✅ تم تسجيل تعديل الحالة (${oldStatus} → ${newStatus})`,
-            "success"
-          );
-        }
+        await supabase.from("booking_history").insert([
+          {
+            booking_id: id,
+            old_status: oldStatus,
+            new_status: newStatus,
+            changed_by: "Admin",
+          },
+        ]);
       }
 
-      // ✅ Send WhatsApp reminder
       async function sendWhatsAppReminder(booking, idx) {
         const indicator = document.getElementById(`sending-${idx}`);
         indicator.style.display = "inline";
-        addDebugLog(`بدء إرسال تذكير للعميل ${booking.name}`);
-
-        const testPhone = "962785050875";
 
         const payload = {
-          name: booking.name || "عميلنا الكريم",
-          phone: testPhone,
+          name: booking.name,
+          phone: "962785050875",
           service: booking.service,
-          appointment: booking.appointment || "",
+          appointment: booking.appointment,
           image: null,
         };
 
         try {
-          addDebugLog("إرسال الطلب إلى WhatsApp API...");
           const res = await fetch(
             "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
             {
@@ -375,25 +358,13 @@
           const data = await res.json();
           if (data.success) {
             await updateStatus(booking.id, "SentNoReply", booking.status);
-            addDebugLog(
-              `✅ تم إرسال التذكير بنجاح إلى ${booking.name}`,
-              "success"
-            );
-            alert(`✅ تم إرسال التذكير بنجاح إلى ${booking.name}`);
-          } else {
-            addDebugLog(`⚠️ فشل الإرسال: ${data.message}`, "error");
-            alert(`⚠️ فشل إرسال التذكير: ${data.message || "خطأ غير معروف"}`);
           }
-        } catch (err) {
-          addDebugLog(`❌ خطأ في الإرسال: ${err.message}`, "error");
-          alert("❌ خطأ أثناء إرسال التذكير: " + err.message);
-        } finally {
-          indicator.style.display = "none";
-          load();
-        }
+        } catch (err) {}
+
+        indicator.style.display = "none";
+        load();
       }
 
-      // ✅ Render table
       function renderTable(data) {
         const tb = document.querySelector("#tbl tbody");
         tb.innerHTML = "";
@@ -410,7 +381,7 @@
               <div style="display:flex;align-items:center;gap:5px;">
                 <span class="save-indicator" id="saved-${idx}">✔</span>
                 <span class="sending-indicator" id="sending-${idx}">
-                  جاري الإرسال... <span class="spinner"></span>
+                  Sending... <span class="spinner"></span>
                 </span>
                 <select class="status-dropdown" data-index="${idx}" data-id="${
             b.id
@@ -443,7 +414,7 @@
             const id = e.target.dataset.id;
             const newStatus = e.target.value;
             const booking = allData[index];
-            const oldStatus = booking.status; // Capture old status before updating
+            const oldStatus = booking.status;
 
             allData[index].status = newStatus;
             await updateStatus(id, newStatus, oldStatus);
@@ -461,7 +432,6 @@
         });
       }
 
-      // ✅ Filter
       function applyFilter() {
         const val = document.getElementById("statusFilter").value;
 
@@ -470,7 +440,6 @@
           return;
         }
 
-        // Normalize both sides
         const filtered = allData.filter((b) => {
           const status = (b.status || "").trim().toLowerCase();
           return status === val.trim().toLowerCase();
@@ -483,7 +452,6 @@
         .getElementById("statusFilter")
         .addEventListener("change", applyFilter);
 
-      // ✅ Theme toggle
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", () => {
         document.body.classList.toggle("dark");
@@ -496,19 +464,18 @@
           localStorage.setItem("clinic_theme", "light");
         }
       });
+
       if (localStorage.getItem("clinic_theme") === "dark") {
         document.body.classList.add("dark");
         themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
       }
 
-      // ✅ Sidebar toggle
-      const menuToggle = document.getElementById("menuToggle");
-      const sidebar = document.getElementById("sidebar");
-      menuToggle.addEventListener("click", () =>
-        sidebar.classList.toggle("active")
-      );
+      document
+        .getElementById("menuToggle")
+        .addEventListener("click", () =>
+          document.getElementById("sidebar").classList.toggle("active")
+        );
 
-      // ✅ Show booking history
       async function showHistory(bookingId) {
         const { data, error } = await supabase
           .from("booking_history")
@@ -517,28 +484,22 @@
           .order("timestamp", { ascending: false });
 
         const content = document.getElementById("historyContent");
-        if (error) {
-          content.innerHTML = `<p style="color:red;">خطأ في جلب السجل</p>`;
-          return;
-        }
 
-        if (!data.length) {
-          content.innerHTML = `<p>لا يوجد تعديلات سابقة لهذا الحجز</p>`;
-          return;
+        if (!data || !data.length) {
+          content.innerHTML = `<p>No history found</p>`;
+        } else {
+          content.innerHTML = data
+            .map(
+              (h) => `
+          <div style="border-bottom:1px solid #ddd;padding:6px 0;">
+            <b>${h.changed_by}</b><br>
+            ${h.old_status} → ${h.new_status}<br>
+            <small>${new Date(h.timestamp).toLocaleString("ar-EG")}</small>
+          </div>
+        `
+            )
+            .join("");
         }
-
-        content.innerHTML = data
-          .map(
-            (h) => `
-            <div style="border-bottom:1px solid #ddd;padding:6px 0;">
-              <b>${h.changed_by || "غير معروف"}</b><br>
-              الحالة: <span style="color:#7c3aed;">${
-                h.old_status
-              }</span> → <span style="color:green;">${h.new_status}</span><br>
-              <small>${new Date(h.timestamp).toLocaleString("ar-EG")}</small>
-            </div>`
-          )
-          .join("");
 
         document.getElementById("historyModal").style.display = "flex";
       }
@@ -550,9 +511,8 @@
         }
       });
 
-      // ✅ Auto refresh bookings
-      // ✅✅✅✅✅
       load();
+      updateBadge();
       setInterval(load, 15000);
     </script>
   </body>
