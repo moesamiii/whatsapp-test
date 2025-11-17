@@ -301,7 +301,7 @@
           return;
         }
         allData = data.map((b) => ({ ...b, status: b.status || "Still" }));
-        renderTable(allData);
+        applyFilter();
       }
 
       // ✅ Update status and log history
