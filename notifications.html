@@ -239,12 +239,10 @@
             جدول التواصل
           </a>
 
-          <!-- ✅ NEW MENU ITEM ADDED HERE -->
           <a href="contactlist.html">
             <i class="fa-solid fa-address-book"></i>
             قائمة التواصل
           </a>
-          <!-- ✅ END NEW ITEM -->
 
           <a href="AIsettings.html">
             <i class="fa-solid fa-robot"></i>
@@ -324,6 +322,9 @@
       let allBookings = [];
       let filteredBookings = [];
 
+      /* ------------------------------
+         🔐 ADMIN LOGIN
+      -------------------------------*/
       async function login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
@@ -360,6 +361,38 @@
         setInterval(loadNotifications, 30000);
       }
 
+      /* ------------------------------
+         🟣 SAVE BOOKINGS TO SUPABASE
+      -------------------------------*/
+      async function saveNewBookingsToSupabase(bookings) {
+        for (const b of bookings) {
+          if (!b.phone || !b.time) continue;
+
+          const { data: existing } = await supabase
+            .from("bookings")
+            .select("*")
+            .eq("phone", b.phone)
+            .eq("time", b.time)
+            .maybeSingle();
+
+          if (existing) continue;
+
+          await supabase.from("bookings").insert([
+            {
+              name: b.name || null,
+              phone: b.phone || null,
+              service: b.service || null,
+              appointment: b.appointment || null,
+              time: b.time || null,
+              status: "new",
+            },
+          ]);
+        }
+      }
+
+      /* ------------------------------
+         🔄 LOAD & SAVE
+      -------------------------------*/
       async function loadNotifications() {
         try {
           const res = await fetch("/api/bookings");
@@ -369,12 +402,17 @@
           allBookings = rawData.slice(1).reverse();
           filteredBookings = [...allBookings];
 
+          await saveNewBookingsToSupabase(allBookings);
+
           renderNotifications();
         } catch (error) {
           console.error("❌ Error loading notifications:", error);
         }
       }
 
+      /* ------------------------------
+         🎨 RENDER UI
+      -------------------------------*/
       function renderNotifications() {
         const container = document.getElementById("notificationsList");
 
@@ -410,6 +448,9 @@
           .join("");
       }
 
+      /* ------------------------------
+         🕒 TIME AGO
+      -------------------------------*/
       function getTimeAgo(time) {
         if (!time) return "غير محدد";
 
@@ -431,6 +472,9 @@
         return bookingDate.toLocaleDateString("ar-EG");
       }
 
+      /* ------------------------------
+         🔍 SEARCH & FILTER
+      -------------------------------*/
       function filterNotifications() {
         const searchTerm = document
           .getElementById("searchInput")
@@ -494,6 +538,9 @@
         }
       }
 
+      /* ------------------------------
+         📥 DOWNLOAD EXCEL
+      -------------------------------*/
       document.getElementById("downloadBtn").addEventListener("click", () => {
         const headers = ["الاسم", "الهاتف", "الخدمة", "الموعد", "الوقت"];
         const rows = filteredBookings.map((b) => [
@@ -504,7 +551,6 @@
           b.time || "-",
         ]);
 
-        // 🟢 XLSX export logic
         const worksheetData = [headers, ...rows];
         const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
         const workbook = XLSX.utils.book_new();
@@ -526,6 +572,9 @@
         URL.revokeObjectURL(url);
       });
 
+      /* ------------------------------
+         🌙 DARK MODE
+      -------------------------------*/
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", () => {
         document.body.classList.toggle("dark");
@@ -546,6 +595,9 @@
         icon.classList.replace("fa-moon", "fa-sun");
       }
 
+      /* ------------------------------
+         📱 MENU TOGGLE
+      -------------------------------*/
       document.getElementById("menuToggle").addEventListener("click", () => {
         document.getElementById("sidebar").classList.toggle("active");
       });
