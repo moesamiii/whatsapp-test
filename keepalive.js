@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       type: "reaction",
       reaction: {
         message_id: "000000000000000", // intentionally invalid ID → triggers session only
-        emoji: " ", // invisible reaction
+        emoji: " ", // invisible reaction fff
       },
     };
 
