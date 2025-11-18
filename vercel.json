@@ -8,9 +8,17 @@
   ],
   "routes": [
     { "src": "/sendWhatsApp", "dest": "index.js" },
+    { "src": "/keepalive", "dest": "keepalive.js" },
     { "src": "/img/(.*)", "dest": "/img/$1" },
     { "src": "/(.*\\.css)", "dest": "/$1" },
     { "src": "/(.*\\.html)", "dest": "/$1" },
     { "src": "/(.*)", "dest": "index.js" }
+  ],
+
+  "crons": [
+    {
+      "path": "/keepalive",
+      "schedule": "0 */6 * * *"
+    }
   ]
 }
