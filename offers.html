@@ -646,42 +646,38 @@
 
           const lastRow = data[data.length - 1];
 
-          const name = lastRow.Name || "";
-          const phone = lastRow.Phone || "";
-          const service = lastRow.Service || "";
-          const appointment = lastRow.Appointment || "";
-          const timestamp = lastRow.Timestamp || "";
+          const name = lastRow.Name || lastRow.name || "";
+          const phone = lastRow.Phone || lastRow.phone || "";
+          const service = lastRow.Service || lastRow.service || "";
+          const appointment = lastRow.Appointment || lastRow.appointment || "";
+          const timestamp = lastRow.Timestamp || lastRow.timestamp || "";
 
           if (!timestamp) {
-            addDebugLog("❌ Timestamp missing in last row");
+            addDebugLog("⚠️ No timestamp — waiting for new row...");
             return;
           }
 
-          // Prevent duplicate triggers
+          // If row already processed, skip
           if (timestamp === lastTimestamp) return;
           lastTimestamp = timestamp;
 
-          addDebugLog(`🟢 NEW ROW DETECTED: ${name} - ${phone}`);
+          addDebugLog(`🟢 New booking detected for: ${name}`);
 
           const msg = `مرحبا ${name} 👋
-    
-شكراً لحجزك:
-${service}
 
-موعدك:
-${appointment}
-`;
+تم حجزك بنجاح 💜
+الخدمة: ${service}
+الوقت: ${appointment}
 
-          // Auto-select image based on service
-          const image = service.includes("تنظيف")
-            ? "https://i.imgur.com/BYr4pZe.jpg"
-            : service.includes("حشو")
-            ? "https://i.imgur.com/tPp8Gny.jpeg"
-            : "https://i.imgur.com/43K4mGC.jpeg";
+نراك قريباً!`;
+
+          const image = "https://i.imgur.com/43K4mGC.jpeg";
 
           await sendWhatsAppMessage(phone, msg, image);
-        } catch (error) {
-          addDebugLog("❌ خطأ أثناء قراءة Google Sheet: " + error);
+
+          addDebugLog("📩 WhatsApp sent successfully!");
+        } catch (err) {
+          addDebugLog("❌ خطأ أثناء قراءة Google Sheet: " + err.message);
         }
       }
     </script>
