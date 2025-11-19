@@ -614,56 +614,54 @@
           sidebar.classList.toggle("active");
         });
       }
-
       /*********************************************************
-        📌 NEW FEATURE: AUTO-DETECT NEW BOOKINGS IN GOOGLE SHEET
-        AND SEND WHATSAPP GREETING MESSAGE
-      *********************************************************/
+  ✅ AUTO-SEND WHATSAPP WHEN NEW BOOKING APPEARS IN SHEET
+*********************************************************/
 
-      const SHEET_ID = "1veVe9vz1R8UNf1dBQ3ayRV50ae6Zy6ze2tQn24gUueQ";
-      const SHEET_RANGE = "Sheet1!A:E";
+      const BOOKING_SHEET_ID = "1veVe9vz1R8UNf1dBQ3ayRV50ae6Zy6ze2tQn24gUueQ";
+      const TAB_NAME = "Sheet1"; // change if your tab is called "Form Responses 1"
 
-      let lastTimestamp = "";
+      let lastProcessedTimestamp = ""; // remembers last row sent
 
       async function checkGoogleSheet() {
-        const sheetID = document.getElementById("sheetID").value.trim();
-        if (!sheetID) return;
-
         try {
-          const url = `https://opensheet.elk.sh/${sheetID}/Sheet1`;
+          const url = `https://opensheet.elk.sh/${BOOKING_SHEET_ID}/${TAB_NAME}`;
 
           const res = await fetch(url);
           if (!res.ok) {
-            addDebugLog(`❌ Failed to load sheet: ${res.status}`);
+            addDebugLog(`❌ Sheet load error: HTTP ${res.status}`, "error");
             return;
           }
 
           const data = await res.json();
           if (!Array.isArray(data) || data.length === 0) {
-            addDebugLog("❌ Sheet returned empty data");
+            addDebugLog("❌ Sheet returned empty rows", "error");
             return;
           }
 
-          const lastRow = data[data.length - 1];
+          // Last row = new booking
+          const row = data[data.length - 1];
 
-          const name = lastRow.Name || lastRow.name || "";
-          const phone = lastRow.Phone || lastRow.phone || "";
-          const service = lastRow.Service || lastRow.service || "";
-          const appointment = lastRow.Appointment || lastRow.appointment || "";
-          const timestamp = lastRow.Timestamp || lastRow.timestamp || "";
+          // Auto-detect columns
+          const name = row.Name || row.name || "";
+          const phone = row.Phone || row.phone || "";
+          const service = row.Service || row.service || "";
+          const appointment = row.Appointment || row.appointment || "";
+          const timestamp = row.Timestamp || row.timestamp || "";
 
           if (!timestamp) {
-            addDebugLog("⚠️ No timestamp — waiting for new row...");
+            addDebugLog("⚠️ Timestamp missing. Waiting for a complete row…");
             return;
           }
 
-          // If row already processed, skip
-          if (timestamp === lastTimestamp) return;
-          lastTimestamp = timestamp;
+          // Prevent re-sending
+          if (timestamp === lastProcessedTimestamp) return;
+          lastProcessedTimestamp = timestamp;
 
-          addDebugLog(`🟢 New booking detected for: ${name}`);
+          addDebugLog(`🟢 New booking detected: ${name}`, "success");
 
-          const msg = `مرحبا ${name} 👋
+          // Build the same type of WhatsApp message as manual sender
+          const messageText = `مرحبا ${name} 👋
 
 تم حجزك بنجاح 💜
 الخدمة: ${service}
@@ -671,15 +669,28 @@
 
 نراك قريباً!`;
 
-          const image = "https://i.imgur.com/43K4mGC.jpeg";
+          const defaultImage = "https://i.imgur.com/43K4mGC.jpeg";
 
-          await sendWhatsAppMessage(phone, msg, image);
+          // Use your SAME WhatsApp sending function
+          const sent = await sendWhatsAppMessage(
+            phone,
+            messageText,
+            defaultImage
+          );
 
-          addDebugLog("📩 WhatsApp sent successfully!");
+          if (sent) {
+            addDebugLog(`📩 Auto WhatsApp sent to ${phone}`, "success");
+          } else {
+            addDebugLog("❌ WhatsApp failed while auto-sending", "error");
+          }
         } catch (err) {
-          addDebugLog("❌ خطأ أثناء قراءة Google Sheet: " + err.message);
+          addDebugLog("❌ Google Sheet error: " + err.message, "error");
         }
       }
+
+      // ⏱ Check every 10 seconds
+      setInterval(checkGoogleSheet, 10000);
+      checkGoogleSheet();
     </script>
   </body>
 </html>
