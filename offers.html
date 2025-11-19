@@ -619,9 +619,9 @@
 *********************************************************/
 
       const BOOKING_SHEET_ID = "1veVe9vz1R8UNf1dBQ3ayRV50ae6Zy6ze2tQn24gUueQ";
-      const TAB_NAME = "Sheet1"; // change if your tab is called "Form Responses 1"
+      const TAB_NAME = "Sheet1";
 
-      let lastProcessedTimestamp = ""; // remembers last row sent
+      let lastProcessedTimestamp = ""; // last successful send
 
       async function checkGoogleSheet() {
         try {
@@ -639,28 +639,40 @@
             return;
           }
 
-          // Last row = new booking
-          const row = data[data.length - 1];
+          // 🔍 Find the LAST valid row that contains ALL required columns
+          let row = null;
+          for (let i = data.length - 1; i >= 0; i--) {
+            if (
+              data[i].Name &&
+              data[i].Phone &&
+              data[i].Service &&
+              data[i].Appointment &&
+              data[i].Timestamp
+            ) {
+              row = data[i];
+              break;
+            }
+          }
 
-          // Auto-detect columns
-          const name = row.Name || row.name || "";
-          const phone = row.Phone || row.phone || "";
-          const service = row.Service || row.service || "";
-          const appointment = row.Appointment || row.appointment || "";
-          const timestamp = row.Timestamp || row.timestamp || "";
-
-          if (!timestamp) {
-            addDebugLog("⚠️ Timestamp missing. Waiting for a complete row…");
+          if (!row) {
+            addDebugLog("⚠️ No valid booking row found yet", "error");
             return;
           }
 
-          // Prevent re-sending
+          // Extract columns EXACTLY as your sheet
+          const name = row.Name;
+          const phone = row.Phone;
+          const service = row.Service;
+          const appointment = row.Appointment;
+          const timestamp = row.Timestamp;
+
+          // If timestamp not new → ignore
           if (timestamp === lastProcessedTimestamp) return;
           lastProcessedTimestamp = timestamp;
 
-          addDebugLog(`🟢 New booking detected: ${name}`, "success");
+          addDebugLog(`🟢 New booking detected for: ${name}`, "success");
 
-          // Build the same type of WhatsApp message as manual sender
+          // WhatsApp message
           const messageText = `مرحبا ${name} 👋
 
 تم حجزك بنجاح 💜
@@ -671,7 +683,7 @@
 
           const defaultImage = "https://i.imgur.com/43K4mGC.jpeg";
 
-          // Use your SAME WhatsApp sending function
+          // Send message
           const sent = await sendWhatsAppMessage(
             phone,
             messageText,
@@ -679,7 +691,10 @@
           );
 
           if (sent) {
-            addDebugLog(`📩 Auto WhatsApp sent to ${phone}`, "success");
+            addDebugLog(
+              `📩 Auto WhatsApp sent successfully to ${phone}`,
+              "success"
+            );
           } else {
             addDebugLog("❌ WhatsApp failed while auto-sending", "error");
           }
