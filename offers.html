@@ -315,6 +315,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script>
       // 🔑 Supabase configuration
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
@@ -323,6 +324,28 @@
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       let selectedFiles = [];
+
+      // 📌 NEW — Fetch latest name from sheet
+      async function getLatestClientName() {
+        const url =
+          "https://docs.google.com/spreadsheets/d/1veVe9vz1R8UNf1dBQ3ayRV5Oae6Zy6Ze2tQn24qUueQ/pub?output=csv";
+
+        try {
+          const res = await fetch(url);
+          const csvText = await res.text();
+
+          const rows = csvText.trim().split("\n");
+          const lastRow = rows[rows.length - 1].split(",");
+
+          const name = lastRow[0]; // Column A
+
+          addDebugLog(`📌 آخر اسم في الجدول: ${name}`);
+          return name;
+        } catch (err) {
+          addDebugLog("❌ خطأ في قراءة sheet: " + err.message, "error");
+          return "العميل";
+        }
+      }
 
       // 🔍 Debug helper
       function addDebugLog(message, type = "info") {
@@ -433,7 +456,7 @@
         addDebugLog(`تم إزالة صورة. المتبقي: ${selectedFiles.length} صورة`);
       }
 
-      // 🚀 Upload single image to Supabase
+      // 🚀 Upload single image
       async function uploadImage(file) {
         try {
           addDebugLog(`بدء رفع الصورة: ${file.name}`);
@@ -470,7 +493,7 @@
         }
       }
 
-      // 📤 Send single message with image
+      // 📤 Send message
       async function sendWhatsAppMessage(phone, messageText, imageUrl, isLast) {
         try {
           const payload = {
@@ -507,14 +530,13 @@
         }
       }
 
-      // 🚀 Main send offer function
+      // 🚀 Main send offer function — UPDATED WITH NAME
       async function sendOffer() {
         const sendBtn = document.getElementById("sendBtn");
         const title = document.getElementById("offerTitle").value.trim();
         const desc = document.getElementById("offerDesc").value.trim();
         const date = document.getElementById("offerDate").value;
 
-        // Clear previous debug logs
         document.getElementById("debugContent").innerHTML = "";
         document.getElementById("debugInfo").style.display = "block";
         document.getElementById("progressInfo").style.display = "none";
@@ -525,16 +547,19 @@
           return;
         }
 
-        // Disable button during send
         sendBtn.disabled = true;
         sendBtn.innerHTML = 'جاري الإرسال... <span class="spinner"></span>';
 
-        const phone = "962785050875"; // ✅ Replace with recipient phone number
-        const messageText = `${desc}\n⏰ صالح حتى: ${date}`;
+        const phone = "962785050875";
+
+        // ⭐ Get the latest client name
+        const clientName = await getLatestClientName();
+
+        // ⭐ Message includes the name
+        const messageText = `مرحباً ${clientName} 👋\n${desc}\n⏰ صالح حتى: ${date}`;
 
         try {
           if (selectedFiles.length === 0) {
-            // No images - send text only
             addDebugLog("لا توجد صور - سيتم إرسال نص فقط");
             updateProgress("إرسال رسالة نصية...");
 
@@ -543,7 +568,6 @@
             alert("✅ تم إرسال العرض بنجاح!");
             clearForm();
           } else {
-            // Upload and send multiple images
             addDebugLog(`بدء رفع وإرسال ${selectedFiles.length} صورة`);
 
             let successCount = 0;
@@ -555,11 +579,9 @@
                 `جاري رفع الصورة ${i + 1} من ${selectedFiles.length}...`
               );
 
-              // Upload image
               const imageUrl = await uploadImage(file);
 
               if (imageUrl) {
-                // Wait 2 seconds between messages to avoid rate limiting
                 if (i > 0) {
                   updateProgress(`انتظار قبل إرسال الصورة ${i + 1}...`);
                   await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -569,7 +591,6 @@
                   `إرسال الصورة ${i + 1} من ${selectedFiles.length}...`
                 );
 
-                // Send message with image
                 const isLast = i === selectedFiles.length - 1;
                 const success = await sendWhatsAppMessage(
                   phone,
@@ -578,11 +599,7 @@
                   isLast
                 );
 
-                if (success) {
-                  successCount++;
-                } else {
-                  failCount++;
-                }
+                success ? successCount++ : failCount++;
               } else {
                 failCount++;
               }
@@ -609,7 +626,6 @@
           addDebugLog(`خطأ في الإرسال: ${err.message}`, "error");
           alert("❌ خطأ أثناء الإرسال: " + err.message);
         } finally {
-          // Re-enable button
           sendBtn.disabled = false;
           sendBtn.innerHTML = "إرسال العرض الآن";
           document.getElementById("progressInfo").style.display = "none";
@@ -625,7 +641,7 @@
         imagesPreviewContainer.innerHTML = "";
       }
 
-      // 📱 Menu toggle for mobile fff
+      // 📱 Menu toggle
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       if (menuToggle) {
