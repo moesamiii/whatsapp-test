@@ -633,6 +633,95 @@
           sidebar.classList.toggle("active");
         });
       }
+
+      //--------------------------------------------------
+      // 🔥 AUTO-SENDER FOR NEW CONTACTS FROM GOOGLE SHEET
+      //--------------------------------------------------
+
+      const GOOGLE_SHEET_URL =
+        "https://docs.google.com/spreadsheets/d/1c2puFFOQVSPRoczO5-W9tK5KZl0L3tIdtdNawZ2o67E/gviz/tq?tqx=out:json&gid=1887081887";
+
+      let autoSending = false;
+
+      // 🔁 Check Google Sheet every 20 seconds
+      setInterval(checkForNewRows, 20000);
+
+      async function checkForNewRows() {
+        if (autoSending) return;
+
+        autoSending = true;
+        addDebugLog("🔄 Checking Google Sheet for new contacts...");
+
+        try {
+          const res = await fetch(GOOGLE_SHEET_URL);
+          let text = await res.text();
+          text = text.substring(47, text.length - 2);
+
+          const json = JSON.parse(text);
+          const rows = json.table.rows;
+
+          for (let r of rows) {
+            const name = r.c[0]?.v || "";
+            const phone = r.c[1]?.v || "";
+            const service = r.c[2]?.v || "";
+            const sent = r.c[3]?.v || "";
+
+            // ⛔ Skip if data is missing
+            if (!name || !phone || !service) continue;
+
+            // ⛔ Skip if already sent
+            if (sent === "yes") continue;
+
+            // --------------------------------------------
+            // 🚀 NEW UNSENT ROW → SEND MESSAGE AUTOMATICALLY
+            // --------------------------------------------
+            addDebugLog(`📩 New contact detected → ${name}, ${phone}`);
+
+            const offerTitle = document.getElementById("offerTitle").value;
+            const offerDesc = document.getElementById("offerDesc").value;
+            const offerDate = document.getElementById("offerDate").value;
+
+            const messageText = `${offerDesc}\nالخدمة: ${service}\n⏰ صالح حتى: ${offerDate}`;
+
+            updateProgress(`إرسال رسالة إلى ${name}...`);
+
+            // Without images:
+            const success = await sendWhatsAppMessage(
+              phone,
+              messageText,
+              null,
+              true
+            );
+
+            if (success) {
+              addDebugLog(`✅ Sent to: ${name}`, "success");
+              updateGoogleSheetMarkSent(name);
+            } else {
+              addDebugLog(`❌ Failed sending to: ${name}`, "error");
+            }
+          }
+        } catch (err) {
+          addDebugLog("خطأ في قراءة الشيت: " + err.message, "error");
+        }
+
+        autoSending = false;
+      }
+
+      // --------------------------------------------------
+      // 🔥 WRITE BACK TO GOOGLE SHEET — mark as "sent"
+      // --------------------------------------------------
+      async function updateGoogleSheetMarkSent(name) {
+        const scriptURL =
+          "https://script.google.com/macros/s/AKfycbwWQ0S1RlHSpnM-xxx/exec"; // your Google Apps Script URL
+
+        await fetch(scriptURL, {
+          method: "POST",
+          body: JSON.stringify({ name: name }),
+        });
+
+        addDebugLog(`📝 Sheet updated for ${name}`, "success");
+      }
     </script>
+    <script src="./offers-auto.js"></script>
   </body>
 </html>
