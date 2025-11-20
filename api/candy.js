@@ -1,4 +1,3 @@
-// api/candy.js
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -14,13 +13,13 @@ export default async function handler(req, res) {
     const phone = payload.phone;
     const service = payload.service;
 
-    // === Send WhatsApp ===
-    const whatsappMessage = `🆕 New Booking:
+    const whatsappMessage = `
+📥 New Booking
 Name: ${name}
 Phone: ${phone}
-Service: ${service}`;
+Service: ${service}
+    `;
 
-    // Your existing WhatsApp sender file
     const send = require("../sendWhatsApp");
     await send(phone, whatsappMessage);
 
