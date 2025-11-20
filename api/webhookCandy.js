@@ -1,4 +1,3 @@
-// Required to allow Supabase to send JSON correctly
 export const config = {
   api: {
     bodyParser: true,
@@ -8,9 +7,9 @@ export const config = {
 export default async function handler(req, res) {
   try {
     console.log("🔥 Webhook HIT!");
-    console.log("Body:", req.body);
+    console.log("Received body:", req.body);
 
-    const payload = req.body.record; // Supabase always sends { record: {...} }
+    const payload = req.body.record;
 
     if (!payload) {
       return res.status(400).json({ error: "No record received" });
@@ -37,8 +36,6 @@ Service: ${service}
         appointment: messageText,
       }),
     });
-
-    console.log("✅ WhatsApp SENT by webhook");
 
     return res.status(200).json({ success: true });
   } catch (err) {
