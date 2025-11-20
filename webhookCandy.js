@@ -1,4 +1,5 @@
-// api/webhookCandy.js
+// webhookCandy.js (place in root folder)
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -21,11 +22,9 @@ export default async function handler(req, res) {
 
     // Supabase sends data in "record" field
     const payload = req.body.record || req.body;
-
     const { name, phone, service } = payload;
 
     if (!name || !phone || !service) {
-      console.error("Missing fields:", { name, phone, service });
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -54,7 +53,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: "Webhook processed",
+      message: "Webhook processed successfully",
       whatsappResult: whatsappData,
     });
   } catch (err) {
