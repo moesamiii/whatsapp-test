@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto WhatsApp Sender</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #111;
+        color: #0f0;
+        padding: 20px;
+      }
+      .log-box {
+        background: #000;
+        border: 1px solid #0f0;
+        padding: 15px;
+        border-radius: 10px;
+        height: 400px;
+        overflow-y: auto;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h2>⚡ Auto WhatsApp Sender — Listening for new bookings...</h2>
+
+    <div class="log-box" id="logBox"></div>
+
+    <script>
+      // SAME keys you used in offers.html
+      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      // LOG HELPER
+      function log(message) {
+        const box = document.getElementById("logBox");
+        box.innerHTML += `<div>${new Date().toLocaleTimeString()} — ${message}</div>`;
+        box.scrollTop = box.scrollHeight;
+      }
+
+      // SAME WhatsApp sender from offers.html
+      async function sendWhatsApp(phone, service, name, contactTime) {
+        const payload = {
+          name: name,
+          phone: phone,
+          service: service,
+          appointment: "New booking received — preferred time: " + contactTime,
+          image: null,
+        };
+
+        log("📨 Sending WhatsApp message to " + phone);
+
+        try {
+          const res = await fetch(
+            "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }
+          );
+
+          const data = await res.json();
+
+          if (data.success) {
+            log("✅ WhatsApp message sent successfully!");
+          } else {
+            log("❌ WhatsApp send failed: " + JSON.stringify(data));
+          }
+        } catch (err) {
+          log("🔥 ERROR: " + err.message);
+        }
+      }
+
+      // LISTEN FOR NEW ROWS
+      async function startListener() {
+        log("👂 Listening for INSERTS in web_bookings...");
+
+        supabase
+          .channel("booking-listener")
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "web_bookings",
+            },
+            (payload) => {
+              log("🆕 New booking detected!");
+              console.log(payload);
+
+              const newRow = payload.new;
+
+              const name = newRow.name;
+              const phone = newRow.phone;
+              const service = newRow.service;
+              const contactTime = newRow.contact_time;
+
+              log(`➡ Sending message to ${phone}`);
+
+              sendWhatsApp(phone, service, name, contactTime);
+            }
+          )
+          .subscribe();
+      }
+
+      startListener();
+    </script>
+  </body>
+</html>
