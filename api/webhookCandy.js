@@ -7,7 +7,7 @@ export const config = {
 export default async function handler(req, res) {
   try {
     console.log("🔥 Webhook HIT!");
-    console.log("Received body:", req.body);
+    console.log("Body:", req.body);
 
     const payload = req.body.record;
 
@@ -23,8 +23,6 @@ Name: ${name}
 Phone: ${phone}
 Service: ${service}
 `;
-
-    console.log("📨 Sending WhatsApp:", messageText);
 
     await fetch("https://whatsapp-test-rosy.vercel.app/api/sendWhatsApp", {
       method: "POST",
