@@ -32,7 +32,7 @@
 
     <script>
       // -------------------------------------------------------
-      // SUPABASE CONFIG (same as offers.html)
+      // SUPABASE CONFIG
       // -------------------------------------------------------
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
@@ -41,7 +41,7 @@
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       // -------------------------------------------------------
-      // LOGGER (same look as your debug box style)
+      // LOGGER
       // -------------------------------------------------------
       function log(msg) {
         const box = document.getElementById("log");
@@ -51,14 +51,13 @@
       }
 
       // -------------------------------------------------------
-      // SAME WHATSAPP SENDER FROM YOUR offers.html
-      // FIXED PHONE NUMBER = 962785050875
+      // WHATSAPP SENDER (same as offers.html)
       // -------------------------------------------------------
       async function sendWhatsAppMessage(messageText) {
         try {
           const payload = {
             name: "Smile Clinic",
-            phone: "962785050875", // *** FIXED NUMBER HERE ***
+            phone: "962785050875", // EXACT NUMBER
             service: "New Booking",
             appointment: messageText,
             image: null,
@@ -88,7 +87,7 @@
       }
 
       // -------------------------------------------------------
-      // REALTIME LISTENER (INSERT)
+      // REALTIME LISTENER FOR NEW BOOKINGS
       // -------------------------------------------------------
       supabase
         .channel("booking-auto-sender")
@@ -98,21 +97,18 @@
           (payload) => {
             log("🎉 NEW BOOKING ADDED!");
 
-            const newRow = payload.new;
+            const row = payload.new;
+            log(`👤 Name: ${row.name}`);
+            log(`📞 Phone: ${row.phone}`);
+            log(`🦷 Service: ${row.service}`);
 
-            const name = newRow.name;
-            const phone = newRow.phone;
-            const service = newRow.service;
+            const msg =
+              `📢 عميل جديد من الموقع:\n` +
+              `👤 الاسم: ${row.name}\n` +
+              `📞 الهاتف: ${row.phone}\n` +
+              `💊 الخدمة: ${row.service}`;
 
-            log(`👤 Name: ${name}`);
-            log(`📞 Phone: ${phone}`);
-            log(`🦷 Service: ${service}`);
-
-            // Build message text
-            const messageText = `عميل جديد!\nالاسم: ${name}\nالخدمة: ${service}\nرقم الهاتف: ${phone}`;
-
-            // Send WhatsApp to your fixed number
-            sendWhatsAppMessage(messageText);
+            sendWhatsAppMessage(msg);
           }
         )
         .subscribe();
