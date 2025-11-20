@@ -6,12 +6,6 @@
     { "src": "*.css", "use": "@vercel/static" },
     { "src": "img/**", "use": "@vercel/static" }
   ],
-  "rewrites": [
-    {
-      "source": "/api/webhookCandy",
-      "destination": "/webhookCandy.js"
-    }
-  ],
   "routes": [
     { "src": "/sendWhatsApp", "dest": "index.js" },
     { "src": "/img/(.*)", "dest": "/img/$1" },
