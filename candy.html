@@ -162,10 +162,7 @@
             border-radius: 50px;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             width: fit-content;
-            direction: rtl;
-            max-width: 100%;
           "
         >
           احجز الآن
@@ -173,6 +170,24 @@
       </form>
       <p id="status"></p>
     </div>
+
+    <button
+      type="submit"
+      form="bookingForm"
+      style="
+        margin-top: 20px;
+        display: block;
+        width: 200px;
+        padding: 14px;
+        font-size: 18px;
+        background: #0077ff;
+        color: white;
+        border: none;
+        border-radius: 12px;
+      "
+    >
+      Submit
+    </button>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
