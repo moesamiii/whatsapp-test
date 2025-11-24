@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clinic Booking Form</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        padding: 20px;
+      }
+      .form-wrapper {
+        max-width: 450px;
+        margin: auto;
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        text-align: center;
+        margin-bottom: 25px;
+      }
+      input,
+      select,
+      button {
+        width: 100%;
+        padding: 12px;
+        margin: 10px 0;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        font-size: 16px;
+        box-sizing: border-box;
+      }
+      button {
+        background-color: #0077ff;
+        color: white;
+        font-size: 17px;
+        border: none;
+        cursor: pointer;
+        position: relative;
+      }
+      button:hover {
+        background-color: #005ad1;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #ffffff;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        vertical-align: middle;
+        margin-left: 8px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      #status {
+        text-align: center;
+        margin-top: 15px;
+        font-weight: bold;
+      }
+      .success {
+        color: #28a745;
+      }
+      .error {
+        color: #dc3545;
+      }
+      .info {
+        color: #0077ff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="form-wrapper">
+      <h2>Book Your Appointment</h2>
+      <form id="bookingForm">
+        <input type="text" id="name" placeholder="Full Name" required />
+        <input type="text" id="phone" placeholder="Phone Number" required />
+        <select id="service" required>
+          <option value="">Select Service</option>
+          <option value="تنظيف">تنظيف</option>
+          <option value="حشو">حشو</option>
+          <option value="تقويم">تقويم</option>
+          <option value="تبييض">تبييض</option>
+        </select>
+        <input
+          type="text"
+          id="contactTime"
+          placeholder="Preferred Contact Time (e.g. 7pm-10pm)"
+          required
+        />
+        <button type="submit" id="submitBtn">Submit</button>
+      </form>
+      <p id="status"></p>
+    </div>
+    <script>
+      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+
+      // WhatsApp recipient number (format: country code + number, no + or spaces)
+      const WHATSAPP_RECIPIENT = "962785050875";
+
+      function updateStatus(message, type = "info") {
+        const statusEl = document.getElementById("status");
+        statusEl.innerText = message;
+        statusEl.className = type;
+      }
+
+      function setButtonLoading(isLoading) {
+        const btn = document.getElementById("submitBtn");
+        if (isLoading) {
+          btn.disabled = true;
+          btn.innerHTML = 'Processing... <span class="spinner"></span>';
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = "Submit";
+        }
+      }
+
+      async function saveToSupabase(data) {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/web_bookings`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to save to database");
+        }
+        return true;
+      }
+
+      function sendWhatsAppMessage(phone, name, service, contactTime) {
+        // Format the message
+        const message =
+          `🏥 *New Appointment Booking*\n\n` +
+          `👤 Name: ${name}\n` +
+          `📞 Phone: ${phone}\n` +
+          `🦷 Service: ${service}\n` +
+          `⏰ Preferred Time: ${contactTime}\n\n` +
+          `Please confirm the appointment.`;
+
+        // Encode the message for URL
+        const encodedMessage = encodeURIComponent(message);
+
+        // Create WhatsApp Web URL
+        const whatsappUrl = `https://wa.me/${WHATSAPP_RECIPIENT}?text=${encodedMessage}`;
+
+        // Open WhatsApp in new tab
+        window.open(whatsappUrl, "_blank");
+
+        return true;
+      }
+
+      document
+        .getElementById("bookingForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          // Get form data
+          const name = document.getElementById("name").value.trim();
+          const phone = document.getElementById("phone").value.trim();
+          const service = document.getElementById("service").value;
+          const contactTime = document
+            .getElementById("contactTime")
+            .value.trim();
+
+          // Validate all fields
+          if (!name || !phone || !service || !contactTime) {
+            updateStatus("⚠️ Please fill all fields!", "error");
+            return;
+          }
+
+          // Set loading state
+          setButtonLoading(true);
+          updateStatus("📤 Saving booking...", "info");
+
+          try {
+            // Prepare data for Supabase
+            const data = {
+              name: name,
+              phone: phone,
+              service: service,
+              contact_time: contactTime,
+            };
+
+            // Step 1: Save to Supabase
+            await saveToSupabase(data);
+            updateStatus("✔ Booking saved! Opening WhatsApp...", "success");
+
+            // Small delay to show success message
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
+            // Step 2: Send WhatsApp message
+            sendWhatsAppMessage(phone, name, service, contactTime);
+
+            // Update final status
+            updateStatus("✔ Booking saved & WhatsApp opened!", "success");
+
+            // Reset form after 2 seconds
+            setTimeout(() => {
+              document.getElementById("bookingForm").reset();
+              updateStatus("", "");
+            }, 2000);
+          } catch (error) {
+            console.error("Error:", error);
+            updateStatus("❌ Error: " + error.message, "error");
+          } finally {
+            setButtonLoading(false);
+          }
+        });
+    </script>
+  </body>
+</html>
