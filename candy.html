@@ -33,16 +33,6 @@
         font-size: 16px;
         box-sizing: border-box;
       }
-      .form-control,
-      .custom-select {
-        width: 100%;
-        padding: 12px;
-        margin: 10px 0;
-        border-radius: 6px;
-        border: 1px solid #ccc;
-        font-size: 16px;
-        box-sizing: border-box;
-      }
       button {
         background-color: #0077ff;
         color: white;
@@ -87,89 +77,22 @@
     <div class="form-wrapper">
       <h2>Book Your Appointment</h2>
       <form id="bookingForm">
-        <input
-          class="form-control"
-          type="text"
-          id="name"
-          name="entry.835614916"
-          placeholder="اكتب اسمك هنا"
-          required
-        />
-
-        <input
-          class="form-control"
-          type="tel"
-          id="phone"
-          name="entry.311746731"
-          placeholder="966XXXXXXXX"
-          dir="rtl"
-          required
-        />
-
-        <!-- Hidden honeypot field for spam protection -->
-        <input
-          class="form-control"
-          type="text"
-          name="your-email"
-          placeholder="البريد الالكتروني"
-          style="display: none"
-        />
-
-        <!-- Service Dropdown -->
-        <select
-          name="entry.1752648793"
-          id="service"
-          class="custom-select"
-          aria-label="الخدمة"
-          required
-        >
-          <option value="زراعة الاسنان - الدكتور ماهر عبدالخالق" selected>
-            زراعة الاسنان - الدكتور ماهر عبدالخالق
-          </option>
+        <input type="text" id="name" placeholder="Full Name" required />
+        <input type="text" id="phone" placeholder="Phone Number" required />
+        <select id="service" required>
+          <option value="">Select Service</option>
           <option value="تنظيف">تنظيف</option>
           <option value="حشو">حشو</option>
           <option value="تقويم">تقويم</option>
           <option value="تبييض">تبييض</option>
         </select>
-
-        <!-- Contact Time Dropdown -->
-        <select
-          name="entry.1980290232"
+        <input
+          type="text"
           id="contactTime"
-          class="custom-select"
-          aria-label="وقت التواصل"
+          placeholder="Preferred Contact Time (e.g. 7pm-10pm)"
           required
-        >
-          <option value="" disabled selected hidden>اختر وقت التواصل</option>
-          <option value="1-4">1 - 4</option>
-          <option value="4-7">4 - 7</option>
-          <option value="7-10">7 - 10</option>
-        </select>
-
-        <br />
-
-        <button
-          type="submit"
-          style="
-            display: block;
-            margin: 0 auto;
-            background-color: #a1858a;
-            color: white;
-            padding: 14px 28px;
-            font-size: 18px;
-            font-weight: bold;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: fit-content;
-            direction: rtl;
-            max-width: 100%;
-          "
-        >
-          احجز الآن
-        </button>
+        />
+        <button type="submit">Submit</button>
       </form>
       <p id="status"></p>
     </div>
@@ -236,23 +159,6 @@
         if (!response.ok) {
           throw new Error("Failed to save to database");
         }
-        return true;
-      }
-
-      // 📊 Save to Google Sheets
-      async function saveToGoogleSheets(formElement) {
-        const formData = new FormData(formElement);
-
-        const response = await fetch(
-          "https://docs.google.com/forms/u/0/d/e/1FAIpQLScGUGhvjt979ugieaT6-F90DdWwsN16OISgbWQScbVpr1G4kQ/formResponse",
-          {
-            method: "POST",
-            mode: "no-cors",
-            body: formData,
-          }
-        );
-
-        // no-cors mode doesn't return readable response, so we assume success
         return true;
       }
 
