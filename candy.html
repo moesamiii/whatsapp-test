@@ -185,10 +185,10 @@
 
           const payload = {
             name: name,
-            phone: "962785050875", // Your WhatsApp number
+            phone: "962785050875",
             service: service,
             appointment: messageText,
-            image: null, // No image for booking form
+            image: null,
           };
 
           console.log("Sending WhatsApp message...", payload);
@@ -292,7 +292,12 @@
             await saveToSupabase(data);
             console.log("✅ Saved to Supabase");
 
-            // Step 2: Send WhatsApp message
+            // Step 2: Save to Google Sheets
+            statusEl.innerText = "📊 Saving to Google Sheets...";
+            await saveToGoogleSheets(e.target);
+            console.log("✅ Saved to Google Sheets");
+
+            // Step 3: Send WhatsApp message
             statusEl.innerText = "📱 Sending WhatsApp message...";
             const whatsappSent = await sendWhatsAppMessage(
               phone,
@@ -302,7 +307,7 @@
             );
 
             if (whatsappSent) {
-              statusEl.innerText = "✔ Booking saved & WhatsApp sent!";
+              statusEl.innerText = "✔ All systems updated successfully!";
               alert("✅ تم إرسال الحجز بنجاح!");
             } else {
               statusEl.innerText = "⚠️ Booking saved, but WhatsApp failed";
@@ -320,7 +325,7 @@
             alert("❌ خطأ أثناء الإرسال: " + error.message);
           } finally {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = "Submit";
+            submitBtn.innerHTML = "احجز الآن";
           }
         });
     </script>
