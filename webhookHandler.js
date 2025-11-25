@@ -37,6 +37,24 @@ const {
 
 const { handleAudioMessage } = require("./webhookProcessor");
 
+function isSideQuestion(text = "") {
+  if (!text) return false;
+  const t = text.trim().toLowerCase();
+
+  return (
+    t.endsWith("?") ||
+    t.includes("كم") ||
+    t.includes("price") ||
+    t.includes("how") ||
+    t.includes("مدة") ||
+    t.includes("ليش") ||
+    t.includes("why") ||
+    t.startsWith("هل ") ||
+    t.startsWith("شو ") ||
+    t.startsWith("what ")
+  );
+}
+
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
   // Webhook verification
   app.get("/webhook", (req, res) => {
@@ -237,7 +255,16 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // 🧩 Step 2: Name input
       if (tempBookings[from] && !tempBookings[from].name) {
+        // ⭐ User asked a question while booking
+        if (isSideQuestion(text)) {
+          const answer = await askAI(text);
+          await sendTextMessage(from, answer);
+          await sendTextMessage(from, "نكمّل الحجز؟ أرسل اسمك 😊");
+          return res.sendStatus(200);
+        }
+
         const userName = text.trim();
+
         const isValid = await validateNameWithAI(userName);
 
         if (!isValid) {
@@ -255,7 +282,15 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // 🧩 Step 3: Phone input
       if (tempBookings[from] && !tempBookings[from].phone) {
+        if (isSideQuestion(text)) {
+          const answer = await askAI(text);
+          await sendTextMessage(from, answer);
+          await sendTextMessage(from, "تمام! الآن أرسل رقم جوالك:");
+          return res.sendStatus(200);
+        }
+
         const normalized = text
+
           .replace(/[^\d٠-٩]/g, "")
           .replace(/٠/g, "0")
           .replace(/١/g, "1")
@@ -287,8 +322,15 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // 🧩 Step 4: Service input (smart validation & balanced behavior)
+      // 🧩 Step 4: Service input
       if (tempBookings[from] && !tempBookings[from].service) {
+        if (isSideQuestion(text)) {
+          const answer = await askAI(text);
+          await sendTextMessage(from, answer);
+          await sendTextMessage(from, "نرجع للحجز… ما هي الخدمة المطلوبة؟");
+          return res.sendStatus(200);
+        }
+
         const booking = tempBookings[from];
         const userService = text.trim();
 
