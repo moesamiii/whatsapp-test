@@ -184,7 +184,7 @@ async function handleAudioMessage(message, from) {
       if (!isValid) {
         await sendTextMessage(
           from,
-          "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
+          "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 078XXXXXXX"
         );
         return;
       }
