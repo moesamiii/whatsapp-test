@@ -184,7 +184,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         const language = isEnglish(text) ? "en" : "ar";
 
         // If the user explicitly asks to SEND the offers
-        if (isOffersConfirmation(text)) {
+        if (text.match(/ارسل|رسل|أرسل|نعم|ايه|أيوه|ابي|أبغى|ابغى|شوف|عرض/i)) {
           await sendOffersImages(from, language);
           return res.sendStatus(200);
         }
