@@ -20,7 +20,6 @@
  * - CLINIC_LOCATION_LINK
  * - OFFER_IMAGES
  * - DOCTOR_IMAGES
- * - DOCTOR_INFO
  *
  * Usage:
  * - const { sendOffersImages, isLocationRequest, transcribeAudio, containsBanWords } = require('./messageHandlers');
@@ -37,7 +36,6 @@ const {
   CLINIC_LOCATION_LINK,
   OFFER_IMAGES,
   DOCTOR_IMAGES,
-  DOCTOR_INFO,
 } = require("./mediaAssets");
 
 // ---------------------------------------------
@@ -68,7 +66,7 @@ function getGreeting(isEnglish = false) {
     "Hey! 👋 Glad to see you at *Ibtisama Clinic*! What can I do for you today?",
     "✨ Hello and welcome to *Ibtisama Clinic*! Are you interested in our offers or booking a visit?",
     "Good day! 💚 How can I assist you with your dental or beauty needs today?",
-    "😊 Hi! You've reached *Ibtisama Clinic*, your smile is our priority!",
+    "😊 Hi! You’ve reached *Ibtisama Clinic*, your smile is our priority!",
     "👋 Hello there! Would you like to see our latest offers or book an appointment?",
     "Welcome! 🌸 How can I help you take care of your smile today?",
     "💬 Hi! How can I help you find the right service or offer at *Ibtisama Clinic*?",
@@ -511,23 +509,16 @@ async function sendLocationMessages(to, language = "ar") {
 // ---------------------------------------------
 // 📸 Send Image Message (WhatsApp API)
 // ---------------------------------------------
-async function sendImageMessage(to, imageUrl, caption = "") {
+async function sendImageMessage(to, imageUrl) {
   try {
-    const payload = {
-      messaging_product: "whatsapp",
-      to,
-      type: "image",
-      image: { link: imageUrl },
-    };
-
-    // Add caption if provided
-    if (caption) {
-      payload.image.caption = caption;
-    }
-
     await axios.post(
       `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      payload,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "image",
+        image: { link: imageUrl },
+      },
       {
         headers: {
           Authorization: `Bearer ${WHATSAPP_TOKEN}`,
@@ -547,7 +538,7 @@ async function sendImageMessage(to, imageUrl, caption = "") {
 // 📅 Send Offers Validity (Smart Date Logic)
 // ---------------------------------------------
 async function sendOffersValidity(to) {
-  const endDate = new Date("2025-11-30"); // <-- change this date only if needed
+  const endDate = new Date("2025-12-30"); // <-- change this date only if needed
   const today = new Date();
 
   const diffTime = endDate - today;
@@ -608,7 +599,7 @@ async function sendOffersImages(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Send Doctors Images WITH Names & Specializations
+// 👨‍⚕️ Send Doctors Images
 // ---------------------------------------------
 async function sendDoctorsImages(to, language = "ar") {
   try {
@@ -619,15 +610,11 @@ async function sendDoctorsImages(to, language = "ar") {
         : "👨‍⚕️ تعرف على فريقنا الطبي المتخصص:"
     );
     await new Promise((r) => setTimeout(r, 500));
-
-    // Send each doctor image with their info as caption
     for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
-      const caption = `${DOCTOR_INFO[i].name}\n${DOCTOR_INFO[i].specialization}`;
-      await sendImageMessage(to, DOCTOR_IMAGES[i], caption);
+      await sendImageMessage(to, DOCTOR_IMAGES[i]);
       if (i < DOCTOR_IMAGES.length - 1)
         await new Promise((r) => setTimeout(r, 800));
     }
-
     await new Promise((r) => setTimeout(r, 500));
     await sendTextMessage(
       to,
@@ -687,11 +674,62 @@ async function transcribeAudio(mediaId) {
 }
 
 // ---------------------------------------------
+// ✔ Detect explicit confirmation to send the offers
+// ---------------------------------------------
+function isOffersConfirmation(text = "") {
+  if (!text) return false;
+
+  const normalizedText = text
+    .replace(/\u0640/g, "")
+    .replace(/[^\u0600-\u06FFa-zA-Z0-9 ]/g, "")
+    .trim()
+    .toLowerCase();
+
+  const patterns = [
+    "ارسل",
+    "رسل",
+    "أرسل",
+    "ابغى",
+    "أبغى",
+    "ابي",
+    "أبي",
+    "ايه",
+    "إيه",
+    "اىه",
+    "ايوه",
+    "أيوه",
+    "نعم",
+    "شوف",
+    "عرض",
+    "ابي العرض",
+    "ابي العروض",
+    "send",
+    "yes",
+    "yeah",
+    "yup",
+    "ok",
+    "okay",
+    "sure",
+    "send it",
+    "send offers",
+    "send them",
+    "show",
+    "show me",
+    "show offers",
+    "i want",
+    "i need",
+  ];
+
+  return patterns.some((word) => normalizedText.includes(word));
+}
+
+// ---------------------------------------------
 // Exports
 // ---------------------------------------------
 module.exports = {
   isLocationRequest,
   isOffersRequest,
+  isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
   isEnglish,
