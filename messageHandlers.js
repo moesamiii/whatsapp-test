@@ -20,6 +20,7 @@
  * - CLINIC_LOCATION_LINK
  * - OFFER_IMAGES
  * - DOCTOR_IMAGES
+ * - DOCTOR_INFO
  *
  * Usage:
  * - const { sendOffersImages, isLocationRequest, transcribeAudio, containsBanWords } = require('./messageHandlers');
@@ -36,6 +37,7 @@ const {
   CLINIC_LOCATION_LINK,
   OFFER_IMAGES,
   DOCTOR_IMAGES,
+  DOCTOR_INFO,
 } = require("./mediaAssets");
 
 // ---------------------------------------------
@@ -66,7 +68,7 @@ function getGreeting(isEnglish = false) {
     "Hey! 👋 Glad to see you at *Ibtisama Clinic*! What can I do for you today?",
     "✨ Hello and welcome to *Ibtisama Clinic*! Are you interested in our offers or booking a visit?",
     "Good day! 💚 How can I assist you with your dental or beauty needs today?",
-    "😊 Hi! You’ve reached *Ibtisama Clinic*, your smile is our priority!",
+    "😊 Hi! You've reached *Ibtisama Clinic*, your smile is our priority!",
     "👋 Hello there! Would you like to see our latest offers or book an appointment?",
     "Welcome! 🌸 How can I help you take care of your smile today?",
     "💬 Hi! How can I help you find the right service or offer at *Ibtisama Clinic*?",
@@ -509,16 +511,23 @@ async function sendLocationMessages(to, language = "ar") {
 // ---------------------------------------------
 // 📸 Send Image Message (WhatsApp API)
 // ---------------------------------------------
-async function sendImageMessage(to, imageUrl) {
+async function sendImageMessage(to, imageUrl, caption = "") {
   try {
+    const payload = {
+      messaging_product: "whatsapp",
+      to,
+      type: "image",
+      image: { link: imageUrl },
+    };
+
+    // Add caption if provided
+    if (caption) {
+      payload.image.caption = caption;
+    }
+
     await axios.post(
       `https://graph.facebook.com/v21.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to,
-        type: "image",
-        image: { link: imageUrl },
-      },
+      payload,
       {
         headers: {
           Authorization: `Bearer ${WHATSAPP_TOKEN}`,
@@ -599,7 +608,7 @@ async function sendOffersImages(to, language = "ar") {
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Send Doctors Images
+// 👨‍⚕️ Send Doctors Images WITH Names & Specializations
 // ---------------------------------------------
 async function sendDoctorsImages(to, language = "ar") {
   try {
@@ -610,11 +619,15 @@ async function sendDoctorsImages(to, language = "ar") {
         : "👨‍⚕️ تعرف على فريقنا الطبي المتخصص:"
     );
     await new Promise((r) => setTimeout(r, 500));
+
+    // Send each doctor image with their info as caption
     for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
-      await sendImageMessage(to, DOCTOR_IMAGES[i]);
+      const caption = `${DOCTOR_INFO[i].name}\n${DOCTOR_INFO[i].specialization}`;
+      await sendImageMessage(to, DOCTOR_IMAGES[i], caption);
       if (i < DOCTOR_IMAGES.length - 1)
         await new Promise((r) => setTimeout(r, 800));
     }
+
     await new Promise((r) => setTimeout(r, 500));
     await sendTextMessage(
       to,

@@ -10,8 +10,7 @@
  * - CLINIC_NAME
  * - CLINIC_LOCATION_LINK
  * - OFFER_IMAGES (array of direct image links)
- * - DOCTOR_IMAGES (array of direct image links)
- * - DOCTOR_INFO (array of objects with name and specialization)
+ * - DOCTOR_IMAGES (array of objects with url, name, and specialization)
  *
  * Usage:
  * - require('./mediaAssets') from messageHandlers.js or any other module that wants to send media.
