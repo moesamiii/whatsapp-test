@@ -10,7 +10,8 @@
  * - CLINIC_NAME
  * - CLINIC_LOCATION_LINK
  * - OFFER_IMAGES (array of direct image links)
- * - DOCTOR_IMAGES (array of objects with url, name, and specialization)
+ * - DOCTOR_IMAGES (array of direct image links)
+ * - DOCTOR_INFO (array of objects with name and specialization)
  *
  * Usage:
  * - require('./mediaAssets') from messageHandlers.js or any other module that wants to send media.
@@ -31,19 +32,23 @@ const OFFER_IMAGES = [
 ];
 
 const DOCTOR_IMAGES = [
-  // Doctors images with metadata
+  // Doctors images (Google Drive direct links)
+  "https://drive.google.com/uc?export=view&id=1aHoA2ks39qeuMk9WMZOdotOod-agEonm",
+  "https://drive.google.com/uc?export=view&id=1Oe2UG2Gas6UY0ORxXtUYvTJeJZ8Br2_R",
+  "https://drive.google.com/uc?export=view&id=1_4eDWRuVme3YaLLoeFP_10LYHZyHyjUT",
+];
+
+// Doctor information corresponding to each image
+const DOCTOR_INFO = [
   {
-    url: "https://drive.google.com/uc?export=view&id=1aHoA2ks39qeuMk9WMZOdotOod-agEonm",
     name: "د. أحمد الخطيب",
     specialization: "تقويم الأسنان",
   },
   {
-    url: "https://drive.google.com/uc?export=view&id=1Oe2UG2Gas6UY0ORxXtUYvTJeJZ8Br2_R",
     name: "د. سارة محمود",
     specialization: "تجميل الأسنان",
   },
   {
-    url: "https://drive.google.com/uc?export=view&id=1_4eDWRuVme3YaLLoeFP_10LYHZyHyjUT",
     name: "د. خالد العمري",
     specialization: "طب الأسنان العام",
   },
@@ -54,4 +59,5 @@ module.exports = {
   CLINIC_LOCATION_LINK,
   OFFER_IMAGES,
   DOCTOR_IMAGES,
+  DOCTOR_INFO,
 };
