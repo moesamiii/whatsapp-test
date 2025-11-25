@@ -41,7 +41,7 @@ export default async function handler(req, res) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: "Smile Clinic",
-          phone: "962785050875",
+          phone: "962781685210",
           service: "Booking",
           appointment: messageText,
         }),
