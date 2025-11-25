@@ -535,6 +535,41 @@ async function sendImageMessage(to, imageUrl) {
 }
 
 // ---------------------------------------------
+// 📅 Send Offers Validity (Smart Date Logic)
+// ---------------------------------------------
+async function sendOffersValidity(to) {
+  const endDate = new Date("2025-11-30"); // <-- change this date only if needed
+  const today = new Date();
+
+  const diffTime = endDate - today;
+
+  if (diffTime <= 0) {
+    return sendTextMessage(
+      to,
+      "📅 انتهت عروضنا الحالية. تابعنا للعروض القادمة قريباً 🎉"
+    );
+  }
+
+  const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const daysText =
+    days === 1
+      ? "يوم واحد"
+      : days === 2
+      ? "يومين"
+      : days >= 3 && days <= 10
+      ? `${days} أيام`
+      : `${days} يوماً`;
+
+  await sendTextMessage(
+    to,
+    `📅 عروضنا مستمرة لمدة *${daysText}* حتى تاريخ *${endDate.toLocaleDateString(
+      "ar-EG"
+    )}*. هل ترغب أن أرسل لك جميع العروض؟`
+  );
+}
+
+// ---------------------------------------------
 // 🎁 Send Offers Images
 // ---------------------------------------------
 async function sendOffersImages(to, language = "ar") {
@@ -656,4 +691,5 @@ module.exports = {
   transcribeAudio,
   isGreeting,
   getGreeting,
+  sendOffersValidity,
 };

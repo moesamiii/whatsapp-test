@@ -22,6 +22,7 @@ const {
   sendLocationMessages,
   sendOffersImages,
   sendDoctorsImages,
+  sendOffersValidity,
   isLocationRequest,
   isOffersRequest,
   isDoctorsRequest,
@@ -178,9 +179,18 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
+      // Offers logic (smart)
       if (isOffersRequest(text)) {
         const language = isEnglish(text) ? "en" : "ar";
-        await sendOffersImages(from, language);
+
+        // If the user explicitly asks to SEND the offers
+        if (text.match(/ارسل|رسل|أرسل|نعم|ايه|أيوه|ابي|أبغى|ابغى|شوف|عرض/i)) {
+          await sendOffersImages(from, language);
+          return res.sendStatus(200);
+        }
+
+        // Otherwise: send offer validity message
+        await sendOffersValidity(from);
         return res.sendStatus(200);
       }
 
