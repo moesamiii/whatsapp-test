@@ -579,6 +579,62 @@ async function sendOffersValidity(to) {
 }
 
 // ---------------------------------------------
+// ✔ Detect explicit confirmation to send the offers
+// ---------------------------------------------
+function isOffersConfirmation(text = "") {
+  if (!text) return false;
+
+  const normalizedText = text
+    .replace(/\u0640/g, "") // remove tatweel
+    .replace(/[^\u0600-\u06FFa-zA-Z0-9 ]/g, "") // remove weird unicode
+    .trim()
+    .toLowerCase();
+
+  const patterns = [
+    // Arabic confirmation
+    "ارسل",
+    "رسل",
+    "أرسل",
+    "ابغى",
+    "أبغى",
+    "ابي",
+    "أبي",
+    "ايه",
+    "إيه",
+    "ايوه",
+    "أيوه",
+    "نعم",
+    "شوف",
+    "عرض",
+    "ارسلي",
+    "ابعث",
+    "ابعثي",
+    "ارسلهم",
+    "ارسله",
+    "ارسل العرض",
+
+    // English confirmation
+    "yes",
+    "yeah",
+    "yup",
+    "ok",
+    "okay",
+    "sure",
+    "send",
+    "send it",
+    "send them",
+    "send offers",
+    "show",
+    "show me",
+    "show offers",
+    "i want",
+    "i need",
+  ];
+
+  return patterns.some((p) => normalizedText.includes(p));
+}
+
+// ---------------------------------------------
 // 🎁 Send Offers Images
 // ---------------------------------------------
 async function sendOffersImages(to, language = "ar") {
@@ -692,6 +748,7 @@ async function transcribeAudio(mediaId) {
 module.exports = {
   isLocationRequest,
   isOffersRequest,
+  isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
   isEnglish,

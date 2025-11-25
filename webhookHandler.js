@@ -25,6 +25,7 @@ const {
   sendOffersValidity,
   isLocationRequest,
   isOffersRequest,
+  isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
   isEnglish,
@@ -180,17 +181,17 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       }
 
       // Offers logic (smart)
+      // 🌟 Offers Logic (Smart 2-Step Flow)
       if (isOffersRequest(text)) {
         const language = isEnglish(text) ? "en" : "ar";
-
-        // If the user explicitly asks to SEND the offers
-        if (text.match(/ارسل|رسل|أرسل|نعم|ايه|أيوه|ابي|أبغى|ابغى|شوف|عرض/i)) {
-          await sendOffersImages(from, language);
-          return res.sendStatus(200);
-        }
-
-        // Otherwise: send offer validity message
         await sendOffersValidity(from);
+        return res.sendStatus(200);
+      }
+
+      // 🌟 User confirms: "Send offers"
+      if (isOffersConfirmation(text)) {
+        const language = isEnglish(text) ? "en" : "ar";
+        await sendOffersImages(from, language);
         return res.sendStatus(200);
       }
 
