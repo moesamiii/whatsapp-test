@@ -262,7 +262,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         if (!isValid) {
           await sendTextMessage(
             from,
-            "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 0785050875"
+            "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 07XXXXXXXX"
           );
           return res.sendStatus(200);
         }
