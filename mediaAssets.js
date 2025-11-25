@@ -10,7 +10,7 @@
  * - CLINIC_NAME
  * - CLINIC_LOCATION_LINK
  * - OFFER_IMAGES (array of direct image links)
- * - DOCTOR_IMAGES (array of direct image links)
+ * - DOCTOR_IMAGES (array of objects: { url, specialty })
  *
  * Usage:
  * - require('./mediaAssets') from messageHandlers.js or any other module that wants to send media.
@@ -30,11 +30,20 @@ const OFFER_IMAGES = [
   "https://drive.google.com/uc?export=view&id=17jaUTvf_S2nqApqMlRc3r8q97uPulvDx",
 ];
 
+// ⬅️ التعديل الوحيد هنا — الآن كل دكتور = صورة + تخصص
 const DOCTOR_IMAGES = [
-  // Doctors images (Google Drive direct links)
-  "https://drive.google.com/uc?export=view&id=1aHoA2ks39qeuMk9WMZOdotOod-agEonm",
-  "https://drive.google.com/uc?export=view&id=1Oe2UG2Gas6UY0ORxXtUYvTJeJZ8Br2_R",
-  "https://drive.google.com/uc?export=view&id=1_4eDWRuVme3YaLLoeFP_10LYHZyHyjUT",
+  {
+    url: "https://drive.google.com/uc?export=view&id=1aHoA2ks39qeuMk9WMZOdotOod-agEonm",
+    specialty: "أخصائي تجميل الأسنان",
+  },
+  {
+    url: "https://drive.google.com/uc?export=view&id=1Oe2UG2Gas6UY0ORxXtUYvTJeJZ8Br2_R",
+    specialty: "أخصائي زراعة الأسنان",
+  },
+  {
+    url: "https://drive.google.com/uc?export=view&id=1_4eDWRuVme3YaLLoeFP_10LYHZyHyjUT",
+    specialty: "أخصائي تقويم الأسنان",
+  },
 ];
 
 module.exports = {
