@@ -118,7 +118,7 @@
         width: 400px;
         max-height: 70vh;
         overflow-y: auto;
-        color: #222;
+        color: #222; /* readable on white */
       }
 
       .modal-content h3 {
@@ -127,19 +127,21 @@
         margin-top: 0;
       }
 
+      /* ✅ Dark mode fixes */
       body.dark .modal-content {
         background: #222;
-        color: #e5e7eb;
+        color: #e5e7eb; /* light gray text for readability */
       }
 
       body.dark .modal-content h3 {
-        color: #b48cf0;
+        color: #b48cf0; /* soft purple to match dark theme */
       }
 
+      /* ✅ Table + general dark text fix */
       body.dark table,
       body.dark th,
       body.dark td {
-        color: #d1d5db;
+        color: #d1d5db; /* balanced light gray text */
         border-color: #333;
       }
 
@@ -176,10 +178,12 @@
             جدول التواصل
           </a>
 
+          <!-- ✅ NEW MENU ITEM ADDED HERE -->
           <a href="contactlist.html">
             <i class="fa-solid fa-address-book"></i>
             قائمة التواصل
           </a>
+          <!-- ✅ END NEW ITEM -->
 
           <a href="AIsettings.html">
             <i class="fa-solid fa-robot"></i>
@@ -218,7 +222,6 @@
               <option value="Still">قيد الانتظار</option>
               <option value="Booking Complete">تم الحجز</option>
               <option value="SentNoReply">تم الإرسال ولم يتم الرد</option>
-              <option value="Canceled By User">ملغي من المستخدم</option>
             </select>
 
             <table id="tbl">
@@ -424,9 +427,6 @@
                   <option value="SentNoReply" ${
                     b.status === "SentNoReply" ? "selected" : ""
                   }>تم الإرسال ولم يتم الرد</option>
-                  <option value="Canceled By User" ${
-                    b.status === "Canceled By User" ? "selected" : ""
-                  }>ملغي من المستخدم</option>
                 </select>
                 <button class="history-btn" data-id="${b.id}">
                   <i class="fa-solid fa-clock-rotate-left"></i> السجل
@@ -443,7 +443,7 @@
             const id = e.target.dataset.id;
             const newStatus = e.target.value;
             const booking = allData[index];
-            const oldStatus = booking.status;
+            const oldStatus = booking.status; // Capture old status before updating
 
             allData[index].status = newStatus;
             await updateStatus(id, newStatus, oldStatus);
@@ -470,6 +470,7 @@
           return;
         }
 
+        // Normalize both sides
         const filtered = allData.filter((b) => {
           const status = (b.status || "").trim().toLowerCase();
           return status === val.trim().toLowerCase();
@@ -550,6 +551,7 @@
       });
 
       // ✅ Auto refresh bookings
+      // ✅✅✅✅✅
       load();
       setInterval(load, 15000);
     </script>
