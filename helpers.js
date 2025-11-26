@@ -21,10 +21,17 @@ const SUPABASE_KEY =
   process.env.SUPABASE_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
 
-// Initialize Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-console.log("🟢 Supabase client initialized successfully");
+// Initialize Supabase client with error handling
+let supabase;
+try {
+  supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  console.log("🟢 Supabase client initialized successfully");
+} catch (err) {
+  console.error("❌ Failed to initialize Supabase:", err.message);
+  console.error(
+    "⚠️ Make sure @supabase/supabase-js is installed: npm install @supabase/supabase-js"
+  );
+}
 
 // ---------------------------------------------
 // 🧠 Google Sheets setup (kept for backward compatibility)
@@ -377,15 +384,31 @@ async function getAllBookings() {
 
 /**
  * 🔍 Fetch all bookings for a specific phone number from Supabase
+ * Handles multiple phone formats (07X, 9627X, +9627X)
  */
 async function getBookingsByPhone(phone) {
   try {
     console.log(`🔍 Searching bookings for phone: ${phone}`);
 
+    // Normalize phone number - remove spaces, +, and leading zeros
+    let normalized = phone.replace(/[\s\+\-]/g, "");
+
+    // Generate all possible formats
+    const phoneVariants = [
+      normalized, // Original
+      normalized.replace(/^962/, "0"), // 9627XXXXXXXX -> 07XXXXXXXX
+      normalized.replace(/^0/, "962"), // 07XXXXXXXX -> 9627XXXXXXXX
+      `+${normalized}`, // +9627XXXXXXXX
+      normalized.replace(/^00/, ""), // 009627X -> 9627X
+    ];
+
+    console.log(`🔍 Trying phone variants:`, phoneVariants);
+
+    // Search for any of these formats
     const { data, error } = await supabase
       .from("bookings")
       .select("*")
-      .eq("phone", phone)
+      .in("phone", phoneVariants)
       .order("time", { ascending: false });
 
     if (error) {
@@ -396,7 +419,7 @@ async function getBookingsByPhone(phone) {
       throw error;
     }
 
-    console.log(`✅ Found ${data.length} booking(s) for phone ${phone}`);
+    console.log(`✅ Found ${data?.length || 0} booking(s) for phone ${phone}`);
     return data || [];
   } catch (err) {
     console.error("❌ Error in getBookingsByPhone:", err.message);
