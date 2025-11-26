@@ -4,22 +4,12 @@ const { google } = require("googleapis");
 const { askAI, validateNameWithAI } = require("./aiHelper"); // ✅ Import AI utilities
 
 // ---------------------------------------------
-// 🛢️ Supabase Setup (SERVER VERSION)
-// ---------------------------------------------
-const { createClient } = require("@supabase/supabase-js");
-
-const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
-const SUPABASE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// ---------------------------------------------
 // 🔧 Environment variables
 // ---------------------------------------------
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const SPREADSHEET_ID = (process.env.GOOGLE_SHEET_ID || "").trim();
+const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL; // ✅ ADDED for new functions
 
 // ---------------------------------------------
 // 🧠 Google Sheets setup
@@ -305,7 +295,6 @@ async function sendServiceList(to) {
       "❌ DEBUG => Error sending service dropdown list:",
       err.response?.data || err.message
     );
-    // Fallback to regular buttons if list fails
     await sendServiceButtons(to);
   }
 }
@@ -319,7 +308,7 @@ async function sendAppointmentOptions(to) {
 }
 
 // ---------------------------------------------
-// 🧾 Save booking to Google Sheets
+// 🧾 Save booking
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
   try {
@@ -351,8 +340,7 @@ async function saveBooking({ name, phone, service, appointment }) {
 }
 
 // ---------------------------------------------
-// 🧾 Update an existing booking
-// (optional future enhancement)
+// ✏️ Update booking
 // ---------------------------------------------
 async function updateBooking(rowIndex, { name, phone, service, appointment }) {
   try {
@@ -376,7 +364,7 @@ async function updateBooking(rowIndex, { name, phone, service, appointment }) {
 }
 
 // ---------------------------------------------
-// 📖 Get all bookings from Google Sheets (for dashboard)
+// 📖 Get all bookings (dashboard)
 // ---------------------------------------------
 async function getAllBookings() {
   try {
@@ -394,18 +382,13 @@ async function getAllBookings() {
 
     if (rows.length === 0) return [];
 
-    // Convert rows to structured JSON objects
-    const bookings = rows.map(
-      ([name, phone, service, appointment, timestamp]) => ({
-        name: name || "",
-        phone: phone || "",
-        service: service || "",
-        appointment: appointment || "",
-        time: timestamp || "",
-      })
-    );
-
-    return bookings;
+    return rows.map(([name, phone, service, appointment, timestamp]) => ({
+      name: name || "",
+      phone: phone || "",
+      service: service || "",
+      appointment: appointment || "",
+      time: timestamp || "",
+    }));
   } catch (err) {
     console.error(
       "❌ DEBUG => Error fetching bookings:",
@@ -416,7 +399,7 @@ async function getAllBookings() {
 }
 
 // ---------------------------------------------
-// 🧠 Validate if Google Sheet connection works
+// 🧠 Validate Google Sheet connection
 // ---------------------------------------------
 async function testGoogleConnection() {
   try {
@@ -432,78 +415,139 @@ async function testGoogleConnection() {
   }
 }
 
-// ---------------------------------------------
-// 🔍 Supabase Booking Functions
-// ---------------------------------------------
+// ============================================================================
+// 📌 NEW SECTION — MERGED BOOKING FUNCTIONS (FROM YOUR FIRST CODE BLOCK)
+// ============================================================================
 
-// Fetch bookings by phone
+/**
+ * Fetch all bookings for a specific phone number
+ */
 async function getBookingsByPhone(phone) {
   try {
-    console.log("📞 Fetching bookings for:", phone);
+    const response = await axios.get(GOOGLE_SHEET_URL, {
+      params: { action: "getByPhone", phone },
+    });
 
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("phone", phone);
+    return response.data?.bookings || [];
+  } catch (err) {
+    console.error("❌ Error fetching bookings:", err.message);
+    throw err;
+  }
+}
 
-    if (error) {
-      console.error("❌ Supabase fetch error:", error.message);
-      return [];
+/**
+ * Delete a booking by its unique ID
+ */
+async function deleteBookingById(bookingId) {
+  try {
+    const response = await axios.post(GOOGLE_SHEET_URL, {
+      action: "delete",
+      bookingId,
+    });
+
+    return response.data?.success === true;
+  } catch (err) {
+    console.error("❌ Error deleting booking:", err.message);
+    throw err;
+  }
+}
+
+/**
+ * Send bookings list to WhatsApp with delete buttons
+ */
+async function sendBookingsList(to, bookings) {
+  try {
+    if (!bookings || bookings.length === 0) {
+      await sendTextMessage(to, "❌ لم يتم العثور على حجوزات.");
+      return;
     }
 
-    return data || [];
+    await sendTextMessage(
+      to,
+      `📋 وجدنا ${bookings.length} حجز/حجوزات:\n\nاختر الحجز الذي ترغب بحذفه 👇`
+    );
+
+    await new Promise((r) => setTimeout(r, 500));
+
+    // Build rows
+    const rows = bookings.slice(0, 10).map((b, i) => ({
+      id: `delete_${b.id || i}`,
+      title: `${b.name || "غير معروف"}`,
+      description: `📅 ${b.appointment || "N/A"} | 💊 ${
+        b.service || "N/A"
+      }`.substring(0, 72),
+    }));
+
+    const payload = {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "list",
+        header: { type: "text", text: "حجوزاتك 📋" },
+        body: { text: "اختر الحجز الذي تريد حذفه:" },
+        footer: { text: "عيادة ابتسامة الطبية" },
+        action: {
+          button: "عرض الحجوزات",
+          sections: [{ title: "حجوزاتك", rows }],
+        },
+      },
+    };
+
+    await axios.post(
+      `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    // Add Keep button
+    await new Promise((r) => setTimeout(r, 800));
+
+    const keepPayload = {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: "أو إذا غيّرت رأيك:" },
+        action: {
+          buttons: [
+            {
+              type: "reply",
+              reply: { id: "keep_booking", title: "إبقاء حجوزاتي ✅" },
+            },
+          ],
+        },
+      },
+    };
+
+    await axios.post(
+      `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
+      keepPayload,
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
   } catch (err) {
-    console.error("❌ Unexpected fetch error:", err.message);
-    return [];
+    console.error(
+      "❌ Error sending bookings list:",
+      err.response?.data || err.message
+    );
+    throw err;
   }
 }
 
-// Delete ALL bookings for a phone
-async function deleteBookingsByPhone(phone) {
-  try {
-    console.log("🗑️ Deleting bookings for:", phone);
-
-    const { error } = await supabase
-      .from("bookings")
-      .delete()
-      .eq("phone", phone);
-
-    if (error) {
-      console.error("❌ Delete error:", error.message);
-      return false;
-    }
-
-    return true;
-  } catch (err) {
-    console.error("❌ Unexpected delete error:", err.message);
-    return false;
-  }
-}
-
-// Delete latest booking only
-async function deleteLatestBooking(phone) {
-  try {
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("phone", phone)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (error || !data.length) return false;
-
-    await supabase.from("bookings").delete().eq("id", data[0].id);
-
-    return true;
-  } catch (err) {
-    console.error("❌", err.message);
-    return false;
-  }
-}
-
-// ---------------------------------------------
-// ✅ Export everything
-// ---------------------------------------------
+// ============================================================================
+// 📤 EXPORT EVERYTHING (INCLUDING THE NEW FUNCTIONS)
+// ============================================================================
 module.exports = {
   askAI,
   validateNameWithAI,
@@ -511,14 +555,15 @@ module.exports = {
   sendTextMessage,
   sendAppointmentButtons,
   sendServiceButtons,
-  sendServiceList, // ✅ Export the new dropdown function
+  sendServiceList,
   sendAppointmentOptions,
   saveBooking,
   updateBooking,
   getAllBookings,
   testGoogleConnection,
-  // ➕  Supabase functions
+
+  // NEW EXPORTS
   getBookingsByPhone,
-  deleteBookingsByPhone,
-  deleteLatestBooking,
+  deleteBookingById,
+  sendBookingsList,
 };
