@@ -742,6 +742,56 @@ async function transcribeAudio(mediaId) {
   }
 }
 
+// ---------------------------------------------
+// 🔧 Arabic Normalizer (fix WhatsApp invisible chars)
+// ---------------------------------------------
+function normalizeArabic(text = "") {
+  return text
+    .replace(/\u200F/g, "")
+    .replace(/\u200E/g, "")
+    .replace(/\u0640/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// ---------------------------------------------
+// 🔧 UNIVERSAL Normalizer (use for delete detection)
+// ---------------------------------------------
+function normalize(text = "") {
+  return text
+    .replace(/\u200F/g, "")
+    .replace(/\u200E/g, "")
+    .replace(/\u0640/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+// --------------------------------------------
+// Delete Booking
+// --------------------------------------------
+function isDeleteBookingRequest(text = "") {
+  const t = normalize(text);
+
+  const patterns = [
+    "الغاء",
+    "الغي",
+    "ألغي",
+    "لغي",
+    "لغى",
+    "ابغى الغي",
+    "بدي الغي",
+    "بدي ألغي",
+    "اريد الغاء",
+    "اشطب",
+    "احذف",
+    "cancel",
+    "delete",
+  ];
+
+  return patterns.some((p) => t.includes(p.toLowerCase()));
+}
+
 // --------------------------------------------
 // Exports
 // --------------------------------------------
@@ -751,6 +801,7 @@ module.exports = {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isDeleteBookingRequest,
   isEnglish,
   containsBanWords,
   sendBanWordsResponse,
