@@ -12,16 +12,6 @@ const SPREADSHEET_ID = (process.env.GOOGLE_SHEET_ID || "").trim();
 const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL; // ✅ ADDED for new functions
 
 // ---------------------------------------------
-// 🟣 Supabase Initialization
-// ---------------------------------------------
-const { createClient } = require("@supabase/supabase-js");
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
-// ---------------------------------------------
 // 🧠 Google Sheets setup
 // ---------------------------------------------
 let creds;
@@ -322,24 +312,30 @@ async function sendAppointmentOptions(to) {
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
   try {
-    const { error } = await supabase.from("bookings").insert([
-      {
-        name,
-        phone,
-        service,
-        appointment,
-        time: new Date().toISOString(),
-        status: "Still",
-      },
-    ]);
+    const values = [
+      [name, phone, service, appointment, new Date().toISOString()],
+    ];
+    console.log("📤 DEBUG => Data to send to Google Sheets:", values);
+    console.log(
+      `🔍 DEBUG => Appending to sheet "${DEFAULT_SHEET_NAME}" in spreadsheet "${SPREADSHEET_ID}"`
+    );
 
-    if (error) {
-      console.error("❌ Supabase saveBooking error:", error.message);
-    } else {
-      console.log("✅ Booking saved to Supabase successfully.");
-    }
+    const result = await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${DEFAULT_SHEET_NAME}!A:E`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values },
+    });
+
+    console.log(
+      "✅ DEBUG => Google Sheets API append response:",
+      result.statusText || result.status
+    );
   } catch (err) {
-    console.error("❌ Error saving booking:", err.message);
+    console.error(
+      "❌ DEBUG => Google Sheets append error:",
+      err.response?.data || err.message
+    );
   }
 }
 
@@ -428,18 +424,11 @@ async function testGoogleConnection() {
  */
 async function getBookingsByPhone(phone) {
   try {
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("phone", phone)
-      .order("id", { ascending: false });
+    const response = await axios.get(GOOGLE_SHEET_URL, {
+      params: { action: "getByPhone", phone },
+    });
 
-    if (error) {
-      console.error("❌ Supabase getBookingsByPhone error:", error.message);
-      throw error;
-    }
-
-    return data || [];
+    return response.data?.bookings || [];
   } catch (err) {
     console.error("❌ Error fetching bookings:", err.message);
     throw err;
@@ -451,20 +440,15 @@ async function getBookingsByPhone(phone) {
  */
 async function deleteBookingById(bookingId) {
   try {
-    const { error } = await supabase
-      .from("bookings")
-      .delete()
-      .eq("id", bookingId);
+    const response = await axios.post(GOOGLE_SHEET_URL, {
+      action: "delete",
+      bookingId,
+    });
 
-    if (error) {
-      console.error("❌ Supabase delete error:", error.message);
-      return false;
-    }
-
-    return true;
+    return response.data?.success === true;
   } catch (err) {
     console.error("❌ Error deleting booking:", err.message);
-    return false;
+    throw err;
   }
 }
 
