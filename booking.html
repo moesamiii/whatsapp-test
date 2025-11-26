@@ -178,10 +178,13 @@
             جدول التواصل
           </a>
 
+          <!-- ✅ NEW MENU ITEM ADDED HERE -->
           <a href="contactlist.html">
             <i class="fa-solid fa-address-book"></i>
             قائمة التواصل
           </a>
+          <!-- ✅ END NEW ITEM -->
+
           <a href="AIsettings.html">
             <i class="fa-solid fa-robot"></i>
             إعدادات الذكاء الاصطناعي
@@ -219,7 +222,6 @@
               <option value="Still">قيد الانتظار</option>
               <option value="Booking Complete">تم الحجز</option>
               <option value="SentNoReply">تم الإرسال ولم يتم الرد</option>
-              <option value="Canceled">ملغى/محذوف</option>
             </select>
 
             <table id="tbl">
@@ -247,6 +249,7 @@
       </main>
     </div>
 
+    <!-- ✅ History Modal -->
     <div id="historyModal" class="modal">
       <div class="modal-content">
         <h3>سجل التعديلات</h3>
@@ -348,7 +351,6 @@
         indicator.style.display = "inline";
         addDebugLog(`بدء إرسال تذكير للعميل ${booking.name}`);
 
-        // NOTE: The provided code uses a hardcoded test phone, you should use booking.phone in production
         const testPhone = "962781685210";
 
         const payload = {
@@ -425,9 +427,6 @@
                   <option value="SentNoReply" ${
                     b.status === "SentNoReply" ? "selected" : ""
                   }>تم الإرسال ولم يتم الرد</option>
-                  <option value="Canceled" ${
-                    b.status === "Canceled" ? "selected" : ""
-                  }>ملغى/محذوف</option>
                 </select>
                 <button class="history-btn" data-id="${b.id}">
                   <i class="fa-solid fa-clock-rotate-left"></i> السجل
