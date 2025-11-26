@@ -1,10 +1,11 @@
 // ============================================================================
-// 📦 helpers.js — FULL MERGED + CLEANED VERSION
+// 📦 helpers.js — FULL VERSION WITH SUPABASE INTEGRATION
 // ============================================================================
 
 const axios = require("axios");
 const { google } = require("googleapis");
 const { askAI, validateNameWithAI } = require("./aiHelper");
+const { createClient } = require("@supabase/supabase-js");
 
 // ---------------------------------------------
 // 🔧 Environment variables
@@ -12,10 +13,21 @@ const { askAI, validateNameWithAI } = require("./aiHelper");
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const SPREADSHEET_ID = (process.env.GOOGLE_SHEET_ID || "").trim();
-const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL;
+
+// 🆕 Supabase Configuration
+const SUPABASE_URL =
+  process.env.SUPABASE_URL || "https://ylsbmxedhycjqaorjkvm.supabase.co";
+const SUPABASE_KEY =
+  process.env.SUPABASE_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+
+// Initialize Supabase client
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+console.log("🟢 Supabase client initialized successfully");
 
 // ---------------------------------------------
-// 🧠 Google Sheets setup
+// 🧠 Google Sheets setup (kept for backward compatibility)
 // ---------------------------------------------
 let creds;
 
@@ -274,120 +286,202 @@ async function sendServiceList(to) {
   }
 }
 
-// ---------------------------------------------
-// 🧾 Save booking
-// ---------------------------------------------
+// ============================================================================
+// 🆕 SUPABASE BOOKING FUNCTIONS (Replaces Google Sheets for booking operations)
+// ============================================================================
+
+/**
+ * 🧾 Save booking to Supabase
+ */
 async function saveBooking({ name, phone, service, appointment }) {
   try {
-    const values = [
-      [name, phone, service, appointment, new Date().toISOString()],
-    ];
+    const { data, error } = await supabase
+      .from("bookings")
+      .insert([
+        {
+          name,
+          phone,
+          service,
+          appointment,
+          time: new Date().toISOString(),
+          status: "Still", // Default status
+        },
+      ])
+      .select();
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${DEFAULT_SHEET_NAME}!A:E`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values },
-    });
+    if (error) {
+      console.error("❌ ERROR saving booking to Supabase:", error.message);
+      throw error;
+    }
 
-    console.log("✅ Booking saved");
+    console.log("✅ Booking saved to Supabase:", data);
+    return data[0];
   } catch (err) {
-    console.error("❌ ERROR saving booking:", err.message);
+    console.error("❌ ERROR in saveBooking:", err.message);
+    throw err;
   }
 }
 
-// ---------------------------------------------
-// ✏️ Update Booking
-// ---------------------------------------------
-async function updateBooking(rowIndex, booking) {
+/**
+ * ✏️ Update Booking in Supabase
+ */
+async function updateBooking(bookingId, booking) {
   try {
-    const values = [
-      [
-        booking.name,
-        booking.phone,
-        booking.service,
-        booking.appointment,
-        new Date().toISOString(),
-      ],
-    ];
+    const { data, error } = await supabase
+      .from("bookings")
+      .update({
+        name: booking.name,
+        phone: booking.phone,
+        service: booking.service,
+        appointment: booking.appointment,
+        time: new Date().toISOString(),
+      })
+      .eq("id", bookingId)
+      .select();
 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${DEFAULT_SHEET_NAME}!A${rowIndex}:E${rowIndex}`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values },
-    });
+    if (error) {
+      console.error("❌ ERROR updating booking:", error.message);
+      throw error;
+    }
 
-    console.log("✅ Booking updated");
+    console.log("✅ Booking updated in Supabase");
+    return data[0];
   } catch (err) {
-    console.error("❌ ERROR updating booking:", err.message);
+    console.error("❌ ERROR in updateBooking:", err.message);
+    throw err;
   }
 }
 
-// ---------------------------------------------
-// 📖 Get all bookings
-// ---------------------------------------------
+/**
+ * 📖 Get all bookings from Supabase
+ */
 async function getAllBookings() {
   try {
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${DEFAULT_SHEET_NAME}!A:E`,
-    });
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .order("time", { ascending: false });
 
-    return (response.data.values || []).map(
-      ([name, phone, service, appointment, timestamp]) => ({
-        name,
-        phone,
-        service,
-        appointment,
-        time: timestamp,
-      })
-    );
+    if (error) {
+      console.error("❌ ERROR loading bookings:", error.message);
+      throw error;
+    }
+
+    console.log(`✅ Loaded ${data.length} bookings from Supabase`);
+    return data;
   } catch (err) {
-    console.error("❌ ERROR loading all bookings:", err.message);
+    console.error("❌ ERROR in getAllBookings:", err.message);
     return [];
   }
 }
 
-// ============================================================================
-// 📌 NEW MERGED BOOKING MANAGEMENT FUNCTIONS
-// ============================================================================
-
 /**
- * Fetch all bookings for a phone number
+ * 🔍 Fetch all bookings for a specific phone number from Supabase
  */
 async function getBookingsByPhone(phone) {
   try {
-    const response = await axios.get(GOOGLE_SHEET_URL, {
-      params: { action: "getByPhone", phone },
-    });
+    console.log(`🔍 Searching bookings for phone: ${phone}`);
 
-    return response.data?.bookings || [];
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("phone", phone)
+      .order("time", { ascending: false });
+
+    if (error) {
+      console.error(
+        "❌ Error fetching phone bookings from Supabase:",
+        error.message
+      );
+      throw error;
+    }
+
+    console.log(`✅ Found ${data.length} booking(s) for phone ${phone}`);
+    return data || [];
   } catch (err) {
-    console.error("❌ Error fetching phone bookings:", err.message);
+    console.error("❌ Error in getBookingsByPhone:", err.message);
     throw err;
   }
 }
 
 /**
- * Delete a booking
+ * 🗑️ Delete a booking from Supabase
  */
 async function deleteBookingById(bookingId) {
   try {
-    const response = await axios.post(GOOGLE_SHEET_URL, {
-      action: "delete",
-      bookingId,
-    });
+    console.log(`🗑️ Attempting to delete booking ID: ${bookingId}`);
 
-    return response.data?.success === true;
+    // First, get the booking details for logging
+    const { data: booking, error: fetchError } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("id", bookingId)
+      .single();
+
+    if (fetchError || !booking) {
+      console.warn(`⚠️ Booking ${bookingId} not found or already deleted`);
+      return false;
+    }
+
+    // Log to booking_history before deletion
+    const { error: historyError } = await supabase
+      .from("booking_history")
+      .insert([
+        {
+          booking_id: bookingId,
+          old_status: booking.status || "Still",
+          new_status: "Canceled",
+          changed_by: "User (WhatsApp)",
+        },
+      ]);
+
+    if (historyError) {
+      console.warn(
+        "⚠️ Failed to log deletion to history:",
+        historyError.message
+      );
+    }
+
+    // Update status to "Canceled" instead of hard delete (optional - you can choose hard delete)
+    const { error: updateError } = await supabase
+      .from("bookings")
+      .update({ status: "Canceled" })
+      .eq("id", bookingId);
+
+    if (updateError) {
+      console.error(
+        "❌ Error marking booking as canceled:",
+        updateError.message
+      );
+      throw updateError;
+    }
+
+    console.log(`✅ Booking ${bookingId} marked as Canceled`);
+    return true;
+
+    // Alternative: Hard delete (uncomment if you prefer)
+    /*
+    const { error: deleteError } = await supabase
+      .from("bookings")
+      .delete()
+      .eq("id", bookingId);
+
+    if (deleteError) {
+      console.error("❌ Error deleting booking:", deleteError.message);
+      throw deleteError;
+    }
+
+    console.log(`✅ Booking ${bookingId} deleted successfully`);
+    return true;
+    */
   } catch (err) {
-    console.error("❌ Error deleting booking:", err.message);
+    console.error("❌ Error in deleteBookingById:", err.message);
     throw err;
   }
 }
 
 /**
- * Send interactive list of bookings for deletion
+ * 📋 Send interactive list of bookings for deletion
  */
 async function sendBookingsList(to, bookings) {
   try {
@@ -404,7 +498,7 @@ async function sendBookingsList(to, bookings) {
     await new Promise((r) => setTimeout(r, 500));
 
     const rows = bookings.slice(0, 10).map((b, i) => ({
-      id: `delete_${b.id || i}`,
+      id: `delete_${b.id}`,
       title: `${b.name}`,
       description: `📅 ${b.appointment} | 💊 ${b.service}`.substring(0, 72),
     }));
@@ -483,12 +577,14 @@ module.exports = {
   sendServiceList,
   sendAppointmentOptions: sendAppointmentButtons,
 
+  // Supabase booking functions
   saveBooking,
   updateBooking,
   getAllBookings,
-
-  // NEW
   getBookingsByPhone,
   deleteBookingById,
   sendBookingsList,
+
+  // Export supabase client for advanced usage
+  supabase,
 };
