@@ -8,7 +8,6 @@
  * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
  * - Filter inappropriate content using ban words detection.
  * - Handle side questions within booking flow and return to the exact booking step.
- * - Handle booking cancellation requests.
  */
 
 const {
@@ -39,117 +38,9 @@ const {
 
 const { handleAudioMessage } = require("./webhookProcessor");
 
-// ✅ Import Supabase for cancellation feature
-const { createClient } = require("@supabase/supabase-js");
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// ✅ Cancellation detection
-function isCancellationRequest(text = "") {
-  if (!text) return false;
-  const t = text.trim().toLowerCase();
-
-  const cancellationKeywords = [
-    "الغاء",
-    "الغي",
-    "الغاء الحجز",
-    "إلغاء",
-    "إلغي",
-    "إلغاء الحجز",
-    "cancel",
-    "cancellation",
-    "cancel booking",
-    "delete booking",
-    "remove booking",
-    "ما بدي",
-    "ما ابدى",
-    "مش باخذ موعد",
-    "لا بدي موعد",
-  ];
-
-  return cancellationKeywords.some((kw) => t.includes(kw));
-}
-
-// ✅ Normalize phone number
-function normalizePhone(text = "") {
-  return text
-    .replace(/[^\d٠-٩]/g, "")
-    .replace(/٠/g, "0")
-    .replace(/١/g, "1")
-    .replace(/٢/g, "2")
-    .replace(/٣/g, "3")
-    .replace(/٤/g, "4")
-    .replace(/٥/g, "5")
-    .replace(/٦/g, "6")
-    .replace(/٧/g, "7")
-    .replace(/٨/g, "8")
-    .replace(/٩/g, "9");
-}
-
-// ✅ Find booking by phone number
-async function findBookingByPhone(phone) {
-  try {
-    const normalized = normalizePhone(phone);
-    const isValid = /^07\d{8}$/.test(normalized);
-
-    if (!isValid) {
-      return {
-        found: false,
-        message:
-          "⚠️ رقم الهاتف غير صحيح. الرجاء إدخال رقم أردني بصيغة: 07XXXXXXXX",
-      };
-    }
-
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("phone", normalized);
-
-    if (error) {
-      console.error("Database error:", error);
-      return { found: false, message: "⚠️ حدث خطأ في الاتصال بقاعدة البيانات" };
-    }
-
-    if (!data || data.length === 0) {
-      return {
-        found: false,
-        message: "❌ لم نجد حجزاً بهذا الرقم. تأكد من إدخال الرقم الصحيح.",
-      };
-    }
-
-    return { found: true, bookings: data };
-  } catch (err) {
-    console.error("Error finding booking:", err);
-    return { found: false, message: "⚠️ حدث خطأ أثناء البحث عن الحجز" };
-  }
-}
-
-// ✅ Cancel booking
-async function cancelBooking(bookingId) {
-  try {
-    const { error } = await supabase
-      .from("bookings")
-      .update({ status: "Canceled by User" })
-      .eq("id", bookingId);
-
-    if (error) {
-      console.error("Cancellation error:", error);
-      return { success: false, message: "⚠️ فشل إلغاء الحجز" };
-    }
-
-    return {
-      success: true,
-      message: "✅ تم إلغاء حجزك بنجاح. شكراً لتواصلك معنا.",
-    };
-  } catch (err) {
-    console.error("Error canceling booking:", err);
-    return { success: false, message: "⚠️ حدث خطأ أثناء إلغاء الحجز" };
-  }
-}
-
-// ✅ Session storage (per-user conversation memory)
-// ---
+// ---------------------------------------------
+// 🧠 Session storage (per-user conversation memory)
+// ---------------------------------------------
 const sessions = {}; // { userId: { ...state } }
 
 function getSession(userId) {
@@ -158,7 +49,6 @@ function getSession(userId) {
       waitingForOffersConfirmation: false,
       waitingForDoctorConfirmation: false,
       waitingForBookingDetails: false,
-      waitingForCancellationPhone: false, // ✅ NEW: Cancellation state
       lastIntent: null,
     };
   }
@@ -342,35 +232,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
 
-      // ✅ Handle cancellation phone input
-      if (session.waitingForCancellationPhone) {
-        session.waitingForCancellationPhone = false;
-        const result = await findBookingByPhone(text);
-
-        if (!result.found) {
-          await sendTextMessage(from, result.message);
-          return res.sendStatus(200);
-        }
-
-        if (result.bookings.length === 1) {
-          const booking = result.bookings[0];
-          const cancelResult = await cancelBooking(booking.id);
-          await sendTextMessage(from, cancelResult.message);
-        } else {
-          // Multiple bookings found - show them
-          let bookingsList = "📋 وجدنا عدة حجوزات برقمك:\n\n";
-          result.bookings.forEach((b, idx) => {
-            bookingsList += `${idx + 1}. الخدمة: ${b.service}\n   الموعد: ${
-              b.appointment
-            }\n   الحالة: ${b.status}\n\n`;
-          });
-          bookingsList +=
-            "الرجاء الاتصال بنا على الرقم المعروض في القائمة لإلغاء الحجز المطلوب.";
-          await sendTextMessage(from, bookingsList);
-        }
-        return res.sendStatus(200);
-      }
-
       // 👋 Greeting detection (before any other logic)
       if (isGreeting(text)) {
         const reply = getGreeting(isEnglish(text));
@@ -391,16 +252,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           );
         }
 
-        return res.sendStatus(200);
-      }
-
-      // ✅ Cancellation request detection
-      if (isCancellationRequest(text)) {
-        session.waitingForCancellationPhone = true;
-        await sendTextMessage(
-          from,
-          "🔍 من فضلك أرسل رقم الهاتف المسجل لديك لإيجاد الحجز:"
-        );
         return res.sendStatus(200);
       }
 
@@ -519,7 +370,19 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           return res.sendStatus(200);
         }
 
-        const normalized = normalizePhone(text);
+        const normalized = text
+          .replace(/[^\d٠-٩]/g, "")
+          .replace(/٠/g, "0")
+          .replace(/١/g, "1")
+          .replace(/٢/g, "2")
+          .replace(/٣/g, "3")
+          .replace(/٤/g, "4")
+          .replace(/٥/g, "5")
+          .replace(/٦/g, "6")
+          .replace(/٧/g, "7")
+          .replace(/٨/g, "8")
+          .replace(/٩/g, "9");
+
         const isValid = /^07\d{8}$/.test(normalized);
 
         if (!isValid) {
