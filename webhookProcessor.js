@@ -1,9 +1,10 @@
 /**
  * webhookProcessor.js
  *
- * Updated:
- * - Added question detection anywhere in the flow.
- * - If user asks a question during booking, system answers via AI and resumes booking.
+ * Updated to:
+ * - Detect user questions during booking.
+ * - Answer using AI.
+ * - Then return to the correct booking step.
  */
 
 const {
@@ -45,9 +46,11 @@ function normalizeArabicDigits(input = "") {
 }
 
 /**
- * Check if the user asked a question.
+ * Detect if the user is asking a question.
  */
 function isQuestion(text = "") {
+  if (!text) return false;
+
   const questionWords = [
     "?",
     "كيف",
@@ -62,7 +65,6 @@ function isQuestion(text = "") {
     "when",
     "where",
     "who",
-    "which",
   ];
 
   return (
@@ -72,7 +74,7 @@ function isQuestion(text = "") {
 }
 
 /**
- * Detect if Friday is mentioned.
+ * Detect Friday words.
  */
 function containsFriday(text = "") {
   const fridayWords = ["الجمعة", "Friday", "friday"];
@@ -80,7 +82,7 @@ function containsFriday(text = "") {
 }
 
 /**
- * Send a unified booking confirmation message.
+ * Send booking confirmation message.
  */
 async function sendBookingConfirmation(to, booking) {
   await sendTextMessage(
@@ -94,7 +96,9 @@ async function sendBookingConfirmation(to, booking) {
 }
 
 /**
- * Handle incoming audio messages.
+ * ---------------------------
+ * MAIN AUDIO PROCESSOR
+ * ---------------------------
  */
 async function handleAudioMessage(message, from) {
   try {
@@ -103,10 +107,7 @@ async function handleAudioMessage(message, from) {
     const mediaId = message?.audio?.id;
     if (!mediaId) return;
 
-    console.log(
-      "🎙️ Audio message received. Starting transcription for media ID:",
-      mediaId
-    );
+    console.log("🎙️ Audio message received. Transcribing:", mediaId);
 
     const transcript = await transcribeAudio(mediaId);
 
@@ -118,77 +119,71 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
-    console.log(`🗣️ Transcribed text: "${transcript}"`);
+    console.log(`🗣️ User said: "${transcript}"`);
 
     /* -------------------------------------------------------
-     🔍 1) CHECK FOR LOCATION / OFFERS / DOCTORS KEYWORDS
+     STEP 1 — QUICK INTENT CHECKS
     ------------------------------------------------------- */
 
     if (isLocationRequest(transcript)) {
-      const language = isEnglish(transcript) ? "en" : "ar";
-      await sendLocationMessages(from, language);
+      const lang = isEnglish(transcript) ? "en" : "ar";
+      await sendLocationMessages(from, lang);
       return;
     }
 
     if (isOffersRequest(transcript)) {
-      const language = isEnglish(transcript) ? "en" : "ar";
-      await sendOffersImages(from, language);
+      const lang = isEnglish(transcript) ? "en" : "ar";
+      await sendOffersImages(from, lang);
       return;
     }
 
     if (isDoctorsRequest(transcript)) {
-      const language = isEnglish(transcript) ? "en" : "ar";
-      await sendDoctorsImages(from, language);
+      const lang = isEnglish(transcript) ? "en" : "ar";
+      await sendDoctorsImages(from, lang);
       return;
     }
-
-    /* -------------------------------------------------------
-     📅 2) FRIDAY DETECTION
-    ------------------------------------------------------- */
 
     if (containsFriday(transcript)) {
       await sendTextMessage(
         from,
-        "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
+        "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز 🌷"
       );
-
       setTimeout(async () => {
-        await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
+        await sendTextMessage(from, "📅 اختر الموعد المناسب لك 👇");
         await sendAppointmentOptions(from);
       }, 2000);
-
       return;
     }
 
     /* -------------------------------------------------------
-     ❓ 3) QUESTION DETECTION (NEW FEATURE)
-     ------------------------------------------------------- */
+     STEP 2 — QUESTION DETECTION (NEW FEATURE)
+    ------------------------------------------------------- */
 
     if (isQuestion(transcript)) {
-      console.log("❓ User asked a question during the flow.");
+      console.log("❓ Detected question during conversation.");
 
+      // AI answers the question
       const answer = await askAI(transcript);
       await sendTextMessage(from, answer);
 
-      // Continue the booking flow if it exists
-      if (tempBookings[from]) {
-        const step = tempBookings[from];
+      // After answering → return to booking stage
+      const userBooking = tempBookings[from];
 
-        if (!step.name) {
+      if (userBooking) {
+        if (!userBooking.name) {
           await sendTextMessage(from, "👤 الآن يرجى تزويدي باسمك:");
-        } else if (!step.phone) {
+        } else if (!userBooking.phone) {
           await sendTextMessage(from, "📱 الرجاء إرسال رقم جوالك:");
-        } else if (!step.service) {
+        } else if (!userBooking.service) {
           await sendTextMessage(
             from,
-            "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
+            "💊 يرجى اختيار الخدمة من القائمة المنسدلة:"
           );
         }
       } else {
-        // No booking in progress
         await sendTextMessage(
           from,
-          "هل ترغب في البدء بعملية الحجز؟ قل: أريد حجز موعد 👍"
+          "هل ترغب في بدء الحجز؟ قل: أريد حجز موعد 👍"
         );
       }
 
@@ -196,10 +191,10 @@ async function handleAudioMessage(message, from) {
     }
 
     /* -------------------------------------------------------
-     📝 4) BOOKING LOGIC
+     STEP 3 — BOOKING FLOW
     ------------------------------------------------------- */
 
-    // No active booking: detect if user wants to book or just chat
+    // No booking yet
     if (!tempBookings[from]) {
       if (
         transcript.includes("حجز") ||
@@ -207,19 +202,21 @@ async function handleAudioMessage(message, from) {
         transcript.includes("موعد") ||
         transcript.includes("appointment")
       ) {
-        tempBookings[from] = {};
+        tempBookings[from] = {}; // start session
         await sendAppointmentOptions(from);
       } else {
+        // Regular AI chat
         const reply = await askAI(transcript);
         await sendTextMessage(from, reply);
       }
       return;
     }
 
-    // Step 1: Name
-    if (tempBookings[from] && !tempBookings[from].name) {
-      const isValid = await validateNameWithAI(transcript);
-      if (!isValid) {
+    // User must send name
+    if (!tempBookings[from].name) {
+      const isValidName = await validateNameWithAI(transcript);
+
+      if (!isValidName) {
         await sendTextMessage(
           from,
           "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
@@ -228,16 +225,16 @@ async function handleAudioMessage(message, from) {
       }
 
       tempBookings[from].name = transcript;
+
       await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
       return;
     }
 
-    // Step 2: Phone
-    if (tempBookings[from] && !tempBookings[from].phone) {
+    // User must send phone
+    if (!tempBookings[from].phone) {
       const normalized = normalizeArabicDigits(transcript);
-      const isValid = /^07\d{8}$/.test(normalized);
 
-      if (!isValid) {
+      if (!/^07\d{8}$/.test(normalized)) {
         await sendTextMessage(
           from,
           "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 078XXXXXXX"
@@ -248,24 +245,24 @@ async function handleAudioMessage(message, from) {
       tempBookings[from].phone = normalized;
 
       await sendServiceList(from);
-      await sendTextMessage(
-        from,
-        "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
-      );
+      await sendTextMessage(from, "💊 يرجى اختيار الخدمة من القائمة المنسدلة:");
       return;
     }
 
-    // Step 3: Service
-    if (tempBookings[from] && !tempBookings[from].service) {
+    // User selects service
+    if (!tempBookings[from].service) {
       tempBookings[from].service = transcript;
+
       const booking = tempBookings[from];
+
       await saveBooking(booking);
       await sendBookingConfirmation(from, booking);
+
       delete tempBookings[from];
       return;
     }
   } catch (err) {
-    console.error("❌ Audio processing failed:", err);
+    console.error("❌ Audio processing error:", err);
     throw err;
   }
 }
