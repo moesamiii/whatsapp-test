@@ -8,6 +8,8 @@
  * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
  * - Filter inappropriate content using ban words detection.
  * - Handle side questions within booking flow and return to the exact booking step.
+ *
+ * ✅ NEW: Handle booking cancellation requests ("الغاء الحجز") and manage the deletion flow.
  */
 
 const {
@@ -17,6 +19,10 @@ const {
   sendServiceList,
   sendAppointmentOptions,
   saveBooking,
+  // ✅ NEW IMPORTS for Cancellation Flow
+  getBookingsByPhone,
+  deleteBookingById,
+  sendBookingsList,
 } = require("./helpers");
 
 const {
@@ -50,6 +56,8 @@ function getSession(userId) {
       waitingForDoctorConfirmation: false,
       waitingForBookingDetails: false,
       lastIntent: null,
+      // ✅ NEW: State for deletion confirmation
+      waitingForDeletionConfirmation: false,
     };
   }
   return sessions[userId];
@@ -72,6 +80,27 @@ function isSideQuestion(text = "") {
     t.startsWith("what ")
   );
 }
+
+// ---------------------------------------------
+// ❌ Cancellation Detection Helper
+// ---------------------------------------------
+function isCancelRequest(text = "") {
+  const keywords = [
+    "الغاء",
+    "إلغاء",
+    "احذف",
+    "الغاء الحجز",
+    "حذف الحجز",
+    "cancel",
+    "delete",
+    "remove booking",
+    "cancel booking",
+    "ما بدي",
+  ];
+  const lower = text.toLowerCase();
+  return keywords.some((k) => lower.includes(k));
+}
+// ---------------------------------------------
 
 /**
  * Get the current booking step for a user
@@ -165,6 +194,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
             ? message.interactive?.list_reply?.id
             : message.interactive?.button_reply?.id;
 
+        // --- Appointment Slot Selection ---
         if (id?.startsWith("slot_")) {
           const appointment = id.replace("slot_", "").toUpperCase();
           const fridayWords = ["الجمعة", "Friday", "friday"];
@@ -198,6 +228,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           return res.sendStatus(200);
         }
 
+        // --- Service Selection ---
         if (id?.startsWith("service_")) {
           const serviceName = id.replace("service_", "").replace(/_/g, " ");
           if (!tempBookings[from] || !tempBookings[from].phone) {
@@ -225,6 +256,34 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           return res.sendStatus(200);
         }
 
+        // --- NEW: Handle Booking Deletion (Delete Button Click) ---
+        if (id?.startsWith("delete_")) {
+          const bookingId = id.replace("delete_", "");
+          try {
+            const success = await deleteBookingById(bookingId);
+            if (success) {
+              await sendTextMessage(from, "🗑️ تم إلغاء وحذف الحجز بنجاح!");
+            } else {
+              await sendTextMessage(
+                from,
+                "❌ عذراً، لم نتمكن من إلغاء الحجز. يرجى المحاولة لاحقاً أو التواصل معنا مباشرة."
+              );
+            }
+          } catch (err) {
+            console.error("❌ Error deleting booking:", err.message);
+            await sendTextMessage(from, "❌ حدث خطأ أثناء محاولة إلغاء الحجز.");
+          }
+          session.waitingForDeletionConfirmation = false;
+          return res.sendStatus(200);
+        }
+
+        // --- NEW: Handle Keep Booking Button Click ---
+        if (id === "keep_booking") {
+          await sendTextMessage(from, "✅ تم الإبقاء على حجوزاتك الحالية.");
+          session.waitingForDeletionConfirmation = false;
+          return res.sendStatus(200);
+        }
+
         return res.sendStatus(200);
       }
 
@@ -232,7 +291,41 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
 
-      // 👋 Greeting detection (before any other logic)
+      // --- Intent Check Order: CANCELLATION must be early ---
+
+      // ❌ CANCELLATION REQUEST (NEW)
+      if (isCancelRequest(text)) {
+        console.log(`❌ Cancellation intent detected from ${from}`);
+
+        // Clear any ongoing booking session first
+        if (global.tempBookings && global.tempBookings[from]) {
+          delete global.tempBookings[from];
+          console.log(
+            `⚠️ Cleared temporary booking state for ${from} due to cancellation intent.`
+          );
+        }
+
+        try {
+          const bookings = await getBookingsByPhone(from); // Get bookings using phone number ('from')
+          if (bookings.length > 0) {
+            session.waitingForDeletionConfirmation = true;
+            await sendBookingsList(from, bookings);
+          } else {
+            await sendTextMessage(
+              from,
+              "📋 عذراً، لم نجد أي حجوزات نشطة مرتبطة برقمك. يمكنك حجز موعد جديد متى شئت."
+            );
+          }
+        } catch (err) {
+          await sendTextMessage(
+            from,
+            "❌ حدث خطأ في النظام. يرجى الاتصال بنا مباشرة للإلغاء."
+          );
+        }
+        return res.sendStatus(200);
+      }
+
+      // 👋 Greeting detection
       if (isGreeting(text)) {
         const reply = getGreeting(isEnglish(text));
         await sendTextMessage(from, reply);
@@ -317,6 +410,8 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
         return res.sendStatus(200);
       }
+
+      // --- Booking Flow Steps (only proceed if no cancellation is pending) ---
 
       // 🧩 Step 1: Appointment shortcut
       if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
