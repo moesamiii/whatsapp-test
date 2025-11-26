@@ -1,5 +1,5 @@
 // ============================================================================
-// 📦 helpers.js — FULL VERSION WITH SUPABASE INTEGRATION
+// 📦 helpers.js — FINAL VERSION (Supabase Primary • Google Sheets Optional Read-Only)
 // ============================================================================
 
 const axios = require("axios");
@@ -14,71 +14,63 @@ const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const SPREADSHEET_ID = (process.env.GOOGLE_SHEET_ID || "").trim();
 
-// 🆕 Supabase Configuration
+// ---------------------------------------------
+// 🟢 Supabase Configuration
+// ---------------------------------------------
 const SUPABASE_URL =
   process.env.SUPABASE_URL || "https://ylsbmxedhycjqaorjkvm.supabase.co";
+
 const SUPABASE_KEY =
   process.env.SUPABASE_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
 
-// Initialize Supabase client with error handling
 let supabase;
 try {
   supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-  console.log("🟢 Supabase client initialized successfully");
+  console.log("🟢 Supabase initialized.");
 } catch (err) {
-  console.error("❌ Failed to initialize Supabase:", err.message);
-  console.error(
-    "⚠️ Make sure @supabase/supabase-js is installed: npm install @supabase/supabase-js"
-  );
+  console.error("❌ Supabase initialization failed:", err.message);
 }
 
-// ---------------------------------------------
-// 🧠 Google Sheets setup (kept for backward compatibility)
-// ---------------------------------------------
+// ============================================================================
+// 🧠 Google Sheets (READ-ONLY MODE)
+// ============================================================================
 let creds;
-
 try {
   creds = process.env.GOOGLE_CREDENTIALS
     ? JSON.parse(process.env.GOOGLE_CREDENTIALS)
     : require("./credentials.json");
-
-  console.log("🟢 DEBUG => Google credentials loaded successfully.");
+  console.log("🟢 Google Sheets credentials loaded.");
 } catch (err) {
-  console.error("❌ DEBUG => Failed to load credentials:", err.message);
+  console.warn("⚠️ Google Sheets credentials missing (OK for Option C).");
 }
 
 const auth = new google.auth.GoogleAuth({
-  credentials: creds,
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  credentials: creds || {},
+  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
 });
 
 const sheets = google.sheets({ version: "v4", auth });
-
 let DEFAULT_SHEET_NAME = "Sheet1";
 
-// ---------------------------------------------
-// 🔍 Detect sheet name dynamically
-// ---------------------------------------------
+// Only detect sheet if spreadsheet ID is provided
 async function detectSheetName() {
+  if (!SPREADSHEET_ID) return;
   try {
     const meta = await sheets.spreadsheets.get({
       spreadsheetId: SPREADSHEET_ID,
     });
-
     const names = meta.data.sheets.map((s) => s.properties.title);
     if (names.length > 0) DEFAULT_SHEET_NAME = names[0];
-
-    console.log("📋 DEBUG => Sheets found:", names);
-    console.log("✅ DEBUG => Using sheet:", DEFAULT_SHEET_NAME);
+    console.log("📋 Sheets found:", names);
   } catch (err) {
-    console.error("❌ DEBUG => Error detecting sheets:", err.message);
+    console.warn("⚠️ Could not load sheet names:", err.message);
   }
 }
 
-// ---------------------------------------------
+// ============================================================================
 // 💬 WhatsApp Messaging
-// ---------------------------------------------
+// ============================================================================
 async function sendTextMessage(to, text) {
   try {
     await axios.post(
@@ -95,16 +87,13 @@ async function sendTextMessage(to, text) {
         },
       }
     );
-
-    console.log("✅ DEBUG => WhatsApp message sent");
+    console.log("✉️ WhatsApp text sent.");
   } catch (err) {
-    console.error("❌ ERROR sending WhatsApp message:", err.message);
+    console.error("❌ WhatsApp send error:", err.response?.data || err.message);
   }
 }
 
-// ---------------------------------------------
-// 📅 Appointment buttons
-// ---------------------------------------------
+// Appointment buttons
 async function sendAppointmentButtons(to) {
   try {
     await axios.post(
@@ -125,23 +114,14 @@ async function sendAppointmentButtons(to) {
           },
         },
       },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
+      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
     );
-
-    console.log("✅ Appointment buttons sent");
   } catch (err) {
-    console.error("❌ ERROR:", err.message);
+    console.error("❌ Appointment error:", err.message);
   }
 }
 
-// ---------------------------------------------
-// 💊 Service buttons (OLD VERSION)
-// ---------------------------------------------
+// Old version fallback
 async function sendServiceButtons(to) {
   try {
     await axios.post(
@@ -170,22 +150,14 @@ async function sendServiceButtons(to) {
             ],
           },
         },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
       }
     );
   } catch (err) {
-    console.error("❌ ERROR sending service buttons:", err.message);
+    console.error("❌ sendServiceButtons error:", err.message);
   }
 }
 
-// ---------------------------------------------
-// 💊 New service list dropdown
-// ---------------------------------------------
+// New service dropdown
 async function sendServiceList(to) {
   try {
     await axios.post(
@@ -207,99 +179,37 @@ async function sendServiceList(to) {
                   {
                     id: "service_فحص_عام",
                     title: "فحص عام",
-                    description: "فحص شامل للأسنان",
+                    description: "فحص شامل",
                   },
-                  {
-                    id: "service_تنظيف_الأسنان",
-                    title: "تنظيف الأسنان",
-                    description: "إزالة الجير والتصبغات",
-                  },
-                  {
-                    id: "service_تبييض_الأسنان",
-                    title: "تبييض الأسنان",
-                    description: "تبييض بالليزر",
-                  },
-                  {
-                    id: "service_حشو_الأسنان",
-                    title: "حشو الأسنان",
-                    description: "علاج التسوس",
-                  },
-                ],
-              },
-              {
-                title: "الخدمات المتقدمة",
-                rows: [
-                  {
-                    id: "service_علاج_الجذور",
-                    title: "علاج الجذور",
-                    description: "علاج العصب",
-                  },
-                  {
-                    id: "service_تركيب_التركيبات",
-                    title: "تركيب التركيبات",
-                    description: "تيجان وجسور",
-                  },
-                  {
-                    id: "service_تقويم_الأسنان",
-                    title: "تقويم الأسنان",
-                    description: "تنظيم الأسنان",
-                  },
-                  {
-                    id: "service_خلع_الأسنان",
-                    title: "خلع الأسنان",
-                    description: "خلع بسيط أو جراحي",
-                  },
+                  { id: "service_تنظيف_الأسنان", title: "تنظيف الأسنان" },
+                  { id: "service_تبييض_الأسنان", title: "تبييض الأسنان" },
+                  { id: "service_حشو_الأسنان", title: "حشو الأسنان" },
                 ],
               },
               {
                 title: "خدمات التجميل",
                 rows: [
-                  {
-                    id: "service_الفينير",
-                    title: "الفينير",
-                    description: "قشور تجميلية",
-                  },
-                  {
-                    id: "service_زراعة_الأسنان",
-                    title: "زراعة الأسنان",
-                    description: "زراعة الأسنان",
-                  },
-                  {
-                    id: "service_ابتسامة_هوليود",
-                    title: "ابتسامة هوليود",
-                    description: "تصميم الابتسامة",
-                  },
-                  {
-                    id: "service_خدمة_أخرى",
-                    title: "خدمة أخرى",
-                    description: "إن لم تجد خدمتك",
-                  },
+                  { id: "service_ابتسامة_هوليود", title: "ابتسامة هوليود" },
+                  { id: "service_الفينير", title: "الفينير" },
+                  { id: "service_زراعة_الأسنان", title: "زراعة الأسنان" },
                 ],
               },
             ],
           },
         },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
       }
     );
   } catch (err) {
-    console.error("❌ ERROR sending service list:", err.message);
+    console.error("❌ serviceList error:", err.message);
     await sendServiceButtons(to);
   }
 }
 
 // ============================================================================
-// 🆕 SUPABASE BOOKING FUNCTIONS (Replaces Google Sheets for booking operations)
+// 🆕 SUPABASE BOOKING FUNCTIONS
 // ============================================================================
 
-/**
- * 🧾 Save booking to Supabase
- */
+// Save booking
 async function saveBooking({ name, phone, service, appointment }) {
   try {
     const { data, error } = await supabase
@@ -311,27 +221,20 @@ async function saveBooking({ name, phone, service, appointment }) {
           service,
           appointment,
           time: new Date().toISOString(),
-          status: "Still", // Default status
+          status: "Still",
         },
       ])
       .select();
 
-    if (error) {
-      console.error("❌ ERROR saving booking to Supabase:", error.message);
-      throw error;
-    }
+    if (error) throw error;
 
-    console.log("✅ Booking saved to Supabase:", data);
     return data[0];
   } catch (err) {
-    console.error("❌ ERROR in saveBooking:", err.message);
-    throw err;
+    console.error("❌ saveBooking Error:", err.message);
   }
 }
 
-/**
- * ✏️ Update Booking in Supabase
- */
+// Update existing booking
 async function updateBooking(bookingId, booking) {
   try {
     const { data, error } = await supabase
@@ -346,166 +249,89 @@ async function updateBooking(bookingId, booking) {
       .eq("id", bookingId)
       .select();
 
-    if (error) {
-      console.error("❌ ERROR updating booking:", error.message);
-      throw error;
-    }
+    if (error) throw error;
 
-    console.log("✅ Booking updated in Supabase");
     return data[0];
   } catch (err) {
-    console.error("❌ ERROR in updateBooking:", err.message);
-    throw err;
+    console.error("❌ updateBooking Error:", err.message);
   }
 }
 
-/**
- * 📖 Get all bookings from Supabase
- */
+// Get all bookings
 async function getAllBookings() {
   try {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("bookings")
       .select("*")
       .order("time", { ascending: false });
 
-    if (error) {
-      console.error("❌ ERROR loading bookings:", error.message);
-      throw error;
-    }
-
-    console.log(`✅ Loaded ${data.length} bookings from Supabase`);
     return data;
   } catch (err) {
-    console.error("❌ ERROR in getAllBookings:", err.message);
+    console.error("❌ getAllBookings Error:", err.message);
     return [];
   }
 }
 
-/**
- * 🔍 Fetch all bookings for a specific phone number from Supabase
- * Handles multiple phone formats (07X, 9627X, +9627X)
- */
+// Search bookings by phone
 async function getBookingsByPhone(phone) {
   try {
-    console.log(`🔍 Searching bookings for phone: ${phone}`);
+    const normalized = phone.replace(/[^\d]/g, "");
 
-    // Normalize phone number - remove spaces, +, and leading zeros
-    let normalized = phone.replace(/[\s\+\-]/g, "");
-
-    // Generate all possible formats
-    const phoneVariants = [
-      normalized, // Original
-      normalized.replace(/^962/, "0"), // 9627XXXXXXXX -> 07XXXXXXXX
-      normalized.replace(/^0/, "962"), // 07XXXXXXXX -> 9627XXXXXXXX
-      `+${normalized}`, // +9627XXXXXXXX
-      normalized.replace(/^00/, ""), // 009627X -> 9627X
+    const variants = [
+      normalized,
+      normalized.replace(/^962/, "0"),
+      normalized.replace(/^0/, "962"),
+      `+${normalized}`,
     ];
 
-    console.log(`🔍 Trying phone variants:`, phoneVariants);
-
-    // Search for any of these formats
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("bookings")
       .select("*")
-      .in("phone", phoneVariants)
+      .in("phone", variants)
       .order("time", { ascending: false });
 
-    if (error) {
-      console.error(
-        "❌ Error fetching phone bookings from Supabase:",
-        error.message
-      );
-      throw error;
-    }
-
-    console.log(`✅ Found ${data?.length || 0} booking(s) for phone ${phone}`);
     return data || [];
   } catch (err) {
-    console.error("❌ Error in getBookingsByPhone:", err.message);
-    throw err;
+    console.error("❌ getBookingsByPhone Error:", err.message);
+    return [];
   }
 }
 
-/**
- * 🗑️ Delete a booking from Supabase
- */
+// Delete booking (soft delete)
 async function deleteBookingById(bookingId) {
   try {
-    console.log(`🗑️ Attempting to delete booking ID: ${bookingId}`);
-
-    // First, get the booking details for logging
-    const { data: booking, error: fetchError } = await supabase
+    const { data: booking } = await supabase
       .from("bookings")
       .select("*")
       .eq("id", bookingId)
       .single();
 
-    if (fetchError || !booking) {
-      console.warn(`⚠️ Booking ${bookingId} not found or already deleted`);
-      return false;
-    }
+    if (!booking) return false;
 
-    // Log to booking_history before deletion
-    const { error: historyError } = await supabase
-      .from("booking_history")
-      .insert([
-        {
-          booking_id: bookingId,
-          old_status: booking.status || "Still",
-          new_status: "Canceled",
-          changed_by: "User (WhatsApp)",
-        },
-      ]);
+    // Log delete
+    await supabase.from("booking_history").insert([
+      {
+        booking_id: bookingId,
+        old_status: booking.status,
+        new_status: "Canceled",
+        changed_by: "User (WhatsApp)",
+      },
+    ]);
 
-    if (historyError) {
-      console.warn(
-        "⚠️ Failed to log deletion to history:",
-        historyError.message
-      );
-    }
-
-    // Update status to "Canceled" instead of hard delete (optional - you can choose hard delete)
-    const { error: updateError } = await supabase
+    // Mark as canceled
+    await supabase
       .from("bookings")
       .update({ status: "Canceled" })
       .eq("id", bookingId);
 
-    if (updateError) {
-      console.error(
-        "❌ Error marking booking as canceled:",
-        updateError.message
-      );
-      throw updateError;
-    }
-
-    console.log(`✅ Booking ${bookingId} marked as Canceled`);
     return true;
-
-    // Alternative: Hard delete (uncomment if you prefer)
-    /*
-    const { error: deleteError } = await supabase
-      .from("bookings")
-      .delete()
-      .eq("id", bookingId);
-
-    if (deleteError) {
-      console.error("❌ Error deleting booking:", deleteError.message);
-      throw deleteError;
-    }
-
-    console.log(`✅ Booking ${bookingId} deleted successfully`);
-    return true;
-    */
   } catch (err) {
-    console.error("❌ Error in deleteBookingById:", err.message);
-    throw err;
+    console.error("❌ deleteBookingById Error:", err.message);
+    return false;
   }
 }
 
-/**
- * 📋 Send interactive list of bookings for deletion
- */
+// Send list of bookings for deletion
 async function sendBookingsList(to, bookings) {
   try {
     if (!bookings.length) {
@@ -513,17 +339,10 @@ async function sendBookingsList(to, bookings) {
       return;
     }
 
-    await sendTextMessage(
-      to,
-      `📋 وجدنا ${bookings.length} حجز/حجوزات:\n\nاختر الحجز الذي ترغب بحذفه 👇`
-    );
-
-    await new Promise((r) => setTimeout(r, 500));
-
-    const rows = bookings.slice(0, 10).map((b, i) => ({
+    const rows = bookings.slice(0, 10).map((b) => ({
       id: `delete_${b.id}`,
-      title: `${b.name}`,
-      description: `📅 ${b.appointment} | 💊 ${b.service}`.substring(0, 72),
+      title: b.name,
+      description: `📅 ${b.appointment} | 💊 ${b.service}`.slice(0, 70),
     }));
 
     await axios.post(
@@ -536,58 +355,20 @@ async function sendBookingsList(to, bookings) {
           type: "list",
           header: { type: "text", text: "حجوزاتك 📋" },
           body: { text: "اختر الحجز الذي تريد حذفه:" },
-          footer: { text: "عيادة ابتسامة الطبية" },
           action: {
             button: "عرض الحجوزات",
-            sections: [{ title: "حجوزاتك", rows }],
+            sections: [{ title: "قائمة الحجوزات", rows }],
           },
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
         },
       }
     );
-
-    // Send "keep bookings" button
-    setTimeout(async () => {
-      await axios.post(
-        `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
-        {
-          messaging_product: "whatsapp",
-          to,
-          type: "interactive",
-          interactive: {
-            type: "button",
-            body: { text: "أو إذا غيّرت رأيك:" },
-            action: {
-              buttons: [
-                {
-                  type: "reply",
-                  reply: { id: "keep_booking", title: "إبقاء حجوزاتي ✅" },
-                },
-              ],
-            },
-          },
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-    }, 800);
   } catch (err) {
-    console.error("❌ Error sending booking list:", err.message);
-    throw err;
+    console.error("❌ sendBookingsList Error:", err.message);
   }
 }
 
 // ============================================================================
-// 📤 EXPORT EVERYTHING
+// EXPORTS
 // ============================================================================
 module.exports = {
   askAI,
@@ -600,7 +381,6 @@ module.exports = {
   sendServiceList,
   sendAppointmentOptions: sendAppointmentButtons,
 
-  // Supabase booking functions
   saveBooking,
   updateBooking,
   getAllBookings,
@@ -608,6 +388,5 @@ module.exports = {
   deleteBookingById,
   sendBookingsList,
 
-  // Export supabase client for advanced usage
   supabase,
 };
