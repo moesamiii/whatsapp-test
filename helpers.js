@@ -2,7 +2,6 @@
 const axios = require("axios");
 const { google } = require("googleapis");
 const { askAI, validateNameWithAI } = require("./aiHelper"); // ✅ Import AI utilities
-const { createClient } = require("@supabase/supabase-js"); // 📥 Import Supabase
 
 // ---------------------------------------------
 // 🔧 Environment variables
@@ -10,27 +9,10 @@ const { createClient } = require("@supabase/supabase-js"); // 📥 Import Supaba
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const SPREADSHEET_ID = (process.env.GOOGLE_SHEET_ID || "").trim();
-// NOTE: GOOGLE_SHEET_URL is now OBSOLETE since we're using Supabase for the cancellation logic
-// const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL;
-
-// ✅ NEW: Supabase Environment Variables (Must be defined in your actual environment)
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY; // Use service key for server-side operations
+const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL; // ✅ ADDED for new functions
 
 // ---------------------------------------------
-// 🟢 Supabase Client Setup (for Bookings/Cancellations)
-// ---------------------------------------------
-const supabase =
-  SUPABASE_URL && SUPABASE_SERVICE_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-    : null;
-
-if (!supabase) {
-  console.error("❌ DEBUG => Supabase client not initialized. Check ENV vars.");
-}
-
-// ---------------------------------------------
-// 🧠 Google Sheets setup (for Booking Intake/Archival)
+// 🧠 Google Sheets setup
 // ---------------------------------------------
 let creds;
 try {
@@ -55,12 +37,6 @@ let DEFAULT_SHEET_NAME = "Sheet1";
 // ---------------------------------------------
 async function detectSheetName() {
   try {
-    if (!SPREADSHEET_ID) {
-      console.warn(
-        "⚠️ DEBUG => SPREADSHEET_ID not defined. Skipping sheet name detection."
-      );
-      return;
-    }
     console.log(
       "🔍 DEBUG => Detecting sheet names for spreadsheet:",
       SPREADSHEET_ID
@@ -89,7 +65,6 @@ async function detectSheetName() {
 // 💬 WhatsApp messaging utilities
 // ---------------------------------------------
 async function sendTextMessage(to, text) {
-  // ... (sendTextMessage remains the same)
   try {
     console.log(`📤 DEBUG => Sending WhatsApp message to ${to}:`, text);
     await axios.post(
@@ -119,7 +94,6 @@ async function sendTextMessage(to, text) {
 // 📅 Appointment buttons
 // ---------------------------------------------
 async function sendAppointmentButtons(to) {
-  // ... (sendAppointmentButtons remains the same)
   console.log(`📤 DEBUG => Sending appointment buttons to ${to}`);
   try {
     await axios.post(
@@ -160,7 +134,6 @@ async function sendAppointmentButtons(to) {
 // 💊 Service buttons (OLD - keep for compatibility)
 // ---------------------------------------------
 async function sendServiceButtons(to) {
-  // ... (sendServiceButtons remains the same)
   console.log(`📤 DEBUG => Sending service buttons to ${to}`);
   try {
     await axios.post(
@@ -210,7 +183,6 @@ async function sendServiceButtons(to) {
 // 💊 Service DROPDOWN LIST (NEW - with dropdown)
 // ---------------------------------------------
 async function sendServiceList(to) {
-  // ... (sendServiceList remains the same)
   console.log(`📤 DEBUG => Sending service dropdown list to ${to}`);
   try {
     await axios.post(
@@ -336,11 +308,9 @@ async function sendAppointmentOptions(to) {
 }
 
 // ---------------------------------------------
-// 🧾 Save booking (STILL USES GOOGLE SHEETS)
+// 🧾 Save booking
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
-  // ... (Google Sheets save logic remains the same)
-  // NOTE: In a real system, you should save to Supabase here too!
   try {
     const values = [
       [name, phone, service, appointment, new Date().toISOString()],
@@ -373,7 +343,6 @@ async function saveBooking({ name, phone, service, appointment }) {
 // ✏️ Update booking
 // ---------------------------------------------
 async function updateBooking(rowIndex, { name, phone, service, appointment }) {
-  // ... (Google Sheets update logic remains the same)
   try {
     const values = [
       [name, phone, service, appointment, new Date().toISOString()],
@@ -398,7 +367,6 @@ async function updateBooking(rowIndex, { name, phone, service, appointment }) {
 // 📖 Get all bookings (dashboard)
 // ---------------------------------------------
 async function getAllBookings() {
-  // ... (Google Sheets getAllBookings logic remains the same)
   try {
     console.log(
       `📥 DEBUG => Fetching all bookings from "${DEFAULT_SHEET_NAME}"`
@@ -434,7 +402,6 @@ async function getAllBookings() {
 // 🧠 Validate Google Sheet connection
 // ---------------------------------------------
 async function testGoogleConnection() {
-  // ... (testGoogleConnection remains the same)
   try {
     const meta = await sheets.spreadsheets.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -449,98 +416,62 @@ async function testGoogleConnection() {
 }
 
 // ============================================================================
-// 📌 NEW SECTION — SUPABASE CANCELLATION FUNCTIONS (FIXED)
+// 📌 NEW SECTION — MERGED BOOKING FUNCTIONS (FROM YOUR FIRST CODE BLOCK)
 // ============================================================================
 
 /**
- * Fetch all ACTIVE bookings for a specific phone number from SUPABASE
- * @param {string} phone - The user's phone number
+ * Fetch all bookings for a specific phone number
  */
 async function getBookingsByPhone(phone) {
-  if (!supabase) throw new Error("Supabase client not initialized.");
-
-  // Normalize phone to include the minimum required digits/format for the query
-  const normalizedPhone = phone.replace(/[^\d]/g, "");
-
   try {
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("id, name, service, appointment")
-      .eq("phone", normalizedPhone) // Match the normalized phone number
-      .neq("status", "Canceled") // Exclude already canceled bookings
-      .order("created_at", { ascending: false });
+    const response = await axios.get(GOOGLE_SHEET_URL, {
+      params: { action: "getByPhone", phone },
+    });
 
-    if (error) throw error;
-
-    // Supabase returns an array of objects
-    return data;
+    return response.data?.bookings || [];
   } catch (err) {
-    console.error("❌ Supabase Error fetching bookings:", err.message);
-    throw err; // Propagate error back to webhookHandler
+    console.error("❌ Error fetching bookings:", err.message);
+    throw err;
   }
 }
 
 /**
- * Perform a SOFT DELETE (set status to 'Canceled') for a booking by its ID in SUPABASE
- * @param {string} bookingId - The unique ID of the booking to cancel
+ * Delete a booking by its unique ID
  */
 async function deleteBookingById(bookingId) {
-  if (!supabase) throw new Error("Supabase client not initialized.");
-
   try {
-    // ⚠️ IMPORTANT: We perform an UPDATE (soft delete) to change the status, not a hard DELETE
-    const { error } = await supabase
-      .from("bookings")
-      .update({ status: "Canceled" })
-      .eq("id", bookingId);
+    const response = await axios.post(GOOGLE_SHEET_URL, {
+      action: "delete",
+      bookingId,
+    });
 
-    if (error) throw error;
-
-    // Log history to booking_history table (optional but highly recommended)
-    try {
-      await supabase.from("booking_history").insert({
-        booking_id: bookingId,
-        old_status: "Active/Unknown", // We don't fetch old status here for speed
-        new_status: "Canceled",
-        changed_by: "System_User_Cancellation",
-      });
-    } catch (logError) {
-      console.warn("⚠️ Failed to log cancellation history:", logError.message);
-    }
-
-    return true; // Success
+    return response.data?.success === true;
   } catch (err) {
-    console.error("❌ Supabase Error canceling booking:", err.message);
-    throw err; // Propagate error back to webhookHandler
+    console.error("❌ Error deleting booking:", err.message);
+    throw err;
   }
 }
 
 /**
  * Send bookings list to WhatsApp with delete buttons
- * @param {string} to - The user's phone number
- * @param {Array<Object>} bookings - Array of booking objects from getBookingsByPhone
  */
 async function sendBookingsList(to, bookings) {
   try {
     if (!bookings || bookings.length === 0) {
-      await sendTextMessage(
-        to,
-        "❌ لم يتم العثور على حجوزات نشطة مرتبطة برقمك."
-      );
+      await sendTextMessage(to, "❌ لم يتم العثور على حجوزات.");
       return;
     }
 
     await sendTextMessage(
       to,
-      `📋 وجدنا ${bookings.length} حجز/حجوزات نشطة:\n\nاختر الحجز الذي ترغب بإلغائه 👇`
+      `📋 وجدنا ${bookings.length} حجز/حجوزات:\n\nاختر الحجز الذي ترغب بحذفه 👇`
     );
 
     await new Promise((r) => setTimeout(r, 500));
 
-    // Build rows (Limit to 10 as per WhatsApp API spec)
-    const rows = bookings.slice(0, 10).map((b) => ({
-      // ✅ b.id is now the Supabase UUID
-      id: `delete_${b.id}`,
+    // Build rows
+    const rows = bookings.slice(0, 10).map((b, i) => ({
+      id: `delete_${b.id || i}`,
       title: `${b.name || "غير معروف"}`,
       description: `📅 ${b.appointment || "N/A"} | 💊 ${
         b.service || "N/A"
@@ -553,19 +484,18 @@ async function sendBookingsList(to, bookings) {
       type: "interactive",
       interactive: {
         type: "list",
-        header: { type: "text", text: "إلغاء الحجز 📋" },
-        body: { text: "اختر الحجز الذي تريد إلغاءه نهائياً:" },
+        header: { type: "text", text: "حجوزاتك 📋" },
+        body: { text: "اختر الحجز الذي تريد حذفه:" },
         footer: { text: "عيادة ابتسامة الطبية" },
         action: {
           button: "عرض الحجوزات",
-          sections: [{ title: "حجوزاتك النشطة", rows }],
+          sections: [{ title: "حجوزاتك", rows }],
         },
       },
     };
 
-    // Use current API version (v17.0 is safer unless v21.0 is required)
     await axios.post(
-      `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
       payload,
       {
         headers: {
@@ -597,7 +527,7 @@ async function sendBookingsList(to, bookings) {
     };
 
     await axios.post(
-      `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
       keepPayload,
       {
         headers: {
@@ -632,7 +562,7 @@ module.exports = {
   getAllBookings,
   testGoogleConnection,
 
-  // NEW EXPORTS (NOW USING SUPABASE)
+  // NEW EXPORTS
   getBookingsByPhone,
   deleteBookingById,
   sendBookingsList,
