@@ -41,6 +41,23 @@ const {
 } = require("./mediaAssets");
 
 // ---------------------------------------------
+// 🧠 Session storage (per-user conversation memory)
+// ---------------------------------------------
+const sessions = {}; // { userId: { ...state } }
+
+function getSession(userId) {
+  if (!sessions[userId]) {
+    sessions[userId] = {
+      waitingForOffersConfirmation: false,
+      waitingForDoctorConfirmation: false,
+      waitingForBookingDetails: false,
+      lastIntent: null,
+    };
+  }
+  return sessions[userId];
+}
+
+// ---------------------------------------------
 // Environment Variables
 // ---------------------------------------------
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -743,6 +760,24 @@ async function transcribeAudio(mediaId) {
 }
 
 // --------------------------------------------
+// Delete Booking
+// --------------------------------------------
+function isDeleteBookingRequest(text = "") {
+  const t = text.toLowerCase();
+  return (
+    t.includes("الغاء الحجز") ||
+    t.includes("الغاء الموعد") ||
+    t.includes("الغاء") ||
+    t.includes("احذف") ||
+    t.includes("احذف الحجز") ||
+    t.includes("cancel booking") ||
+    t.includes("cancel my booking") ||
+    t.includes("delete booking") ||
+    t.includes("cancel appointment")
+  );
+}
+
+// --------------------------------------------
 // Exports
 // --------------------------------------------
 module.exports = {
@@ -751,6 +786,7 @@ module.exports = {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isDeleteBookingRequest,
   isEnglish,
   containsBanWords,
   sendBanWordsResponse,

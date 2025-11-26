@@ -49,6 +49,8 @@ function getSession(userId) {
       waitingForOffersConfirmation: false,
       waitingForDoctorConfirmation: false,
       waitingForBookingDetails: false,
+      waitingForDeleteConfirmation: false,
+      deleteBookingId: null,
       lastIntent: null,
     };
   }
@@ -252,6 +254,73 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           );
         }
 
+        return res.sendStatus(200);
+      }
+
+      // 🗑️ User wants to delete the latest booking
+      if (isDeleteBookingRequest(text)) {
+        // Get the user's latest booking
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("*")
+          .eq("phone", from) // ⚠ do NOT change format; using your existing storage format
+          .order("id", { ascending: false })
+          .limit(1);
+
+        if (error || !data || data.length === 0) {
+          await sendTextMessage(from, "⚠️ لا يوجد لديك أي حجز لحذفه.");
+          return res.sendStatus(200);
+        }
+
+        const booking = data[0];
+
+        // Save booking id into session
+        session.waitingForDeleteConfirmation = true;
+        session.deleteBookingId = booking.id;
+
+        await sendTextMessage(
+          from,
+          `❗ تأكيد حذف الحجز:\n\nالخدمة: ${booking.service}\nالموعد: ${booking.appointment}\n\nهل تريد بالتأكيد حذف هذا الحجز؟\n\nأجب: نعم احذف`
+        );
+
+        return res.sendStatus(200);
+      }
+
+      // 🗑️ Delete confirmation
+      if (session.waitingForDeleteConfirmation) {
+        const confirm = text.trim().toLowerCase();
+
+        if (
+          confirm.includes("نعم") ||
+          confirm.includes("احذف") ||
+          confirm.includes("yes")
+        ) {
+          const { error } = await supabase
+            .from("bookings")
+            .delete()
+            .eq("id", session.deleteBookingId);
+
+          // Reset session
+          session.waitingForDeleteConfirmation = false;
+          session.deleteBookingId = null;
+
+          if (!error) {
+            await sendTextMessage(from, "✅ تم حذف آخر حجز لك بنجاح.");
+          } else {
+            await sendTextMessage(
+              from,
+              "❌ حدث خطأ أثناء حذف الحجز. حاول لاحقًا."
+            );
+          }
+
+          return res.sendStatus(200);
+        }
+
+        // User said something else → cancel
+        session.waitingForDeleteConfirmation = false;
+        session.deleteBookingId = null;
+
+        await sendTextMessage(from, "🚫 تم إلغاء عملية الحذف.");
         return res.sendStatus(200);
       }
 
