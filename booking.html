@@ -222,6 +222,7 @@
               <option value="Still">قيد الانتظار</option>
               <option value="Booking Complete">تم الحجز</option>
               <option value="SentNoReply">تم الإرسال ولم يتم الرد</option>
+              <option value="Canceled by User">ملغى بواسطة العميل</option>
             </select>
 
             <table id="tbl">
@@ -427,6 +428,9 @@
                   <option value="SentNoReply" ${
                     b.status === "SentNoReply" ? "selected" : ""
                   }>تم الإرسال ولم يتم الرد</option>
+                  <option value="Canceled by User" ${
+                    b.status === "Canceled by User" ? "selected" : ""
+                  }>ملغى بواسطة العميل</option>
                 </select>
                 <button class="history-btn" data-id="${b.id}">
                   <i class="fa-solid fa-clock-rotate-left"></i> السجل
@@ -551,7 +555,6 @@
       });
 
       // ✅ Auto refresh bookings
-      // ✅✅✅✅✅
       load();
       setInterval(load, 15000);
     </script>
