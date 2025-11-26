@@ -742,6 +742,143 @@ async function transcribeAudio(mediaId) {
   }
 }
 
+// ---------------------------------------------
+// 🚫 Cancellation Detection and Handling
+// ---------------------------------------------
+
+/**
+ * Check if the message is a cancellation request
+ */
+function isCancellationRequest(text = "") {
+  if (!text) return false;
+  const t = text.trim().toLowerCase();
+
+  const cancellationKeywords = [
+    "الغاء",
+    "إلغاء",
+    "الغي",
+    "إلغى",
+    "cancel",
+    "cancellation",
+    "الغاء الحجز",
+    "إلغاء الحجز",
+    "cancel booking",
+    "cancel appointment",
+    "اريد الغاء",
+    "أريد إلغاء",
+    "i want to cancel",
+    "cancel my booking",
+    "موعدي",
+    "حجزي",
+    "my booking",
+    "my appointment",
+    "الغيه",
+    "إلغيه",
+  ];
+
+  return cancellationKeywords.some((keyword) => t.includes(keyword));
+}
+
+/**
+ * Handle booking cancellation requests from users
+ */
+async function handleCancellationRequest(from, text) {
+  try {
+    // First, try to find the user's most recent booking by phone number
+    const { data: bookings, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("phone", from)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error("Error fetching booking:", error);
+      await sendTextMessage(
+        from,
+        "❌ حدث خطأ في البحث عن حجزك. يرجى المحاولة لاحقاً."
+      );
+      return;
+    }
+
+    if (!bookings || bookings.length === 0) {
+      await sendTextMessage(
+        from,
+        "❌ لم نتمكن من العثور على أي حجز مرتبط برقمك."
+      );
+      await sendTextMessage(
+        from,
+        "📞 للاستفسار أو المساعدة، يرجى التواصل مع الإدارة على الرقم: 0788888888"
+      );
+      return;
+    }
+
+    const booking = bookings[0];
+
+    // Check if booking is already cancelled
+    if (booking.status === "Cancelled by User") {
+      await sendTextMessage(from, "✅ حجزك已经被取消 مسبقاً.");
+      return;
+    }
+
+    // Check if booking is already completed
+    if (booking.status === "Booking Complete") {
+      await sendTextMessage(from, "⚠️ لا يمكن إلغاء الحجز بعد اكتماله.");
+      await sendTextMessage(
+        from,
+        "📞 للاستفسار، يرجى التواصل مع الإدارة على الرقم: 0788888888"
+      );
+      return;
+    }
+
+    // Update booking status to cancelled
+    const { error: updateError } = await supabase
+      .from("bookings")
+      .update({ status: "Cancelled by User" })
+      .eq("id", booking.id);
+
+    if (updateError) {
+      console.error("Error cancelling booking:", updateError);
+      await sendTextMessage(
+        from,
+        "❌ حدث خطأ في إلغاء الحجز. يرجى المحاولة لاحقاً."
+      );
+      return;
+    }
+
+    // Log the cancellation in history
+    await supabase.from("booking_history").insert([
+      {
+        booking_id: booking.id,
+        old_status: booking.status,
+        new_status: "Cancelled by User",
+        changed_by: "User",
+      },
+    ]);
+
+    // Send confirmation message
+    await sendTextMessage(from, "✅ تم إلغاء حجزك بنجاح.");
+    await sendTextMessage(
+      from,
+      `📋 تفاصيل الحجز الملغي:
+👤 الاسم: ${booking.name}
+📅 الموعد: ${booking.appointment}
+💊 الخدمة: ${booking.service}`
+    );
+
+    await sendTextMessage(
+      from,
+      "💫 نأمل أن نراك في وقت آخر. للاستفسارات الجديدة، اكتب 'مرحبا'"
+    );
+  } catch (error) {
+    console.error("Error in handleCancellationRequest:", error);
+    await sendTextMessage(
+      from,
+      "❌ حدث خطأ غير متوقع. يرجى التواصل مع الإدارة على الرقم: 0788888888"
+    );
+  }
+}
+
 // --------------------------------------------
 // Exports
 // --------------------------------------------
@@ -762,4 +899,6 @@ module.exports = {
   isGreeting,
   getGreeting,
   sendOffersValidity,
+  isCancellationRequest,
+  handleCancellationRequest,
 };

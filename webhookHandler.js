@@ -1,5 +1,5 @@
-/**
- * webhookHandler.js
+// /**
+/* webhookHandler.js
  *
  * Responsibilities:
  * - Register the /webhook verification route (GET) and webhook receiver (POST).
@@ -8,6 +8,7 @@
  * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
  * - Filter inappropriate content using ban words detection.
  * - Handle side questions within booking flow and return to the exact booking step.
+ * - Handle booking cancellation requests from users.
  */
 
 const {
@@ -17,6 +18,7 @@ const {
   sendServiceList,
   sendAppointmentOptions,
   saveBooking,
+  updateBookingStatus,
 } = require("./helpers");
 
 const {
@@ -34,6 +36,8 @@ const {
   sendBanWordsResponse,
   isGreeting,
   getGreeting,
+  isCancellationRequest,
+  handleCancellationRequest,
 } = require("./messageHandlers");
 
 const { handleAudioMessage } = require("./webhookProcessor");
@@ -259,6 +263,12 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       if (isLocationRequest(text)) {
         const language = isEnglish(text) ? "en" : "ar";
         await sendLocationMessages(from, language);
+        return res.sendStatus(200);
+      }
+
+      // 🚫 Handle cancellation requests
+      if (isCancellationRequest(text)) {
+        await handleCancellationRequest(from, text);
         return res.sendStatus(200);
       }
 
