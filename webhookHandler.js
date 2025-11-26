@@ -5,9 +5,9 @@
  * - Register the /webhook verification route (GET) and webhook receiver (POST).
  * - Handle non-audio messages: interactive (buttons/lists) and plain text messages.
  * - Manage the booking flow for text & interactive flows (appointment selection, name, phone, service).
+ * - Handle booking deletion flow.
  * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
  * - Filter inappropriate content using ban words detection.
- * - Handle side questions within booking flow and return to the exact booking step.
  */
 
 const {
@@ -17,6 +17,9 @@ const {
   sendServiceList,
   sendAppointmentOptions,
   saveBooking,
+  getBookingsByPhone,
+  deleteBookingById,
+  sendBookingsList,
 } = require("./helpers");
 
 const {
@@ -29,6 +32,8 @@ const {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isDeleteBookingRequest,
+  isCancelRequest,
   isEnglish,
   containsBanWords,
   sendBanWordsResponse,
@@ -37,23 +42,6 @@ const {
 } = require("./messageHandlers");
 
 const { handleAudioMessage } = require("./webhookProcessor");
-
-// ---------------------------------------------
-// 🧠 Session storage (per-user conversation memory)
-// ---------------------------------------------
-const sessions = {}; // { userId: { ...state } }
-
-function getSession(userId) {
-  if (!sessions[userId]) {
-    sessions[userId] = {
-      waitingForOffersConfirmation: false,
-      waitingForDoctorConfirmation: false,
-      waitingForBookingDetails: false,
-      lastIntent: null,
-    };
-  }
-  return sessions[userId];
-}
 
 function isSideQuestion(text = "") {
   if (!text) return false;
@@ -71,51 +59,6 @@ function isSideQuestion(text = "") {
     t.startsWith("شو ") ||
     t.startsWith("what ")
   );
-}
-
-/**
- * Get the current booking step for a user
- * Returns: "appointment" | "name" | "phone" | "service" | null
- */
-function getCurrentBookingStep(tempBookings, from) {
-  const booking = tempBookings[from];
-
-  if (!booking) return null;
-  if (!booking.appointment) return "appointment";
-  if (!booking.name) return "name";
-  if (!booking.phone) return "phone";
-  if (!booking.service) return "service";
-
-  return null;
-}
-
-/**
- * Send prompt message based on current booking step
- */
-async function sendStepPrompt(from, step) {
-  const prompts = {
-    appointment: async () => {
-      await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
-      await sendAppointmentOptions(from);
-    },
-    name: async () => {
-      await sendTextMessage(from, "👤 من فضلك ارسل اسمك:");
-    },
-    phone: async () => {
-      await sendTextMessage(from, "📱 الآن أرسل رقم جوالك:");
-    },
-    service: async () => {
-      await sendServiceList(from);
-      await sendTextMessage(
-        from,
-        "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
-      );
-    },
-  };
-
-  if (prompts[step]) {
-    await prompts[step]();
-  }
 }
 
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
@@ -138,7 +81,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       const body = req.body;
       const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
       const from = message?.from;
-      const session = getSession(from);
 
       if (!message || !from) return res.sendStatus(200);
 
@@ -148,8 +90,9 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Ensure global tempBookings object exists
+      // Ensure global tempBookings and deletionFlow objects exist
       const tempBookings = (global.tempBookings = global.tempBookings || {});
+      const deletionFlow = (global.deletionFlow = global.deletionFlow || {});
 
       // 🎙️ Handle audio messages separately
       if (message.type === "audio") {
@@ -164,6 +107,46 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           interactiveType === "list_reply"
             ? message.interactive?.list_reply?.id
             : message.interactive?.button_reply?.id;
+
+        // Handle booking deletion confirmation
+        if (id?.startsWith("delete_")) {
+          const bookingId = id.replace("delete_", "");
+
+          try {
+            const deleted = await deleteBookingById(bookingId);
+
+            if (deleted) {
+              await sendTextMessage(
+                from,
+                "✅ تم حذف الحجز بنجاح!\n\nإذا كنت ترغب بحجز موعد جديد، أخبرني فقط 😊"
+              );
+            } else {
+              await sendTextMessage(
+                from,
+                "⚠️ عذراً، لم نتمكن من العثور على الحجز. ربما تم حذفه مسبقاً."
+              );
+            }
+          } catch (err) {
+            console.error("❌ Delete booking error:", err.message);
+            await sendTextMessage(
+              from,
+              "⚠️ حدث خطأ أثناء حذف الحجز. الرجاء المحاولة لاحقاً."
+            );
+          }
+
+          delete deletionFlow[from];
+          return res.sendStatus(200);
+        }
+
+        // Handle "Keep booking" button
+        if (id === "keep_booking") {
+          await sendTextMessage(
+            from,
+            "👍 تمام! حجزك محفوظ. إذا احتجت أي مساعدة أخرى، أخبرني 😊"
+          );
+          delete deletionFlow[from];
+          return res.sendStatus(200);
+        }
 
         if (id?.startsWith("slot_")) {
           const appointment = id.replace("slot_", "").toUpperCase();
@@ -255,6 +238,73 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
+      // 🗑️ Handle booking deletion request
+      if (isDeleteBookingRequest(text) || isCancelRequest(text)) {
+        console.log(`🗑️ Delete booking request from ${from}`);
+
+        deletionFlow[from] = { step: "awaiting_phone" };
+
+        await sendTextMessage(
+          from,
+          "🔍 حسناً، لحذف حجزك أرسل رقم الجوال المسجل به الحجز:"
+        );
+
+        return res.sendStatus(200);
+      }
+
+      // 🗑️ Handle deletion flow - phone number input
+      if (deletionFlow[from]?.step === "awaiting_phone") {
+        const normalized = text
+          .replace(/[^\d٠-٩]/g, "")
+          .replace(/٠/g, "0")
+          .replace(/١/g, "1")
+          .replace(/٢/g, "2")
+          .replace(/٣/g, "3")
+          .replace(/٤/g, "4")
+          .replace(/٥/g, "5")
+          .replace(/٦/g, "6")
+          .replace(/٧/g, "7")
+          .replace(/٨/g, "8")
+          .replace(/٩/g, "9");
+
+        const isValid = /^07\d{8}$/.test(normalized);
+
+        if (!isValid) {
+          await sendTextMessage(
+            from,
+            "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 07XXXXXXXX"
+          );
+          return res.sendStatus(200);
+        }
+
+        // Fetch bookings for this phone number
+        try {
+          const bookings = await getBookingsByPhone(normalized);
+
+          if (!bookings || bookings.length === 0) {
+            await sendTextMessage(
+              from,
+              "❌ لم نجد أي حجوزات مسجلة بهذا الرقم.\n\nتأكد من الرقم، أو إذا كنت ترغب بحجز جديد، أخبرني 😊"
+            );
+            delete deletionFlow[from];
+            return res.sendStatus(200);
+          }
+
+          // Send list of bookings with delete buttons
+          await sendBookingsList(from, bookings);
+          delete deletionFlow[from];
+        } catch (err) {
+          console.error("❌ Error fetching bookings:", err.message);
+          await sendTextMessage(
+            from,
+            "⚠️ حدث خطأ أثناء البحث عن الحجوزات. الرجاء المحاولة لاحقاً."
+          );
+          delete deletionFlow[from];
+        }
+
+        return res.sendStatus(200);
+      }
+
       // 📍 Location / offers / doctors detection
       if (isLocationRequest(text)) {
         const language = isEnglish(text) ? "en" : "ar";
@@ -262,31 +312,18 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Offers logic (smart)
+      // 🌟 Offers Logic (Smart 2-Step Flow)
       if (isOffersRequest(text)) {
-        session.waitingForOffersConfirmation = true;
-        session.lastIntent = "offers";
-
         const language = isEnglish(text) ? "en" : "ar";
-        await sendOffersValidity(from, language);
-
+        await sendOffersValidity(from);
         return res.sendStatus(200);
       }
 
-      //Offer confirmation logic
-      if (session.waitingForOffersConfirmation) {
-        if (isOffersConfirmation(text)) {
-          session.waitingForOffersConfirmation = false;
-          session.lastIntent = null;
-
-          const language = isEnglish(text) ? "en" : "ar";
-          await sendOffersImages(from, language);
-          return res.sendStatus(200);
-        }
-
-        // User said something else → reset and keep going
-        session.waitingForOffersConfirmation = false;
-        session.lastIntent = null;
+      // 🌟 User confirms: "Send offers"
+      if (isOffersConfirmation(text)) {
+        const language = isEnglish(text) ? "en" : "ar";
+        await sendOffersImages(from, language);
+        return res.sendStatus(200);
       }
 
       if (isDoctorsRequest(text)) {
@@ -331,12 +368,10 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // 🧩 Step 2: Name input
       if (tempBookings[from] && !tempBookings[from].name) {
-        // ⭐ User asked a side question while booking
+        // ⭐ User asked a question while booking
         if (isSideQuestion(text)) {
           const answer = await askAI(text);
           await sendTextMessage(from, answer);
-
-          // Return to the name step
           await sendTextMessage(from, "نكمّل الحجز؟ أرسل اسمك 😊");
           return res.sendStatus(200);
         }
@@ -360,12 +395,9 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // 🧩 Step 3: Phone input
       if (tempBookings[from] && !tempBookings[from].phone) {
-        // ⭐ User asked a side question while booking
         if (isSideQuestion(text)) {
           const answer = await askAI(text);
           await sendTextMessage(from, answer);
-
-          // Return to the phone step
           await sendTextMessage(from, "تمام! الآن أرسل رقم جوالك:");
           return res.sendStatus(200);
         }
@@ -404,12 +436,9 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // 🧩 Step 4: Service input
       if (tempBookings[from] && !tempBookings[from].service) {
-        // ⭐ User asked a side question while booking
         if (isSideQuestion(text)) {
           const answer = await askAI(text);
           await sendTextMessage(from, answer);
-
-          // Return to the service step
           await sendTextMessage(from, "نرجع للحجز… ما هي الخدمة المطلوبة؟");
           return res.sendStatus(200);
         }
