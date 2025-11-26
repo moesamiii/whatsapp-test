@@ -8,6 +8,7 @@
  * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
  * - Filter inappropriate content using ban words detection.
  * - Handle side questions within booking flow and return to the exact booking step.
+ * - Handle booking cancellation requests and update Supabase database.
  */
 
 const {
@@ -37,23 +38,13 @@ const {
 } = require("./messageHandlers");
 
 const { handleAudioMessage } = require("./webhookProcessor");
+const { createClient } = require("@supabase/supabase-js");
 
-// ---------------------------------------------
-// 🧠 Session storage (per-user conversation memory)
-// ---------------------------------------------
-const sessions = {}; // { userId: { ...state } }
-
-function getSession(userId) {
-  if (!sessions[userId]) {
-    sessions[userId] = {
-      waitingForOffersConfirmation: false,
-      waitingForDoctorConfirmation: false,
-      waitingForBookingDetails: false,
-      lastIntent: null,
-    };
-  }
-  return sessions[userId];
-}
+// 🔑 Initialize Supabase
+const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+const SUPABASE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function isSideQuestion(text = "") {
   if (!text) return false;
@@ -71,6 +62,36 @@ function isSideQuestion(text = "") {
     t.startsWith("شو ") ||
     t.startsWith("what ")
   );
+}
+
+/**
+ * Detect cancellation request keywords
+ */
+function isCancellationRequest(text = "") {
+  if (!text) return false;
+  const t = text.trim().toLowerCase();
+
+  const cancelKeywords = [
+    "إلغاء",
+    "الغي",
+    "الغاء",
+    "الغ",
+    "cancel",
+    "delete",
+    "حذف",
+    "أريد الغاء",
+    "اريد الغاء",
+    "لا أريد",
+    "لا اريد",
+    "لا أبي",
+    "لا ابي",
+    "الحجز الغي",
+    "الحجز الغاء",
+    "الحجز ألغي",
+    "الحجز الغايه",
+  ];
+
+  return cancelKeywords.some((kw) => t.includes(kw));
 }
 
 /**
@@ -118,6 +139,66 @@ async function sendStepPrompt(from, step) {
   }
 }
 
+/**
+ * Cancel user booking in Supabase
+ */
+async function cancelUserBooking(from, phone) {
+  try {
+    // Find booking by phone number (since we don't have booking ID in WhatsApp)
+    const { data: existingBooking, error: fetchError } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("phone", phone)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (fetchError) {
+      console.error("❌ Error fetching booking for cancellation:", fetchError);
+      return false;
+    }
+
+    if (!existingBooking || existingBooking.length === 0) {
+      await sendTextMessage(from, "⚠️ لم نجد حجزًا مسجلاً باسم هذا الرقم.");
+      return false;
+    }
+
+    const booking = existingBooking[0];
+
+    // Update status to "Canceled By User"
+    const { error: updateError } = await supabase
+      .from("bookings")
+      .update({ status: "Canceled By User" })
+      .eq("id", booking.id);
+
+    if (updateError) {
+      console.error("❌ Error updating booking status:", updateError);
+      await sendTextMessage(from, "❌ حدث خطأ أثناء إلغاء الحجز.");
+      return false;
+    }
+
+    // Log to history
+    await supabase.from("booking_history").insert([
+      {
+        booking_id: booking.id,
+        old_status: booking.status || "Still",
+        new_status: "Canceled By User",
+        changed_by: "WhatsApp User",
+      },
+    ]);
+
+    console.log(`✅ Booking canceled: ${booking.name} (${phone})`);
+    await sendTextMessage(
+      from,
+      "✅ تم إلغاء حجزك بنجاح 😢\nإذا غيرت رأيك، تواصل معنا مجددًا للحجز من جديد 💙"
+    );
+
+    return true;
+  } catch (err) {
+    console.error("❌ Error in cancelUserBooking:", err.message);
+    return false;
+  }
+}
+
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
   // Webhook verification
   app.get("/webhook", (req, res) => {
@@ -138,7 +219,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       const body = req.body;
       const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
       const from = message?.from;
-      const session = getSession(from);
 
       if (!message || !from) return res.sendStatus(200);
 
@@ -263,30 +343,18 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       }
 
       // Offers logic (smart)
+      // 🌟 Offers Logic (Smart 2-Step Flow)
       if (isOffersRequest(text)) {
-        session.waitingForOffersConfirmation = true;
-        session.lastIntent = "offers";
-
         const language = isEnglish(text) ? "en" : "ar";
-        await sendOffersValidity(from, language);
-
+        await sendOffersValidity(from);
         return res.sendStatus(200);
       }
 
-      //Offer confirmation logic
-      if (session.waitingForOffersConfirmation) {
-        if (isOffersConfirmation(text)) {
-          session.waitingForOffersConfirmation = false;
-          session.lastIntent = null;
-
-          const language = isEnglish(text) ? "en" : "ar";
-          await sendOffersImages(from, language);
-          return res.sendStatus(200);
-        }
-
-        // User said something else → reset and keep going
-        session.waitingForOffersConfirmation = false;
-        session.lastIntent = null;
+      // 🌟 User confirms: "Send offers"
+      if (isOffersConfirmation(text)) {
+        const language = isEnglish(text) ? "en" : "ar";
+        await sendOffersImages(from, language);
+        return res.sendStatus(200);
       }
 
       if (isDoctorsRequest(text)) {
@@ -520,6 +588,63 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
         );
 
+        delete tempBookings[from];
+        return res.sendStatus(200);
+      }
+
+      // 🚨 CANCELLATION REQUEST - Check if user wants to cancel booking
+      if (isCancellationRequest(text)) {
+        console.log(`🚨 Cancellation request detected from ${from}`);
+
+        // If user is in booking process, clear it
+        if (tempBookings[from]) {
+          delete tempBookings[from];
+          await sendTextMessage(from, "✅ تم إلغاء عملية الحجز الحالية 👌");
+          return res.sendStatus(200);
+        }
+
+        // If user has completed a booking, ask for phone to find it in database
+        await sendTextMessage(
+          from,
+          "للتأكد من إلغاء حجزك، أرسل لنا رقم الجوال المسجل في الحجز:"
+        );
+
+        // Store that we're waiting for a cancellation phone
+        tempBookings[from] = { awaitingCancellationPhone: true };
+        return res.sendStatus(200);
+      }
+
+      // ⛔ If user is providing phone for cancellation
+      if (
+        tempBookings[from] &&
+        tempBookings[from].awaitingCancellationPhone &&
+        !tempBookings[from].name
+      ) {
+        const normalized = text
+          .replace(/[^\d٠-٩]/g, "")
+          .replace(/٠/g, "0")
+          .replace(/١/g, "1")
+          .replace(/٢/g, "2")
+          .replace(/٣/g, "3")
+          .replace(/٤/g, "4")
+          .replace(/٥/g, "5")
+          .replace(/٦/g, "6")
+          .replace(/٧/g, "7")
+          .replace(/٨/g, "8")
+          .replace(/٩/g, "9");
+
+        const isValid = /^07\d{8}$/.test(normalized);
+
+        if (!isValid) {
+          await sendTextMessage(
+            from,
+            "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 07XXXXXXXX"
+          );
+          return res.sendStatus(200);
+        }
+
+        // Try to cancel the booking
+        await cancelUserBooking(from, normalized);
         delete tempBookings[from];
         return res.sendStatus(200);
       }
