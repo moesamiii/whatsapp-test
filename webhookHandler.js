@@ -7,6 +7,7 @@
  * - Manage the booking flow for text & interactive flows (appointment selection, name, phone, service).
  * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
  * - Filter inappropriate content using ban words detection.
+ * - Handle side questions within booking flow and return to the exact booking step.
  */
 
 const {
@@ -53,6 +54,51 @@ function isSideQuestion(text = "") {
     t.startsWith("شو ") ||
     t.startsWith("what ")
   );
+}
+
+/**
+ * Get the current booking step for a user
+ * Returns: "appointment" | "name" | "phone" | "service" | null
+ */
+function getCurrentBookingStep(tempBookings, from) {
+  const booking = tempBookings[from];
+
+  if (!booking) return null;
+  if (!booking.appointment) return "appointment";
+  if (!booking.name) return "name";
+  if (!booking.phone) return "phone";
+  if (!booking.service) return "service";
+
+  return null;
+}
+
+/**
+ * Send prompt message based on current booking step
+ */
+async function sendStepPrompt(from, step) {
+  const prompts = {
+    appointment: async () => {
+      await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇");
+      await sendAppointmentOptions(from);
+    },
+    name: async () => {
+      await sendTextMessage(from, "👤 من فضلك ارسل اسمك:");
+    },
+    phone: async () => {
+      await sendTextMessage(from, "📱 الآن أرسل رقم جوالك:");
+    },
+    service: async () => {
+      await sendServiceList(from);
+      await sendTextMessage(
+        from,
+        "💊 يرجى اختيار الخدمة من القائمة المنسدلة أعلاه:"
+      );
+    },
+  };
+
+  if (prompts[step]) {
+    await prompts[step]();
+  }
 }
 
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
@@ -255,10 +301,12 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // 🧩 Step 2: Name input
       if (tempBookings[from] && !tempBookings[from].name) {
-        // ⭐ User asked a question while booking
+        // ⭐ User asked a side question while booking
         if (isSideQuestion(text)) {
           const answer = await askAI(text);
           await sendTextMessage(from, answer);
+
+          // Return to the name step
           await sendTextMessage(from, "نكمّل الحجز؟ أرسل اسمك 😊");
           return res.sendStatus(200);
         }
@@ -282,15 +330,17 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // 🧩 Step 3: Phone input
       if (tempBookings[from] && !tempBookings[from].phone) {
+        // ⭐ User asked a side question while booking
         if (isSideQuestion(text)) {
           const answer = await askAI(text);
           await sendTextMessage(from, answer);
+
+          // Return to the phone step
           await sendTextMessage(from, "تمام! الآن أرسل رقم جوالك:");
           return res.sendStatus(200);
         }
 
         const normalized = text
-
           .replace(/[^\d٠-٩]/g, "")
           .replace(/٠/g, "0")
           .replace(/١/g, "1")
@@ -324,9 +374,12 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // 🧩 Step 4: Service input
       if (tempBookings[from] && !tempBookings[from].service) {
+        // ⭐ User asked a side question while booking
         if (isSideQuestion(text)) {
           const answer = await askAI(text);
           await sendTextMessage(from, answer);
+
+          // Return to the service step
           await sendTextMessage(from, "نرجع للحجز… ما هي الخدمة المطلوبة؟");
           return res.sendStatus(200);
         }
