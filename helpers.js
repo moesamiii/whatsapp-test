@@ -1,7 +1,7 @@
 // helpers.js
 const axios = require("axios");
 const { google } = require("googleapis");
-const { askAI, validateNameWithAI } = require("./aiHelper"); // ✅ Import AI utilities
+const { askAI, validateNameWithAI } = require("./aiHelper");
 
 // ---------------------------------------------
 // 🔧 Environment variables
@@ -9,7 +9,14 @@ const { askAI, validateNameWithAI } = require("./aiHelper"); // ✅ Import AI ut
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const SPREADSHEET_ID = (process.env.GOOGLE_SHEET_ID || "").trim();
-const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL; // ✅ ADDED for new functions
+const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL;
+
+// Supabase configuration
+const SUPABASE_URL =
+  process.env.SUPABASE_URL || "https://ylsbmxedhycjqaorjkvm.supabase.co";
+const SUPABASE_KEY =
+  process.env.SUPABASE_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
 
 // ---------------------------------------------
 // 🧠 Google Sheets setup
@@ -416,137 +423,97 @@ async function testGoogleConnection() {
 }
 
 // ============================================================================
-// 📌 NEW SECTION — MERGED BOOKING FUNCTIONS (FROM YOUR FIRST CODE BLOCK)
+// 📌 CANCELLATION FUNCTIONS (NEW - Using Supabase)
 // ============================================================================
 
 /**
- * Fetch all bookings for a specific phone number
+ * Get booking by phone number from Supabase
  */
-async function getBookingsByPhone(phone) {
+async function getBookingByPhone(phone) {
   try {
-    const response = await axios.get(GOOGLE_SHEET_URL, {
-      params: { action: "getByPhone", phone },
-    });
+    console.log(`🔍 DEBUG => Searching for booking with phone: ${phone}`);
 
-    return response.data?.bookings || [];
-  } catch (err) {
-    console.error("❌ Error fetching bookings:", err.message);
-    throw err;
-  }
-}
+    const response = await axios.post(
+      `${SUPABASE_URL}/rest/v1/rpc/get_booking_by_phone`,
+      { phone_number: phone },
+      {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
-/**
- * Delete a booking by its unique ID
- */
-async function deleteBookingById(bookingId) {
-  try {
-    const response = await axios.post(GOOGLE_SHEET_URL, {
-      action: "delete",
-      bookingId,
-    });
+    // Alternative: Direct query
+    const directResponse = await axios.get(
+      `${SUPABASE_URL}/rest/v1/bookings?phone=eq.${phone}&select=*`,
+      {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+        },
+      }
+    );
 
-    return response.data?.success === true;
-  } catch (err) {
-    console.error("❌ Error deleting booking:", err.message);
-    throw err;
-  }
-}
+    const bookings = directResponse.data;
 
-/**
- * Send bookings list to WhatsApp with delete buttons
- */
-async function sendBookingsList(to, bookings) {
-  try {
-    if (!bookings || bookings.length === 0) {
-      await sendTextMessage(to, "❌ لم يتم العثور على حجوزات.");
-      return;
+    if (bookings && bookings.length > 0) {
+      console.log(`✅ DEBUG => Found booking for phone: ${phone}`);
+      return bookings[0]; // Return first matching booking
     }
 
-    await sendTextMessage(
-      to,
-      `📋 وجدنا ${bookings.length} حجز/حجوزات:\n\nاختر الحجز الذي ترغب بحذفه 👇`
-    );
+    console.log(`❌ DEBUG => No booking found for phone: ${phone}`);
+    return null;
+  } catch (err) {
+    console.error("❌ DEBUG => Error finding booking by phone:", err.message);
+    return null;
+  }
+}
 
-    await new Promise((r) => setTimeout(r, 500));
+/**
+ * Cancel booking (update status to "Canceled by User")
+ */
+async function cancelBooking(phone) {
+  try {
+    const booking = await getBookingByPhone(phone);
 
-    // Build rows
-    const rows = bookings.slice(0, 10).map((b, i) => ({
-      id: `delete_${b.id || i}`,
-      title: `${b.name || "غير معروف"}`,
-      description: `📅 ${b.appointment || "N/A"} | 💊 ${
-        b.service || "N/A"
-      }`.substring(0, 72),
-    }));
+    if (!booking) {
+      return { success: false, message: "لم يتم العثور على حجز بهذا الرقم" };
+    }
 
-    const payload = {
-      messaging_product: "whatsapp",
-      to,
-      type: "interactive",
-      interactive: {
-        type: "list",
-        header: { type: "text", text: "حجوزاتك 📋" },
-        body: { text: "اختر الحجز الذي تريد حذفه:" },
-        footer: { text: "عيادة ابتسامة الطبية" },
-        action: {
-          button: "عرض الحجوزات",
-          sections: [{ title: "حجوزاتك", rows }],
-        },
-      },
-    };
-
-    await axios.post(
-      `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
-      payload,
+    // Update status in Supabase
+    const response = await axios.patch(
+      `${SUPABASE_URL}/rest/v1/bookings?id=eq.${booking.id}`,
+      { status: "Canceled by User" },
       {
         headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
           "Content-Type": "application/json",
+          Prefer: "return=representation",
         },
       }
     );
 
-    // Add Keep button
-    await new Promise((r) => setTimeout(r, 800));
+    console.log(`✅ DEBUG => Booking canceled for phone: ${phone}`);
 
-    const keepPayload = {
-      messaging_product: "whatsapp",
-      to,
-      type: "interactive",
-      interactive: {
-        type: "button",
-        body: { text: "أو إذا غيّرت رأيك:" },
-        action: {
-          buttons: [
-            {
-              type: "reply",
-              reply: { id: "keep_booking", title: "إبقاء حجوزاتي ✅" },
-            },
-          ],
-        },
-      },
+    return {
+      success: true,
+      message: "تم إلغاء الحجز بنجاح",
+      booking,
     };
-
-    await axios.post(
-      `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
-      keepPayload,
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
   } catch (err) {
     console.error(
-      "❌ Error sending bookings list:",
+      "❌ DEBUG => Error canceling booking:",
       err.response?.data || err.message
     );
-    throw err;
+    return { success: false, message: "حدث خطأ أثناء إلغاء الحجز" };
   }
 }
 
 // ============================================================================
-// 📤 EXPORT EVERYTHING (INCLUDING THE NEW FUNCTIONS)
+// 📤 EXPORT EVERYTHING
 // ============================================================================
 module.exports = {
   askAI,
@@ -561,9 +528,9 @@ module.exports = {
   updateBooking,
   getAllBookings,
   testGoogleConnection,
-
-  // NEW EXPORTS
   getBookingsByPhone,
   deleteBookingById,
   sendBookingsList,
+  getBookingByPhone, // ✅ NEW EXPORT
+  cancelBooking, // ✅ NEW EXPORT
 };

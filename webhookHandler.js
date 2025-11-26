@@ -5,6 +5,7 @@
  * - Register the /webhook verification route (GET) and webhook receiver (POST).
  * - Handle non-audio messages: interactive (buttons/lists) and plain text messages.
  * - Manage the booking flow for text & interactive flows (appointment selection, name, phone, service).
+ * - Handle booking cancellation flow.
  * - Delegate audio-specific handling (transcription + voice booking) to webhookProcessor.js.
  * - Filter inappropriate content using ban words detection.
  * - Handle side questions within booking flow and return to the exact booking step.
@@ -17,6 +18,8 @@ const {
   sendServiceList,
   sendAppointmentOptions,
   saveBooking,
+  getBookingByPhone, // ✅ NEW IMPORT
+  cancelBooking, // ✅ NEW IMPORT
 } = require("./helpers");
 
 const {
@@ -29,6 +32,7 @@ const {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isCancellationRequest, // ✅ NEW IMPORT
   isEnglish,
   containsBanWords,
   sendBanWordsResponse,
@@ -49,6 +53,7 @@ function getSession(userId) {
       waitingForOffersConfirmation: false,
       waitingForDoctorConfirmation: false,
       waitingForBookingDetails: false,
+      waitingForCancellationPhone: false, // ✅ NEW STATE
       lastIntent: null,
     };
   }
@@ -254,6 +259,79 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
         return res.sendStatus(200);
       }
+
+      // ============================================
+      // 🚫 CANCELLATION FLOW (NEW)
+      // ============================================
+
+      // Step 1: Detect cancellation request
+      if (isCancellationRequest(text)) {
+        session.waitingForCancellationPhone = true;
+        session.lastIntent = "cancellation";
+
+        await sendTextMessage(
+          from,
+          "🔍 لإلغاء حجزك، من فضلك أرسل رقم الجوال المسجل به الحجز:"
+        );
+        return res.sendStatus(200);
+      }
+
+      // Step 2: Handle cancellation phone input
+      if (session.waitingForCancellationPhone) {
+        // Normalize Arabic/English numbers
+        const normalized = text
+          .replace(/[^\d٠-٩]/g, "")
+          .replace(/٠/g, "0")
+          .replace(/١/g, "1")
+          .replace(/٢/g, "2")
+          .replace(/٣/g, "3")
+          .replace(/٤/g, "4")
+          .replace(/٥/g, "5")
+          .replace(/٦/g, "6")
+          .replace(/٧/g, "7")
+          .replace(/٨/g, "8")
+          .replace(/٩/g, "9");
+
+        const isValidPhone = /^07\d{8}$/.test(normalized);
+
+        if (!isValidPhone) {
+          await sendTextMessage(
+            from,
+            "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 07XXXXXXXX"
+          );
+          return res.sendStatus(200);
+        }
+
+        // Security check: verify sender's phone matches
+        if (normalized !== from.replace("962", "0")) {
+          await sendTextMessage(
+            from,
+            "⚠️ الرقم الذي أدخلته لا يطابق رقمك. لا يمكنك إلغاء حجز شخص آخر."
+          );
+          session.waitingForCancellationPhone = false;
+          session.lastIntent = null;
+          return res.sendStatus(200);
+        }
+
+        // Attempt to cancel the booking
+        const result = await cancelBooking(normalized);
+
+        if (result.success) {
+          await sendTextMessage(
+            from,
+            `✅ ${result.message}\n\n📋 تفاصيل الحجز الملغى:\n👤 ${result.booking.name}\n💊 ${result.booking.service}\n📅 ${result.booking.appointment}\n\nنأسف لعدم قدرتك على الحضور. نتمنى رؤيتك قريباً 🌸`
+          );
+        } else {
+          await sendTextMessage(from, `❌ ${result.message}`);
+        }
+
+        session.waitingForCancellationPhone = false;
+        session.lastIntent = null;
+        return res.sendStatus(200);
+      }
+      // ============================================
+      // END CANCELLATION FLOW
+      // ============================================
 
       // 📍 Location / offers / doctors detection
       if (isLocationRequest(text)) {
@@ -484,7 +562,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
               `هل "${userService}" خدمة تتعلق بطب الأسنان أو البشرة في عيادة تجميل؟ أجب فقط بـ نعم أو لا.`
             );
             if (aiCheck.toLowerCase().includes("نعم")) {
-              // Still safe to ask the user to clarify which exact service
               await sendTextMessage(
                 from,
                 "💬 ممكن توضح أكثر نوع الخدمة؟ مثلاً: حشو الأسنان، تبييض، فيلر..."

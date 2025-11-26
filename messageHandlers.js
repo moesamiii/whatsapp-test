@@ -2,28 +2,10 @@
  * messageHandlers.js
  *
  * Purpose:
- * - Detect user intent from text/voice (location/offers/doctors).
+ * - Detect user intent from text/voice (location/offers/doctors/cancellation).
  * - Detect inappropriate content (ban words).
  * - Provide message-sending flows that use media assets (location link, offer images, doctor images).
  * - Perform transcription of audio using Groq Whisper integration.
- *
- * Responsibilities kept here:
- * - Detection helpers: isLocationRequest, isOffersRequest, isDoctorsRequest, isEnglish, containsBanWords
- * - sendLocationMessages: uses CLINIC_LOCATION_LINK from mediaAssets
- * - sendOffersImages & sendDoctorsImages: orchestrate sending multiple images and follow-up text
- * - sendBanWordsResponse: handles inappropriate content gracefully
- * - sendImageMessage: performs the network request to WhatsApp API (requires WHATSAPP_TOKEN)
- * - transcribeAudio: fetches media from WhatsApp and posts to Groq Whisper
- *
- * Moved to mediaAssets.js:
- * - CLINIC_NAME
- * - CLINIC_LOCATION_LINK
- * - OFFER_IMAGES
- * - DOCTOR_IMAGES
- * - DOCTOR_INFO
- *
- * Usage:
- * - const { sendOffersImages, isLocationRequest, transcribeAudio, containsBanWords } = require('./messageHandlers');
  */
 
 const axios = require("axios");
@@ -482,6 +464,32 @@ function isBookingRequest(text = "") {
 }
 
 // ---------------------------------------------
+// 🚫 Cancellation Detection Helper (NEW)
+// ---------------------------------------------
+function isCancellationRequest(text = "") {
+  const keywords = [
+    "الغاء الحجز",
+    "إلغاء الحجز",
+    "الغاء حجز",
+    "إلغاء حجز",
+    "الغي الحجز",
+    "الغي حجز",
+    "إلغي الحجز",
+    "إلغي حجز",
+    "cancel booking",
+    "cancel my booking",
+    "cancel appointment",
+    "الغاء",
+    "إلغاء",
+    "الغي",
+    "إلغي",
+    "كنسل",
+  ];
+  const lower = text.toLowerCase().trim();
+  return keywords.some((k) => lower.includes(k.toLowerCase()));
+}
+
+// ---------------------------------------------
 // 🌐 Language Detector
 // ---------------------------------------------
 function isEnglish(text = "") {
@@ -520,7 +528,6 @@ async function sendImageMessage(to, imageUrl, caption = "") {
       image: { link: imageUrl },
     };
 
-    // Add caption if provided
     if (caption) {
       payload.image.caption = caption;
     }
@@ -547,7 +554,7 @@ async function sendImageMessage(to, imageUrl, caption = "") {
 // 📅 Send Offers Validity (Smart Date Logic)
 // ---------------------------------------------
 async function sendOffersValidity(to) {
-  const endDate = new Date("2025-11-30"); // <-- change this date only if needed
+  const endDate = new Date("2025-11-30");
   const today = new Date();
 
   const diffTime = endDate - today;
@@ -585,13 +592,12 @@ function isOffersConfirmation(text = "") {
   if (!text) return false;
 
   const normalizedText = text
-    .replace(/\u0640/g, "") // remove tatweel
-    .replace(/[^\u0600-\u06FFa-zA-Z0-9 ]/g, "") // remove weird unicode
+    .replace(/\u0640/g, "")
+    .replace(/[^\u0600-\u06FFa-zA-Z0-9 ]/g, "")
     .trim()
     .toLowerCase();
 
   const patterns = [
-    // Arabic confirmation
     "ارسل",
     "رسل",
     "أرسل",
@@ -612,8 +618,6 @@ function isOffersConfirmation(text = "") {
     "ارسلهم",
     "ارسله",
     "ارسل العرض",
-
-    // English confirmation
     "yes",
     "yeah",
     "yup",
@@ -676,7 +680,6 @@ async function sendDoctorsImages(to, language = "ar") {
     );
     await new Promise((r) => setTimeout(r, 500));
 
-    // Send each doctor image with their info as caption
     for (let i = 0; i < DOCTOR_IMAGES.length; i++) {
       const caption = `${DOCTOR_INFO[i].name}\n${DOCTOR_INFO[i].specialization}`;
       await sendImageMessage(to, DOCTOR_IMAGES[i], caption);
@@ -751,6 +754,7 @@ module.exports = {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isCancellationRequest, // ✅ NEW EXPORT
   isEnglish,
   containsBanWords,
   sendBanWordsResponse,
