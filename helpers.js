@@ -1,11 +1,7 @@
-// ============================================================================
-// 📦 helpers.js — FINAL VERSION (Supabase Primary • Google Sheets Optional Read-Only)
-// ============================================================================
-
+// helpers.js
 const axios = require("axios");
 const { google } = require("googleapis");
-const { askAI, validateNameWithAI } = require("./aiHelper");
-const { createClient } = require("@supabase/supabase-js");
+const { askAI, validateNameWithAI } = require("./aiHelper"); // ✅ Import AI utilities
 
 // ---------------------------------------------
 // 🔧 Environment variables
@@ -15,64 +11,61 @@ const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const SPREADSHEET_ID = (process.env.GOOGLE_SHEET_ID || "").trim();
 
 // ---------------------------------------------
-// 🟢 Supabase Configuration
+// 🧠 Google Sheets setup
 // ---------------------------------------------
-const SUPABASE_URL =
-  process.env.SUPABASE_URL || "https://ylsbmxedhycjqaorjkvm.supabase.co";
-
-const SUPABASE_KEY =
-  process.env.SUPABASE_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
-
-let supabase;
-try {
-  supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-  console.log("🟢 Supabase initialized.");
-} catch (err) {
-  console.error("❌ Supabase initialization failed:", err.message);
-}
-
-// ============================================================================
-// 🧠 Google Sheets (READ-ONLY MODE)
-// ============================================================================
 let creds;
 try {
   creds = process.env.GOOGLE_CREDENTIALS
     ? JSON.parse(process.env.GOOGLE_CREDENTIALS)
     : require("./credentials.json");
-  console.log("🟢 Google Sheets credentials loaded.");
+  console.log("🟢 DEBUG => Google credentials loaded successfully.");
 } catch (err) {
-  console.warn("⚠️ Google Sheets credentials missing (OK for Option C).");
+  console.error("❌ DEBUG => Failed to load credentials:", err.message);
 }
 
 const auth = new google.auth.GoogleAuth({
-  credentials: creds || {},
-  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  credentials: creds,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
-
 const sheets = google.sheets({ version: "v4", auth });
+
 let DEFAULT_SHEET_NAME = "Sheet1";
 
-// Only detect sheet if spreadsheet ID is provided
+// ---------------------------------------------
+// 🔍 Detect sheet name dynamically
+// ---------------------------------------------
 async function detectSheetName() {
-  if (!SPREADSHEET_ID) return;
   try {
+    console.log(
+      "🔍 DEBUG => Detecting sheet names for spreadsheet:",
+      SPREADSHEET_ID
+    );
     const meta = await sheets.spreadsheets.get({
       spreadsheetId: SPREADSHEET_ID,
     });
     const names = meta.data.sheets.map((s) => s.properties.title);
-    if (names.length > 0) DEFAULT_SHEET_NAME = names[0];
-    console.log("📋 Sheets found:", names);
+    console.log("📋 DEBUG => Sheets found:", names);
+
+    if (names.length > 0) {
+      DEFAULT_SHEET_NAME = names[0];
+      console.log("✅ DEBUG => Using sheet:", DEFAULT_SHEET_NAME);
+    } else {
+      console.warn("⚠️ DEBUG => No sheets found in spreadsheet.");
+    }
   } catch (err) {
-    console.warn("⚠️ Could not load sheet names:", err.message);
+    console.error(
+      "❌ DEBUG => Error detecting sheets:",
+      err.response?.data || err.message
+    );
   }
 }
 
-// ============================================================================
-// 💬 WhatsApp Messaging
-// ============================================================================
+// ---------------------------------------------
+// 💬 WhatsApp messaging utilities
+// ---------------------------------------------
 async function sendTextMessage(to, text) {
   try {
+    console.log(`📤 DEBUG => Sending WhatsApp message to ${to}:`, text);
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -87,14 +80,20 @@ async function sendTextMessage(to, text) {
         },
       }
     );
-    console.log("✉️ WhatsApp text sent.");
+    console.log("✅ DEBUG => Message sent successfully to WhatsApp API");
   } catch (err) {
-    console.error("❌ WhatsApp send error:", err.response?.data || err.message);
+    console.error(
+      "❌ DEBUG => WhatsApp send error:",
+      err.response?.data || err.message
+    );
   }
 }
 
-// Appointment buttons
+// ---------------------------------------------
+// 📅 Appointment buttons
+// ---------------------------------------------
 async function sendAppointmentButtons(to) {
+  console.log(`📤 DEBUG => Sending appointment buttons to ${to}`);
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -114,15 +113,27 @@ async function sendAppointmentButtons(to) {
           },
         },
       },
-      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
     );
+    console.log("✅ DEBUG => Appointment buttons sent successfully");
   } catch (err) {
-    console.error("❌ Appointment error:", err.message);
+    console.error(
+      "❌ DEBUG => Error sending appointment buttons:",
+      err.response?.data || err.message
+    );
   }
 }
 
-// Old version fallback
+// ---------------------------------------------
+// 💊 Service buttons (OLD - keep for compatibility)
+// ---------------------------------------------
 async function sendServiceButtons(to) {
+  console.log(`📤 DEBUG => Sending service buttons to ${to}`);
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -150,15 +161,28 @@ async function sendServiceButtons(to) {
             ],
           },
         },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
       }
     );
+    console.log("✅ DEBUG => Service buttons sent successfully");
   } catch (err) {
-    console.error("❌ sendServiceButtons error:", err.message);
+    console.error(
+      "❌ DEBUG => Error sending service buttons:",
+      err.response?.data || err.message
+    );
   }
 }
 
-// New service dropdown
+// ---------------------------------------------
+// 💊 Service DROPDOWN LIST (NEW - with dropdown)
+// ---------------------------------------------
 async function sendServiceList(to) {
+  console.log(`📤 DEBUG => Sending service dropdown list to ${to}`);
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -168,8 +192,13 @@ async function sendServiceList(to) {
         type: "interactive",
         interactive: {
           type: "list",
-          header: { type: "text", text: "💊 اختر الخدمة المطلوبة" },
-          body: { text: "يرجى اختيار نوع الخدمة من القائمة:" },
+          header: {
+            type: "text",
+            text: "💊 اختر الخدمة المطلوبة",
+          },
+          body: {
+            text: "يرجى اختيار نوع الخدمة من القائمة:",
+          },
           action: {
             button: "عرض الخدمات",
             sections: [
@@ -179,214 +208,233 @@ async function sendServiceList(to) {
                   {
                     id: "service_فحص_عام",
                     title: "فحص عام",
-                    description: "فحص شامل",
+                    description: "فحص شامل للأسنان والتشخيص",
                   },
-                  { id: "service_تنظيف_الأسنان", title: "تنظيف الأسنان" },
-                  { id: "service_تبييض_الأسنان", title: "تبييض الأسنان" },
-                  { id: "service_حشو_الأسنان", title: "حشو الأسنان" },
+                  {
+                    id: "service_تنظيف_الأسنان",
+                    title: "تنظيف الأسنان",
+                    description: "تنظيف وإزالة الجير والتصبغات",
+                  },
+                  {
+                    id: "service_تبييض_الأسنان",
+                    title: "تبييض الأسنان",
+                    description: "تبييض الأسنان بالليزر أو المواد المبيضة",
+                  },
+                  {
+                    id: "service_حشو_الأسنان",
+                    title: "حشو الأسنان",
+                    description: "علاج التسوس وحشو الأسنان",
+                  },
+                ],
+              },
+              {
+                title: "الخدمات المتقدمة",
+                rows: [
+                  {
+                    id: "service_علاج_الجذور",
+                    title: "علاج الجذور",
+                    description: "علاج قناة الجذر والعصب",
+                  },
+                  {
+                    id: "service_تركيب_التركيبات",
+                    title: "تركيب التركيبات",
+                    description: "تركيب التيجان والجسور",
+                  },
+                  {
+                    id: "service_تقويم_الأسنان",
+                    title: "تقويم الأسنان",
+                    description: "علاج اعوجاج الأسنان وتنظيمها",
+                  },
+                  {
+                    id: "service_خلع_الأسنان",
+                    title: "خلع الأسنان",
+                    description: "خلع الأسنان البسيط أو الجراحي",
+                  },
                 ],
               },
               {
                 title: "خدمات التجميل",
                 rows: [
-                  { id: "service_ابتسامة_هوليود", title: "ابتسامة هوليود" },
-                  { id: "service_الفينير", title: "الفينير" },
-                  { id: "service_زراعة_الأسنان", title: "زراعة الأسنان" },
+                  {
+                    id: "service_الفينير",
+                    title: "الفينير",
+                    description: "قشور خزفية لتجميل الأسنان الأمامية",
+                  },
+                  {
+                    id: "service_زراعة_الأسنان",
+                    title: "زراعة الأسنان",
+                    description: "زراعة الأسنان المفقودة",
+                  },
+                  {
+                    id: "service_ابتسامة_هوليود",
+                    title: "ابتسامة هوليود",
+                    description: "تصميم ابتسامة هوليود تجميلية",
+                  },
+                  {
+                    id: "service_خدمة_أخرى",
+                    title: "خدمة أخرى",
+                    description: "اختر هذه إذا كانت الخدمة غير موجودة",
+                  },
                 ],
               },
             ],
           },
         },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
       }
     );
+    console.log("✅ DEBUG => Service dropdown list sent successfully");
   } catch (err) {
-    console.error("❌ serviceList error:", err.message);
+    console.error(
+      "❌ DEBUG => Error sending service dropdown list:",
+      err.response?.data || err.message
+    );
+    // Fallback to regular buttons if list fails
     await sendServiceButtons(to);
   }
 }
 
-// ============================================================================
-// 🆕 SUPABASE BOOKING FUNCTIONS
-// ============================================================================
+// ---------------------------------------------
+// 🗓️ Send appointment options (shortcut)
+// ---------------------------------------------
+async function sendAppointmentOptions(to) {
+  console.log(`📤 DEBUG => Sending appointment options to ${to}`);
+  await sendAppointmentButtons(to);
+}
 
-// Save booking
+// ---------------------------------------------
+// 🧾 Save booking to Google Sheets
+// ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
   try {
-    const { data, error } = await supabase
-      .from("bookings")
-      .insert([
-        {
-          name,
-          phone,
-          service,
-          appointment,
-          time: new Date().toISOString(),
-          status: "Still",
-        },
-      ])
-      .select();
-
-    if (error) throw error;
-
-    return data[0];
-  } catch (err) {
-    console.error("❌ saveBooking Error:", err.message);
-  }
-}
-
-// Update existing booking
-async function updateBooking(bookingId, booking) {
-  try {
-    const { data, error } = await supabase
-      .from("bookings")
-      .update({
-        name: booking.name,
-        phone: booking.phone,
-        service: booking.service,
-        appointment: booking.appointment,
-        time: new Date().toISOString(),
-      })
-      .eq("id", bookingId)
-      .select();
-
-    if (error) throw error;
-
-    return data[0];
-  } catch (err) {
-    console.error("❌ updateBooking Error:", err.message);
-  }
-}
-
-// Get all bookings
-async function getAllBookings() {
-  try {
-    const { data } = await supabase
-      .from("bookings")
-      .select("*")
-      .order("time", { ascending: false });
-
-    return data;
-  } catch (err) {
-    console.error("❌ getAllBookings Error:", err.message);
-    return [];
-  }
-}
-
-// Search bookings by phone
-async function getBookingsByPhone(phone) {
-  try {
-    const normalized = phone.replace(/[^\d]/g, "");
-
-    const variants = [
-      normalized,
-      normalized.replace(/^962/, "0"),
-      normalized.replace(/^0/, "962"),
-      `+${normalized}`,
+    const values = [
+      [name, phone, service, appointment, new Date().toISOString()],
     ];
+    console.log("📤 DEBUG => Data to send to Google Sheets:", values);
+    console.log(
+      `🔍 DEBUG => Appending to sheet "${DEFAULT_SHEET_NAME}" in spreadsheet "${SPREADSHEET_ID}"`
+    );
 
-    const { data } = await supabase
-      .from("bookings")
-      .select("*")
-      .in("phone", variants)
-      .order("time", { ascending: false });
+    const result = await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${DEFAULT_SHEET_NAME}!A:E`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values },
+    });
 
-    return data || [];
-  } catch (err) {
-    console.error("❌ getBookingsByPhone Error:", err.message);
-    return [];
-  }
-}
-
-// Delete booking (soft delete)
-async function deleteBookingById(bookingId) {
-  try {
-    const { data: booking } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("id", bookingId)
-      .single();
-
-    if (!booking) return false;
-
-    // Log delete
-    await supabase.from("booking_history").insert([
-      {
-        booking_id: bookingId,
-        old_status: booking.status,
-        new_status: "Canceled",
-        changed_by: "User (WhatsApp)",
-      },
-    ]);
-
-    // Mark as canceled
-    await supabase
-      .from("bookings")
-      .update({ status: "Canceled" })
-      .eq("id", bookingId);
-
-    return true;
-  } catch (err) {
-    console.error("❌ deleteBookingById Error:", err.message);
-    return false;
-  }
-}
-
-// Send list of bookings for deletion
-async function sendBookingsList(to, bookings) {
-  try {
-    if (!bookings.length) {
-      await sendTextMessage(to, "❌ لم يتم العثور على حجوزات.");
-      return;
-    }
-
-    const rows = bookings.slice(0, 10).map((b) => ({
-      id: `delete_${b.id}`,
-      title: b.name,
-      description: `📅 ${b.appointment} | 💊 ${b.service}`.slice(0, 70),
-    }));
-
-    await axios.post(
-      `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to,
-        type: "interactive",
-        interactive: {
-          type: "list",
-          header: { type: "text", text: "حجوزاتك 📋" },
-          body: { text: "اختر الحجز الذي تريد حذفه:" },
-          action: {
-            button: "عرض الحجوزات",
-            sections: [{ title: "قائمة الحجوزات", rows }],
-          },
-        },
-      }
+    console.log(
+      "✅ DEBUG => Google Sheets API append response:",
+      result.statusText || result.status
     );
   } catch (err) {
-    console.error("❌ sendBookingsList Error:", err.message);
+    console.error(
+      "❌ DEBUG => Google Sheets append error:",
+      err.response?.data || err.message
+    );
   }
 }
 
-// ============================================================================
-// EXPORTS
-// ============================================================================
+// ---------------------------------------------
+// 🧾 Update an existing booking
+// (optional future enhancement)
+// ---------------------------------------------
+async function updateBooking(rowIndex, { name, phone, service, appointment }) {
+  try {
+    const values = [
+      [name, phone, service, appointment, new Date().toISOString()],
+    ];
+    const range = `${DEFAULT_SHEET_NAME}!A${rowIndex}:E${rowIndex}`;
+    console.log(`✏️ DEBUG => Updating booking at row ${rowIndex}:`, values);
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values },
+    });
+
+    console.log("✅ DEBUG => Booking updated successfully.");
+  } catch (err) {
+    console.error("❌ DEBUG => Failed to update booking:", err.message);
+  }
+}
+
+// ---------------------------------------------
+// 📖 Get all bookings from Google Sheets (for dashboard)
+// ---------------------------------------------
+async function getAllBookings() {
+  try {
+    console.log(
+      `📥 DEBUG => Fetching all bookings from "${DEFAULT_SHEET_NAME}"`
+    );
+    const range = `${DEFAULT_SHEET_NAME}!A:E`;
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range,
+    });
+
+    const rows = response.data.values || [];
+    console.log(`📊 DEBUG => Retrieved ${rows.length} rows from Google Sheets`);
+
+    if (rows.length === 0) return [];
+
+    // Convert rows to structured JSON objects
+    const bookings = rows.map(
+      ([name, phone, service, appointment, timestamp]) => ({
+        name: name || "",
+        phone: phone || "",
+        service: service || "",
+        appointment: appointment || "",
+        time: timestamp || "",
+      })
+    );
+
+    return bookings;
+  } catch (err) {
+    console.error(
+      "❌ DEBUG => Error fetching bookings:",
+      err.response?.data || err.message
+    );
+    return [];
+  }
+}
+
+// ---------------------------------------------
+// 🧠 Validate if Google Sheet connection works
+// ---------------------------------------------
+async function testGoogleConnection() {
+  try {
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+    console.log(
+      "✅ Google Sheets connected. Found sheets:",
+      meta.data.sheets.map((s) => s.properties.title)
+    );
+  } catch (err) {
+    console.error("❌ Failed to connect to Google Sheets:", err.message);
+  }
+}
+
+// ---------------------------------------------
+// ✅ Export everything
+// ---------------------------------------------
 module.exports = {
   askAI,
   validateNameWithAI,
   detectSheetName,
-
   sendTextMessage,
   sendAppointmentButtons,
   sendServiceButtons,
-  sendServiceList,
-  sendAppointmentOptions: sendAppointmentButtons,
-
+  sendServiceList, // ✅ Export the new dropdown function
+  sendAppointmentOptions,
   saveBooking,
   updateBooking,
   getAllBookings,
-  getBookingsByPhone,
-  deleteBookingById,
-  sendBookingsList,
-
-  supabase,
+  testGoogleConnection,
 };
