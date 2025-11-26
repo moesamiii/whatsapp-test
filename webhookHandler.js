@@ -38,6 +38,23 @@ const {
 
 const { handleAudioMessage } = require("./webhookProcessor");
 
+// ---------------------------------------------
+// 🧠 Session storage (per-user conversation memory)
+// ---------------------------------------------
+const sessions = {}; // { userId: { ...state } }
+
+function getSession(userId) {
+  if (!sessions[userId]) {
+    sessions[userId] = {
+      waitingForOffersConfirmation: false,
+      waitingForDoctorConfirmation: false,
+      waitingForBookingDetails: false,
+      lastIntent: null,
+    };
+  }
+  return sessions[userId];
+}
+
 function isSideQuestion(text = "") {
   if (!text) return false;
   const t = text.trim().toLowerCase();
@@ -121,6 +138,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       const body = req.body;
       const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
       const from = message?.from;
+      const session = getSession(from);
 
       if (!message || !from) return res.sendStatus(200);
 
@@ -245,18 +263,30 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       }
 
       // Offers logic (smart)
-      // 🌟 Offers Logic (Smart 2-Step Flow)
       if (isOffersRequest(text)) {
+        session.waitingForOffersConfirmation = true;
+        session.lastIntent = "offers";
+
         const language = isEnglish(text) ? "en" : "ar";
-        await sendOffersValidity(from);
+        await sendOffersValidity(from, language);
+
         return res.sendStatus(200);
       }
 
-      // 🌟 User confirms: "Send offers"
-      if (isOffersConfirmation(text)) {
-        const language = isEnglish(text) ? "en" : "ar";
-        await sendOffersImages(from, language);
-        return res.sendStatus(200);
+      //Offer confirmation logic
+      if (session.waitingForOffersConfirmation) {
+        if (isOffersConfirmation(text)) {
+          session.waitingForOffersConfirmation = false;
+          session.lastIntent = null;
+
+          const language = isEnglish(text) ? "en" : "ar";
+          await sendOffersImages(from, language);
+          return res.sendStatus(200);
+        }
+
+        // User said something else → reset and keep going
+        session.waitingForOffersConfirmation = false;
+        session.lastIntent = null;
       }
 
       if (isDoctorsRequest(text)) {
