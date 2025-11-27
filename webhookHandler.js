@@ -1,21 +1,13 @@
 /**
- * webhookHandler.js (UPDATED)
+ * webhookHandler.js
  *
  * Responsibilities:
  * - Register the /webhook verification route (GET) and webhook receiver (POST).
  * - Route messages to appropriate handlers based on type.
  * - Coordinate the overall webhook flow.
- * - Handle booking deletion flow.
  */
 
-const {
-  askAI,
-  sendTextMessage,
-  sendAppointmentOptions,
-  getBookingsByPhone, // ✅ NEW
-  deleteBookingById, // ✅ NEW
-  sendBookingsList, // ✅ NEW
-} = require("./helpers");
+const { askAI, sendTextMessage, sendAppointmentOptions } = require("./helpers");
 
 const {
   sendLocationMessages,
@@ -32,8 +24,6 @@ const {
   sendBanWordsResponse,
   isGreeting,
   getGreeting,
-  isDeleteBookingRequest, // ✅ NEW
-  isCancelRequest, // ✅ NEW
 } = require("./messageHandlers");
 
 const { handleAudioMessage } = require("./webhookProcessor");
@@ -74,9 +64,8 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
         return res.sendStatus(200);
       }
 
-      // Ensure global tempBookings and deletionFlow objects exist
+      // Ensure global tempBookings object exists
       const tempBookings = (global.tempBookings = global.tempBookings || {});
-      const deletionFlow = (global.deletionFlow = global.deletionFlow || {}); // ✅ NEW
 
       // 🎙️ Handle audio messages separately
       if (message.type === "audio") {
@@ -86,53 +75,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       // 🎛️ Interactive messages (buttons / lists)
       if (message.type === "interactive") {
-        const interactiveType = message.interactive?.type;
-        const id =
-          interactiveType === "list_reply"
-            ? message.interactive?.list_reply?.id
-            : message.interactive?.button_reply?.id;
-
-        // ✅ NEW: Handle booking deletion confirmation
-        if (id?.startsWith("delete_")) {
-          const bookingId = id.replace("delete_", "");
-
-          try {
-            const deleted = await deleteBookingById(bookingId);
-
-            if (deleted) {
-              await sendTextMessage(
-                from,
-                "✅ تم حذف الحجز بنجاح!\n\nإذا كنت ترغب بحجز موعد جديد، أخبرني فقط 😊"
-              );
-            } else {
-              await sendTextMessage(
-                from,
-                "⚠️ عذراً، لم نتمكن من العثور على الحجز. ربما تم حذفه مسبقاً."
-              );
-            }
-          } catch (err) {
-            console.error("❌ Delete booking error:", err.message);
-            await sendTextMessage(
-              from,
-              "⚠️ حدث خطأ أثناء حذف الحجز. الرجاء المحاولة لاحقاً."
-            );
-          }
-
-          delete deletionFlow[from];
-          return res.sendStatus(200);
-        }
-
-        // ✅ NEW: Handle "Keep booking" button
-        if (id === "keep_booking") {
-          await sendTextMessage(
-            from,
-            "👍 تمام! حجزك محفوظ. إذا احتجت أي مساعدة أخرى، أخبرني 😊"
-          );
-          delete deletionFlow[from];
-          return res.sendStatus(200);
-        }
-
-        // Handle regular booking interactive messages
         await handleInteractiveMessage(message, from, tempBookings);
         return res.sendStatus(200);
       }
@@ -159,73 +101,6 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           console.log(
             `⚠️ Cleared booking state for ${from} due to ban word usage`
           );
-        }
-
-        return res.sendStatus(200);
-      }
-
-      // ✅ NEW: Handle booking deletion request
-      if (isDeleteBookingRequest(text) || isCancelRequest(text)) {
-        console.log(`🗑️ Delete booking request from ${from}`);
-
-        deletionFlow[from] = { step: "awaiting_phone" };
-
-        await sendTextMessage(
-          from,
-          "🔍 حسناً، لحذف حجزك أرسل رقم الجوال المسجل به الحجز:"
-        );
-
-        return res.sendStatus(200);
-      }
-
-      // ✅ NEW: Handle deletion flow - phone number input
-      if (deletionFlow[from]?.step === "awaiting_phone") {
-        const normalized = text
-          .replace(/[^\d٠-٩]/g, "")
-          .replace(/٠/g, "0")
-          .replace(/١/g, "1")
-          .replace(/٢/g, "2")
-          .replace(/٣/g, "3")
-          .replace(/٤/g, "4")
-          .replace(/٥/g, "5")
-          .replace(/٦/g, "6")
-          .replace(/٧/g, "7")
-          .replace(/٨/g, "8")
-          .replace(/٩/g, "9");
-
-        const isValid = /^07\d{8}$/.test(normalized);
-
-        if (!isValid) {
-          await sendTextMessage(
-            from,
-            "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 07XXXXXXXX"
-          );
-          return res.sendStatus(200);
-        }
-
-        // Fetch bookings for this phone number
-        try {
-          const bookings = await getBookingsByPhone(normalized);
-
-          if (!bookings || bookings.length === 0) {
-            await sendTextMessage(
-              from,
-              "❌ لم نجد أي حجوزات مسجلة بهذا الرقم.\n\nتأكد من الرقم، أو إذا كنت ترغب بحجز جديد، أخبرني 😊"
-            );
-            delete deletionFlow[from];
-            return res.sendStatus(200);
-          }
-
-          // Send list of bookings with delete buttons
-          await sendBookingsList(from, bookings);
-          delete deletionFlow[from];
-        } catch (err) {
-          console.error("❌ Error fetching bookings:", err.message);
-          await sendTextMessage(
-            from,
-            "⚠️ حدث خطأ أثناء البحث عن الحجوزات. الرجاء المحاولة لاحقاً."
-          );
-          delete deletionFlow[from];
         }
 
         return res.sendStatus(200);
