@@ -1,26 +1,17 @@
-// helpers.js (UPDATED - WhatsApp, AI, Google Sheets, Supabase)
+// helpers.js (UPDATED - WhatsApp & AI Functions Only)
 const axios = require("axios");
-const { askAI, validateNameWithAI } = require("./aiHelper");
+const { askAI, validateNameWithAI } = require("./aiHelper"); // ✅ Import AI utilities
 
-// ---------------------------------------------
-// Supabase Booking Search + Cancel
-// ---------------------------------------------
-const { findBookingByPhone, cancelBooking } = require("./supabaseService");
-
-// ---------------------------------------------
-// Google Sheets functions
-// ---------------------------------------------
+// Import Google Sheets functions from separate file
 const {
   detectSheetName,
   saveBooking,
   updateBooking,
   getAllBookings,
   testGoogleConnection,
-} = require("./sheetsHelper");
+} = require("./sheetsHelper"); // ✅ Import Sheets functions
 
-// ---------------------------------------------
-// Environment Variables
-// ---------------------------------------------
+// Environment variables
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
@@ -29,12 +20,11 @@ const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 // =============================================
 
 // ---------------------------------------------
-// 1) Send plain text message
+// 💬 Send plain text message
 // ---------------------------------------------
 async function sendTextMessage(to, text) {
   try {
-    console.log(`📤 Sending WhatsApp message to ${to}:`, text);
-
+    console.log(`📤 DEBUG => Sending WhatsApp message to ${to}:`, text);
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -49,22 +39,20 @@ async function sendTextMessage(to, text) {
         },
       }
     );
-
-    console.log("✅ WhatsApp message sent successfully");
+    console.log("✅ DEBUG => Message sent successfully to WhatsApp API");
   } catch (err) {
     console.error(
-      "❌ WhatsApp message send error:",
+      "❌ DEBUG => WhatsApp send error:",
       err.response?.data || err.message
     );
   }
 }
 
 // ---------------------------------------------
-// 2) Appointment time slot buttons
+// 📅 Send appointment time slot buttons
 // ---------------------------------------------
 async function sendAppointmentButtons(to) {
-  console.log(`📤 Sending appointment buttons to ${to}`);
-
+  console.log(`📤 DEBUG => Sending appointment buttons to ${to}`);
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -91,29 +79,29 @@ async function sendAppointmentButtons(to) {
         },
       }
     );
-
-    console.log("✅ Appointment buttons sent");
+    console.log("✅ DEBUG => Appointment buttons sent successfully");
   } catch (err) {
     console.error(
-      "❌ Error sending appointment buttons:",
+      "❌ DEBUG => Error sending appointment buttons:",
       err.response?.data || err.message
     );
   }
 }
 
 // ---------------------------------------------
-// 3) Send appointment options (shortcut)
+// 🗓️ Send appointment options (alias/shortcut)
 // ---------------------------------------------
 async function sendAppointmentOptions(to) {
+  console.log(`📤 DEBUG => Sending appointment options to ${to}`);
   await sendAppointmentButtons(to);
 }
 
 // ---------------------------------------------
-// 4) OLD service buttons (fallback)
+// 💊 Send service buttons (OLD - simple buttons)
+// Keep for backward compatibility
 // ---------------------------------------------
 async function sendServiceButtons(to) {
-  console.log(`📤 Sending service buttons to ${to}`);
-
+  console.log(`📤 DEBUG => Sending service buttons to ${to}`);
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -149,22 +137,21 @@ async function sendServiceButtons(to) {
         },
       }
     );
-
-    console.log("✅ Service buttons sent");
+    console.log("✅ DEBUG => Service buttons sent successfully");
   } catch (err) {
     console.error(
-      "❌ Error sending service buttons:",
+      "❌ DEBUG => Error sending service buttons:",
       err.response?.data || err.message
     );
   }
 }
 
 // ---------------------------------------------
-// 5) Enhanced Service List (NEW UI)
+// 💊 Send service dropdown list (NEW - enhanced)
+// With multiple categories and descriptions
 // ---------------------------------------------
 async function sendServiceList(to) {
-  console.log(`📤 Sending service dropdown list to ${to}`);
-
+  console.log(`📤 DEBUG => Sending service dropdown list to ${to}`);
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -190,22 +177,22 @@ async function sendServiceList(to) {
                   {
                     id: "service_فحص_عام",
                     title: "فحص عام",
-                    description: "تشخيص شامل",
+                    description: "فحص شامل للأسنان والتشخيص",
                   },
                   {
                     id: "service_تنظيف_الأسنان",
                     title: "تنظيف الأسنان",
-                    description: "إزالة الجير",
+                    description: "تنظيف وإزالة الجير والتصبغات",
                   },
                   {
                     id: "service_تبييض_الأسنان",
                     title: "تبييض الأسنان",
-                    description: "ليزر / مواد مبيضة",
+                    description: "تبييض الأسنان بالليزر أو المواد المبيضة",
                   },
                   {
                     id: "service_حشو_الأسنان",
                     title: "حشو الأسنان",
-                    description: "علاج التسوس",
+                    description: "علاج التسوس وحشو الأسنان",
                   },
                 ],
               },
@@ -215,22 +202,22 @@ async function sendServiceList(to) {
                   {
                     id: "service_علاج_الجذور",
                     title: "علاج الجذور",
-                    description: "قناة الجذر",
+                    description: "علاج قناة الجذر والعصب",
                   },
                   {
                     id: "service_تركيب_التركيبات",
-                    title: "التركيبات",
-                    description: "تيجان وجسور",
+                    title: "تركيب التركيبات",
+                    description: "تركيب التيجان والجسور",
                   },
                   {
                     id: "service_تقويم_الأسنان",
                     title: "تقويم الأسنان",
-                    description: "تنظيم الاعوجاج",
+                    description: "علاج اعوجاج الأسنان وتنظيمها",
                   },
                   {
                     id: "service_خلع_الأسنان",
                     title: "خلع الأسنان",
-                    description: "خلع بسيط أو جراحي",
+                    description: "خلع الأسنان البسيط أو الجراحي",
                   },
                 ],
               },
@@ -240,22 +227,22 @@ async function sendServiceList(to) {
                   {
                     id: "service_الفينير",
                     title: "الفينير",
-                    description: "قشور تجميلية",
+                    description: "قشور خزفية لتجميل الأسنان الأمامية",
                   },
                   {
                     id: "service_زراعة_الأسنان",
                     title: "زراعة الأسنان",
-                    description: "تعويض الأسنان",
+                    description: "زراعة الأسنان المفقودة",
                   },
                   {
                     id: "service_ابتسامة_هوليود",
                     title: "ابتسامة هوليود",
-                    description: "تصميم ابتسامة",
+                    description: "تصميم ابتسامة هوليود تجميلية",
                   },
                   {
                     id: "service_خدمة_أخرى",
                     title: "خدمة أخرى",
-                    description: "خدمة غير موجودة بالقائمة",
+                    description: "اختر هذه إذا كانت الخدمة غير موجودة",
                   },
                 ],
               },
@@ -270,42 +257,36 @@ async function sendServiceList(to) {
         },
       }
     );
-
-    console.log("✅ Service list sent successfully");
+    console.log("✅ DEBUG => Service dropdown list sent successfully");
   } catch (err) {
     console.error(
-      "❌ Error sending service list:",
+      "❌ DEBUG => Error sending service dropdown list:",
       err.response?.data || err.message
     );
-
-    // Fallback if WhatsApp List is not supported
+    // Fallback to regular buttons if list fails
     await sendServiceButtons(to);
   }
 }
 
 // =============================================
-// 📤 EXPORT EVERYTHING
+// ✅ EXPORT EVERYTHING
 // =============================================
 module.exports = {
-  // AI
+  // AI Functions
   askAI,
   validateNameWithAI,
 
-  // WhatsApp Messaging
+  // WhatsApp Functions
   sendTextMessage,
   sendAppointmentButtons,
   sendAppointmentOptions,
   sendServiceButtons,
   sendServiceList,
 
-  // Google Sheets (existing booking system)
+  // Google Sheets Functions (re-exported from sheetsHelper)
   detectSheetName,
   saveBooking,
   updateBooking,
   getAllBookings,
   testGoogleConnection,
-
-  // Supabase search + cancel (NEW)
-  findBookingByPhone,
-  cancelBooking,
 };

@@ -2,7 +2,9 @@
  * bookingFlowHandler.js
  *
  * Responsibilities:
- * - Handle booking flow + cancel booking flow
+ * - Coordinate booking flow steps.
+ * - Handle interactive messages (buttons/lists) for appointments and services.
+ * - Route text messages to appropriate step handlers.
  */
 
 const {
@@ -12,9 +14,7 @@ const {
   saveBooking,
 } = require("./helpers");
 
-const { isBookingRequest, isCancelRequest } = require("./messageHandlers");
-
-const { findBookingByPhone, cancelBooking } = require("./supabaseService");
+const { isBookingRequest } = require("./messageHandlers");
 
 const {
   handleNameStep,
@@ -24,9 +24,9 @@ const {
 } = require("./bookingSteps");
 
 // ---------------------------------------------
-// 🧠 Sessions memory per user
+// 🧠 Session storage (per-user conversation memory)
 // ---------------------------------------------
-const sessions = {};
+const sessions = {}; // { userId: { ...state } }
 
 function getSession(userId) {
   if (!sessions[userId]) {
@@ -34,7 +34,6 @@ function getSession(userId) {
       waitingForOffersConfirmation: false,
       waitingForDoctorConfirmation: false,
       waitingForBookingDetails: false,
-      waitingForCancelPhone: false, // <--- NEW
       lastIntent: null,
     };
   }
@@ -42,7 +41,7 @@ function getSession(userId) {
 }
 
 /**
- * Handle interactive WhatsApp messages
+ * Handle interactive messages (buttons/lists)
  */
 async function handleInteractiveMessage(message, from, tempBookings) {
   const interactiveType = message.interactive?.type;
@@ -53,28 +52,38 @@ async function handleInteractiveMessage(message, from, tempBookings) {
 
   if (id?.startsWith("slot_")) {
     const appointment = id.replace("slot_", "").toUpperCase();
-
     const fridayWords = ["الجمعة", "Friday", "friday"];
-    if (fridayWords.some((w) => appointment.toLowerCase().includes(w))) {
+
+    if (
+      fridayWords.some((word) =>
+        appointment.toLowerCase().includes(word.toLowerCase())
+      )
+    ) {
       await sendTextMessage(
         from,
-        "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر."
+        "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
       );
+
       setTimeout(async () => {
+        await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب 👇");
         await sendAppointmentOptions(from);
-      }, 1500);
+      }, 2000);
+
       return;
     }
 
     tempBookings[from] = { appointment };
-    await sendTextMessage(from, "👍 تم اختيار الموعد! الآن أرسل اسمك:");
+    await sendTextMessage(from, "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:");
     return;
   }
 
   if (id?.startsWith("service_")) {
     const serviceName = id.replace("service_", "").replace(/_/g, " ");
     if (!tempBookings[from] || !tempBookings[from].phone) {
-      await sendTextMessage(from, "⚠️ يرجى إكمال خطوات الحجز أولاً.");
+      await sendTextMessage(
+        from,
+        "⚠️ يرجى إكمال خطوات الحجز أولاً (الموعد، الاسم، رقم الجوال)"
+      );
       return;
     }
 
@@ -84,7 +93,11 @@ async function handleInteractiveMessage(message, from, tempBookings) {
 
     await sendTextMessage(
       from,
-      `✅ تم حفظ الحجز:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
+      `✅ تم حفظ حجزك:
+              👤 ${booking.name}
+              📱 ${booking.phone}
+              💊 ${booking.service}
+              📅 ${booking.appointment}`
     );
 
     delete tempBookings[from];
@@ -93,69 +106,49 @@ async function handleInteractiveMessage(message, from, tempBookings) {
 }
 
 /**
- * Handle text messages in booking flow
+ * Handle text messages throughout the booking flow
  */
 async function handleTextMessage(text, from, tempBookings) {
-  const session = getSession(from);
-
-  /* ---------------------------------------------
-   * ✨ CANCEL BOOKING FLOW
-   * ---------------------------------------------*/
-  if (isCancelRequest(text)) {
-    session.waitingForCancelPhone = true;
-    await sendTextMessage(from, "🔢 أرسل رقم الجوال المرتبط بالحجز:");
-    return;
-  }
-
-  if (session.waitingForCancelPhone) {
-    session.waitingForCancelPhone = false;
-
-    const phone = text.replace(/\D/g, "");
-    const booking = await findBookingByPhone(phone);
-
-    if (!booking) {
-      await sendTextMessage(from, "❌ لم يتم العثور على حجز بهذا الرقم.");
-      return;
-    }
-
-    await cancelBooking(booking.id);
-
-    await sendTextMessage(from, "✅ تم إلغاء الحجز بنجاح.");
-    return;
-  }
-
-  /* ---------------------------------------------
-   * 🧩 Bookings
-   * ---------------------------------------------*/
+  // 🧩 Step 1: Appointment shortcut
   if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
-    tempBookings[from] = { appointment: `${text} PM` };
-    await sendTextMessage(from, "👍 الآن أرسل اسمك:");
+    const appointment = `${text} PM`;
+    tempBookings[from] = { appointment };
+    await sendTextMessage(from, "👍 تم اختيار الموعد! الآن من فضلك ارسل اسمك:");
     return;
   }
 
+  // 🧩 Step 2: Name input
   if (tempBookings[from] && !tempBookings[from].name) {
     await handleNameStep(text, from, tempBookings);
     return;
   }
 
+  // 🧩 Step 3: Phone input
   if (tempBookings[from] && !tempBookings[from].phone) {
     await handlePhoneStep(text, from, tempBookings);
     return;
   }
 
+  // 🧩 Step 4: Service input
   if (tempBookings[from] && !tempBookings[from].service) {
     await handleServiceStep(text, from, tempBookings);
     return;
   }
 
-  if (!tempBookings[from] && isBookingRequest(text)) {
-    await sendAppointmentOptions(from);
+  // 💬 Step 5: Booking or AI fallback
+  if (!tempBookings[from]) {
+    // 🗓️ If user wants to book (even with typos)
+    if (isBookingRequest(text)) {
+      console.log(`✅ Booking intent detected from ${from}`);
+      await sendAppointmentOptions(from);
+      return;
+    }
+
+    // 💬 Otherwise fallback to AI
+    const reply = await askAI(text);
+    await sendTextMessage(from, reply);
     return;
   }
-
-  // AI fallback
-  const answer = await askAI(text);
-  await sendTextMessage(from, answer);
 }
 
 module.exports = {
