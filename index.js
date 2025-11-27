@@ -190,39 +190,6 @@ app.post("/sendWhatsApp", async (req, res) => {
 });
 
 // ---------------------------------------------
-// 🚀 TEST SUPABASE ENDPOINT
-// ---------------------------------------------
-const {
-  saveBookingSupabase,
-  getBookingsByPhoneSupabase,
-  deleteBookingByIdSupabase,
-} = require("./helpers");
-
-app.get("/test-supa", async (req, res) => {
-  try {
-    // 1. Test saving a booking
-    const saved = await saveBookingSupabase({
-      name: "Test User",
-      phone: "0551234567",
-      service: "Test Service",
-      appointment: "5 PM",
-    });
-
-    // 2. Test fetching the booking
-    const fetched = await getBookingsByPhoneSupabase("0551234567");
-
-    res.json({
-      message: "Supabase test successful 🎉",
-      saved,
-      fetched,
-    });
-  } catch (err) {
-    console.error("❌ Supabase test error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ---------------------------------------------
 // Register webhook routes (GET /webhook and POST /webhook)
 // ---------------------------------------------
 try {
