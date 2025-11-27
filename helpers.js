@@ -9,6 +9,74 @@ const { google } = require("googleapis");
 const { askAI, validateNameWithAI } = require("./aiHelper");
 
 // ---------------------------------------------
+// 🚀 SUPABASE CLIENT (we add this now only)
+// ---------------------------------------------
+const { createClient } = require("@supabase/supabase-js");
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+// ---------------------------------------------
+// 🚀 SUPABASE BOOKING FUNCTIONS (NEW)
+// ---------------------------------------------
+
+// Save booking in Supabase
+async function saveBookingSupabase({ name, phone, service, appointment }) {
+  try {
+    const timestamp = new Date().toISOString();
+    const booking = { name, phone, service, appointment, timestamp };
+
+    const { data, error } = await supabase
+      .from("bookings")
+      .insert([booking])
+      .select();
+
+    if (error) throw error;
+
+    console.log("🟢 Supabase => Booking saved:", data[0]);
+    return data[0];
+  } catch (err) {
+    console.error("❌ Supabase saveBooking error:", err.message);
+    return null;
+  }
+}
+
+// Get bookings by phone from Supabase
+async function getBookingsByPhoneSupabase(phone) {
+  try {
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("phone", phone);
+
+    if (error) throw error;
+
+    console.log(`🟢 Supabase => Found ${data.length} bookings`);
+    return data;
+  } catch (err) {
+    console.error("❌ Supabase fetch error:", err.message);
+    return [];
+  }
+}
+
+// Delete booking by ID (UUID or number)
+async function deleteBookingByIdSupabase(id) {
+  try {
+    const { error } = await supabase.from("bookings").delete().eq("id", id);
+
+    if (error) throw error;
+
+    console.log("🟢 Supabase => Booking deleted:", id);
+    return true;
+  } catch (err) {
+    console.error("❌ Supabase delete error:", err.message);
+    return false;
+  }
+}
+
+// ---------------------------------------------
 // 🔧 Environment variables
 // ---------------------------------------------
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
