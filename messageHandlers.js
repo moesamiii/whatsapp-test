@@ -4,12 +4,6 @@
  * Purpose:
  * - Main orchestration file for message handling
  * - Coordinates detection, responses, and media sending
- *
- * Dependencies:
- * - detectionHelpers.js: Intent and language detection
- * - contentFilter.js: Ban words and inappropriate content filtering
- * - mediaService.js: Sending images, location, and offers
- * - transcriptionService.js: Audio transcription via Groq
  */
 
 const {
@@ -35,6 +29,23 @@ const {
 
 const { transcribeAudio } = require("./transcriptionService");
 
+/* ---------------------------------------------
+ * NEW: Cancel Booking Detector
+ * ---------------------------------------------*/
+function isCancelRequest(text = "") {
+  const keywords = [
+    "الغاء الحجز",
+    "إلغاء الحجز",
+    "الغاء",
+    "إلغاء",
+    "cancel",
+    "cancel booking",
+    "cancel appointment",
+  ];
+  const lower = text.toLowerCase();
+  return keywords.some((k) => lower.includes(k));
+}
+
 // --------------------------------------------
 // Exports - Main API
 // --------------------------------------------
@@ -48,6 +59,7 @@ module.exports = {
   isEnglish,
   isGreeting,
   getGreeting,
+  isCancelRequest, // <--- ADDED
 
   // Content filtering
   containsBanWords,
