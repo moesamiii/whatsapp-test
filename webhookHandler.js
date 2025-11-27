@@ -24,6 +24,7 @@ const {
   sendBanWordsResponse,
   isGreeting,
   getGreeting,
+  isCancelRequest, // ✅ NEW IMPORT
 } = require("./messageHandlers");
 
 const { handleAudioMessage } = require("./webhookProcessor");
@@ -33,6 +34,8 @@ const {
   handleTextMessage,
   getSession,
 } = require("./bookingFlowHandler");
+
+const { findBookingByPhone, cancelBooking } = require("./supabaseService"); // ✅ NEW IMPORT
 
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
   // Webhook verification
@@ -58,22 +61,22 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       if (!message || !from) return res.sendStatus(200);
 
-      // ✅ Ignore system / non-user messages (e.g. delivery, read, typing indicators)
+      // Ignore system events
       if (!message.text && !message.audio && !message.interactive) {
-        console.log("ℹ️ Ignored non-text system webhook event");
+        console.log("ℹ️ Ignored non-text webhook event");
         return res.sendStatus(200);
       }
 
-      // Ensure global tempBookings object exists
+      // tempBookings global object
       const tempBookings = (global.tempBookings = global.tempBookings || {});
 
-      // 🎙️ Handle audio messages separately
+      // 🎙️ Audio messages
       if (message.type === "audio") {
         await handleAudioMessage(message, from);
         return res.sendStatus(200);
       }
 
-      // 🎛️ Interactive messages (buttons / lists)
+      // 🎛️ Interactive messages
       if (message.type === "interactive") {
         await handleInteractiveMessage(message, from, tempBookings);
         return res.sendStatus(200);
@@ -83,93 +86,112 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
 
-      // 👋 Greeting detection (before any other logic)
+      // 👋 Greeting
       if (isGreeting(text)) {
         const reply = getGreeting(isEnglish(text));
         await sendTextMessage(from, reply);
         return res.sendStatus(200);
       }
 
-      // 🚫 Check for ban words
+      // 🚫 Ban Words
       if (containsBanWords(text)) {
-        const language = isEnglish(text) ? "en" : "ar";
-        await sendBanWordsResponse(from, language);
+        const lang = isEnglish(text) ? "en" : "ar";
+        await sendBanWordsResponse(from, lang);
 
-        // 🔒 Reset any ongoing booking session to prevent accidental saves
-        if (global.tempBookings && global.tempBookings[from]) {
+        if (global.tempBookings[from]) {
           delete global.tempBookings[from];
-          console.log(
-            `⚠️ Cleared booking state for ${from} due to ban word usage`
-          );
         }
-
         return res.sendStatus(200);
       }
 
-      // 📍 Location / offers / doctors detection
+      // 📍 Location
       if (isLocationRequest(text)) {
-        const language = isEnglish(text) ? "en" : "ar";
-        await sendLocationMessages(from, language);
+        const lang = isEnglish(text) ? "en" : "ar";
+        await sendLocationMessages(from, lang);
         return res.sendStatus(200);
       }
 
-      // Offers logic (smart)
+      // 🎁 Offers request
       if (isOffersRequest(text)) {
         session.waitingForOffersConfirmation = true;
         session.lastIntent = "offers";
 
-        const language = isEnglish(text) ? "en" : "ar";
-        await sendOffersValidity(from, language);
-
+        const lang = isEnglish(text) ? "en" : "ar";
+        await sendOffersValidity(from, lang);
         return res.sendStatus(200);
       }
 
-      //Offer confirmation logic
+      // 🎁 Offers confirmation
       if (session.waitingForOffersConfirmation) {
         if (isOffersConfirmation(text)) {
           session.waitingForOffersConfirmation = false;
           session.lastIntent = null;
 
-          const language = isEnglish(text) ? "en" : "ar";
-          await sendOffersImages(from, language);
+          const lang = isEnglish(text) ? "en" : "ar";
+          await sendOffersImages(from, lang);
           return res.sendStatus(200);
         }
 
-        // User said something else → reset and keep going
         session.waitingForOffersConfirmation = false;
         session.lastIntent = null;
       }
 
+      // 👨‍⚕️ Doctors
       if (isDoctorsRequest(text)) {
-        const language = isEnglish(text) ? "en" : "ar";
-        await sendDoctorsImages(from, language);
+        const lang = isEnglish(text) ? "en" : "ar";
+        await sendDoctorsImages(from, lang);
         return res.sendStatus(200);
       }
 
-      // 📅 Friday check
+      // 🕌 Friday closed
       const fridayWords = ["الجمعة", "Friday", "friday"];
-      if (
-        fridayWords.some((word) =>
-          text.toLowerCase().includes(word.toLowerCase())
-        )
-      ) {
+      if (fridayWords.some((w) => text.toLowerCase().includes(w))) {
         await sendTextMessage(
           from,
-          "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
+          "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز 🌷"
         );
 
         setTimeout(async () => {
-          await sendTextMessage(
-            from,
-            "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇"
-          );
+          await sendTextMessage(from, "📅 لنبدأ الحجز، اختر الوقت المناسب 👇");
           await sendAppointmentOptions(from);
         }, 2000);
 
         return res.sendStatus(200);
       }
 
-      // 💬 Delegate text message handling to booking flow handler
+      // =====================================================
+      // 🛑 CANCEL BOOKING FLOW (NEW)
+      // =====================================================
+
+      // Step 1: User says "إلغاء الحجز"
+      if (isCancelRequest(text)) {
+        session.waitingForCancelPhone = true;
+        await sendTextMessage(from, "🔢 أرسل رقم الجوال المرتبط بالحجز:");
+        return res.sendStatus(200);
+      }
+
+      // Step 2: User sends phone number
+      if (session.waitingForCancelPhone) {
+        session.waitingForCancelPhone = false;
+
+        const phone = text.replace(/\D/g, "");
+        const booking = await findBookingByPhone(phone);
+
+        if (!booking) {
+          await sendTextMessage(from, "❌ لم يتم العثور على حجز بهذا الرقم.");
+          return res.sendStatus(200);
+        }
+
+        await cancelBooking(booking.id);
+        await sendTextMessage(from, "✅ تم إلغاء الحجز بنجاح.");
+
+        return res.sendStatus(200);
+      }
+
+      // =====================================================
+      // 📅 Booking flow (existing)
+      // =====================================================
+
       await handleTextMessage(text, from, tempBookings);
 
       return res.sendStatus(200);
