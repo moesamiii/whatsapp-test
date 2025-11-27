@@ -2,28 +2,10 @@
  * messageHandlers.js
  *
  * Purpose:
- * - Detect user intent from text/voice (location/offers/doctors).
+ * - Detect user intent from text/voice (location/offers/doctors/delete booking).
  * - Detect inappropriate content (ban words).
- * - Provide message-sending flows that use media assets (location link, offer images, doctor images).
+ * - Provide message-sending flows that use media assets.
  * - Perform transcription of audio using Groq Whisper integration.
- *
- * Responsibilities kept here:
- * - Detection helpers: isLocationRequest, isOffersRequest, isDoctorsRequest, isEnglish, containsBanWords
- * - sendLocationMessages: uses CLINIC_LOCATION_LINK from mediaAssets
- * - sendOffersImages & sendDoctorsImages: orchestrate sending multiple images and follow-up text
- * - sendBanWordsResponse: handles inappropriate content gracefully
- * - sendImageMessage: performs the network request to WhatsApp API (requires WHATSAPP_TOKEN)
- * - transcribeAudio: fetches media from WhatsApp and posts to Groq Whisper
- *
- * Moved to mediaAssets.js:
- * - CLINIC_NAME
- * - CLINIC_LOCATION_LINK
- * - OFFER_IMAGES
- * - DOCTOR_IMAGES
- * - DOCTOR_INFO
- *
- * Usage:
- * - const { sendOffersImages, isLocationRequest, transcribeAudio, containsBanWords } = require('./messageHandlers');
  */
 
 const axios = require("axios");
@@ -482,6 +464,61 @@ function isBookingRequest(text = "") {
 }
 
 // ---------------------------------------------
+// 🗑️ Delete Booking Detection Helper
+// ---------------------------------------------
+function isDeleteBookingRequest(text = "") {
+  const keywords = [
+    "delete",
+    "remove",
+    "cancel",
+    "حذف",
+    "احذف",
+    "مسح",
+    "امسح",
+    "الغاء",
+    "إلغاء",
+    "الغي",
+    "ألغي",
+    "delete booking",
+    "cancel booking",
+    "remove booking",
+    "حذف الحجز",
+    "حذف حجز",
+    "إلغاء الحجز",
+    "إلغاء حجز",
+    "الغي الحجز",
+    "الغي حجز",
+    "امسح الحجز",
+    "امسح حجز",
+    "ابي احذف",
+    "ابغى احذف",
+    "ابي الغي",
+    "ابغى الغي",
+    "ودي احذف",
+    "ودي الغي",
+  ];
+  const lower = text.toLowerCase();
+  return keywords.some((k) => lower.includes(k));
+}
+
+// ---------------------------------------------
+// 🚫 Cancel Request Detection (more general)
+// ---------------------------------------------
+function isCancelRequest(text = "") {
+  const keywords = [
+    "cancel",
+    "cancellation",
+    "الغاء",
+    "إلغاء",
+    "الغي",
+    "ألغي",
+    "كانسل",
+  ];
+  const lower = text.toLowerCase();
+  return keywords.some((k) => lower.includes(k));
+}
+
+// ---------------------------------------------
 // 🌐 Language Detector
 // ---------------------------------------------
 function isEnglish(text = "") {
@@ -751,6 +788,8 @@ module.exports = {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isDeleteBookingRequest,
+  isCancelRequest,
   isEnglish,
   containsBanWords,
   sendBanWordsResponse,
