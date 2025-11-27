@@ -1,14 +1,10 @@
 // sheetsHelper.js
 const { google } = require("googleapis");
 
-// ---------------------------------------------
-// 🔧 Environment variables
-// ---------------------------------------------
+// Environment variables
 const SPREADSHEET_ID = (process.env.GOOGLE_SHEET_ID || "").trim();
 
-// ---------------------------------------------
-// 🧠 Google Sheets setup
-// ---------------------------------------------
+// Google Sheets setup
 let creds;
 try {
   creds = process.env.GOOGLE_CREDENTIALS
@@ -45,6 +41,8 @@ async function detectSheetName() {
     if (names.length > 0) {
       DEFAULT_SHEET_NAME = names[0];
       console.log("✅ DEBUG => Using sheet:", DEFAULT_SHEET_NAME);
+    } else {
+      console.warn("⚠️ DEBUG => No sheets found in spreadsheet.");
     }
   } catch (err) {
     console.error(
@@ -55,24 +53,29 @@ async function detectSheetName() {
 }
 
 // ---------------------------------------------
-// 🧾 Save booking
+// 🧾 Save booking to Google Sheets
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
   try {
     const values = [
       [name, phone, service, appointment, new Date().toISOString()],
     ];
-
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
+    console.log(
+      `🔍 DEBUG => Appending to sheet "${DEFAULT_SHEET_NAME}" in spreadsheet "${SPREADSHEET_ID}"`
+    );
 
-    await sheets.spreadsheets.values.append({
+    const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: `${DEFAULT_SHEET_NAME}!A:E`,
       valueInputOption: "USER_ENTERED",
       requestBody: { values },
     });
 
-    console.log("✅ DEBUG => Booking saved");
+    console.log(
+      "✅ DEBUG => Google Sheets API append response:",
+      result.statusText || result.status
+    );
   } catch (err) {
     console.error(
       "❌ DEBUG => Google Sheets append error:",
@@ -82,15 +85,16 @@ async function saveBooking({ name, phone, service, appointment }) {
 }
 
 // ---------------------------------------------
-// ✏️ Update booking
+// 🧾 Update an existing booking
+// (optional future enhancement)
 // ---------------------------------------------
 async function updateBooking(rowIndex, { name, phone, service, appointment }) {
   try {
     const values = [
       [name, phone, service, appointment, new Date().toISOString()],
     ];
-
     const range = `${DEFAULT_SHEET_NAME}!A${rowIndex}:E${rowIndex}`;
+    console.log(`✏️ DEBUG => Updating booking at row ${rowIndex}:`, values);
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
@@ -99,36 +103,43 @@ async function updateBooking(rowIndex, { name, phone, service, appointment }) {
       requestBody: { values },
     });
 
-    console.log("✅ DEBUG => Booking updated");
+    console.log("✅ DEBUG => Booking updated successfully.");
   } catch (err) {
-    console.error(
-      "❌ DEBUG => Failed to update booking:",
-      err.response?.data || err.message
-    );
+    console.error("❌ DEBUG => Failed to update booking:", err.message);
   }
 }
 
 // ---------------------------------------------
-// 📖 Get all bookings
+// 📖 Get all bookings from Google Sheets (for dashboard)
 // ---------------------------------------------
 async function getAllBookings() {
   try {
-    console.log(`📥 DEBUG => Fetching all bookings from ${DEFAULT_SHEET_NAME}`);
-
+    console.log(
+      `📥 DEBUG => Fetching all bookings from "${DEFAULT_SHEET_NAME}"`
+    );
+    const range = `${DEFAULT_SHEET_NAME}!A:E`;
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${DEFAULT_SHEET_NAME}!A:E`,
+      range,
     });
 
     const rows = response.data.values || [];
+    console.log(`📊 DEBUG => Retrieved ${rows.length} rows from Google Sheets`);
 
-    return rows.map(([name, phone, service, appointment, timestamp]) => ({
-      name: name || "",
-      phone: phone || "",
-      service: service || "",
-      appointment: appointment || "",
-      time: timestamp || "",
-    }));
+    if (rows.length === 0) return [];
+
+    // Convert rows to structured JSON objects
+    const bookings = rows.map(
+      ([name, phone, service, appointment, timestamp]) => ({
+        name: name || "",
+        phone: phone || "",
+        service: service || "",
+        appointment: appointment || "",
+        time: timestamp || "",
+      })
+    );
+
+    return bookings;
   } catch (err) {
     console.error(
       "❌ DEBUG => Error fetching bookings:",
@@ -139,7 +150,7 @@ async function getAllBookings() {
 }
 
 // ---------------------------------------------
-// 🧠 Validate Google Sheets connection
+// 🧠 Validate if Google Sheet connection works
 // ---------------------------------------------
 async function testGoogleConnection() {
   try {
@@ -151,13 +162,11 @@ async function testGoogleConnection() {
       meta.data.sheets.map((s) => s.properties.title)
     );
   } catch (err) {
-    console.error("❌ DEBUG => Failed to connect:", err.message);
+    console.error("❌ Failed to connect to Google Sheets:", err.message);
   }
 }
 
-// ---------------------------------------------
-// EXPORTS
-// ---------------------------------------------
+// ✅ Export all Google Sheets functions
 module.exports = {
   detectSheetName,
   saveBooking,
