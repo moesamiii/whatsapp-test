@@ -1,4 +1,4 @@
-// sheetsHelper.js
+// sheetsHelper.js - UPDATED with deletion functions
 const { google } = require("googleapis");
 
 // Environment variables
@@ -166,6 +166,143 @@ async function testGoogleConnection() {
   }
 }
 
+// =============================================
+// 🗑️ NEW DELETION FUNCTIONS
+// =============================================
+
+/**
+ * Get bookings by phone number
+ */
+async function getBookingsByPhone(phone) {
+  try {
+    console.log(`🔍 DEBUG => Fetching bookings for phone: ${phone}`);
+
+    const range = `${DEFAULT_SHEET_NAME}!A:E`;
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range,
+    });
+
+    const rows = response.data.values || [];
+    console.log(`📊 DEBUG => Total rows in sheet: ${rows.length}`);
+
+    if (rows.length === 0) {
+      console.log("⚠️ DEBUG => Sheet is empty");
+      return [];
+    }
+
+    // Check if first row is header
+    const hasHeader = rows[0][0] === "Name" || rows[0][0] === "الاسم";
+    const dataRows = hasHeader ? rows.slice(1) : rows;
+
+    const matchingBookings = [];
+
+    for (let i = 0; i < dataRows.length; i++) {
+      const row = dataRows[i];
+
+      // Column structure: [Name, Phone, Service, Appointment, Timestamp]
+      const name = row[0] || "";
+      const rowPhone = row[1] || "";
+      const service = row[2] || "";
+      const appointment = row[3] || "";
+      const timestamp = row[4] || "";
+
+      // Normalize phone numbers for comparison
+      const normalizedRowPhone = rowPhone.toString().trim();
+      const normalizedSearchPhone = phone.toString().trim();
+
+      console.log(
+        `🔍 DEBUG => Row ${
+          i + 1
+        }: Comparing "${normalizedRowPhone}" with "${normalizedSearchPhone}"`
+      );
+
+      if (normalizedRowPhone === normalizedSearchPhone) {
+        // Calculate actual row number (accounting for header and 1-indexing)
+        const actualRowNumber = hasHeader ? i + 2 : i + 1;
+
+        matchingBookings.push({
+          id: `row_${actualRowNumber}`,
+          name: name,
+          phone: rowPhone,
+          service: service,
+          appointment: appointment,
+          timestamp: timestamp,
+          rowIndex: actualRowNumber,
+        });
+
+        console.log(`✅ DEBUG => Match found at row ${actualRowNumber}`);
+      }
+    }
+
+    console.log(
+      `✅ DEBUG => Found ${matchingBookings.length} bookings for ${phone}`
+    );
+    return matchingBookings;
+  } catch (err) {
+    console.error(
+      "❌ DEBUG => Error fetching bookings by phone:",
+      err.response?.data || err.message
+    );
+    return [];
+  }
+}
+
+/**
+ * Delete booking by row number
+ */
+async function deleteBookingById(bookingId) {
+  try {
+    console.log(`🗑️ DEBUG => Deleting booking: ${bookingId}`);
+
+    // Extract row number from ID (format: row_5)
+    const rowNumber = parseInt(bookingId.replace("row_", ""));
+
+    if (!rowNumber || rowNumber <= 0) {
+      console.log("❌ DEBUG => Invalid booking ID format");
+      return false;
+    }
+
+    console.log(`🎯 DEBUG => Deleting row ${rowNumber}`);
+
+    // Get sheet metadata to find sheet ID
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+
+    const sheetId = meta.data.sheets[0].properties.sheetId;
+    console.log(`📋 DEBUG => Using sheet ID: ${sheetId}`);
+
+    // Delete the row using batchUpdate
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: sheetId,
+                dimension: "ROWS",
+                startIndex: rowNumber - 1, // 0-indexed
+                endIndex: rowNumber, // exclusive
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    console.log(`✅ DEBUG => Successfully deleted booking at row ${rowNumber}`);
+    return true;
+  } catch (err) {
+    console.error(
+      "❌ DEBUG => Error deleting booking:",
+      err.response?.data || err.message
+    );
+    return false;
+  }
+}
+
 // ✅ Export all Google Sheets functions
 module.exports = {
   detectSheetName,
@@ -173,4 +310,8 @@ module.exports = {
   updateBooking,
   getAllBookings,
   testGoogleConnection,
+
+  // New deletion functions
+  getBookingsByPhone,
+  deleteBookingById,
 };
