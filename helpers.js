@@ -1,12 +1,7 @@
-/**
- * FIXED helpers.js - Unified Google Sheets Integration
- * Uses Google Sheets API for ALL operations (save, fetch, delete)
- * No more Google Apps Script conflicts!
- */
-
+// helpers.js
 const axios = require("axios");
 const { google } = require("googleapis");
-const { askAI, validateNameWithAI } = require("./aiHelper");
+const { askAI, validateNameWithAI } = require("./aiHelper"); // ✅ Import AI utilities
 
 // ---------------------------------------------
 // 🔧 Environment variables
@@ -95,7 +90,7 @@ async function sendTextMessage(to, text) {
 }
 
 // ---------------------------------------------
-// 🗓️ Appointment Buttons
+// 📅 Appointment buttons
 // ---------------------------------------------
 async function sendAppointmentButtons(to) {
   console.log(`📤 DEBUG => Sending appointment buttons to ${to}`);
@@ -135,7 +130,7 @@ async function sendAppointmentButtons(to) {
 }
 
 // ---------------------------------------------
-// 💊 Service buttons (OLD)
+// 💊 Service buttons (OLD - keep for compatibility)
 // ---------------------------------------------
 async function sendServiceButtons(to) {
   console.log(`📤 DEBUG => Sending service buttons to ${to}`);
@@ -184,7 +179,7 @@ async function sendServiceButtons(to) {
 }
 
 // ---------------------------------------------
-// 💊 Service DROPDOWN LIST (NEW)
+// 💊 Service DROPDOWN LIST (NEW - with dropdown)
 // ---------------------------------------------
 async function sendServiceList(to) {
   console.log(`📤 DEBUG => Sending service dropdown list to ${to}`);
@@ -223,7 +218,7 @@ async function sendServiceList(to) {
                   {
                     id: "service_تبييض_الأسنان",
                     title: "تبييض الأسنان",
-                    description: "تبييض الأسنان بالليزر",
+                    description: "تبييض الأسنان بالليزر أو المواد المبيضة",
                   },
                   {
                     id: "service_حشو_الأسنان",
@@ -248,12 +243,12 @@ async function sendServiceList(to) {
                   {
                     id: "service_تقويم_الأسنان",
                     title: "تقويم الأسنان",
-                    description: "علاج اعوجاج الأسنان",
+                    description: "علاج اعوجاج الأسنان وتنظيمها",
                   },
                   {
                     id: "service_خلع_الأسنان",
                     title: "خلع الأسنان",
-                    description: "خلع بسيط أو جراحي",
+                    description: "خلع الأسنان البسيط أو الجراحي",
                   },
                 ],
               },
@@ -263,7 +258,7 @@ async function sendServiceList(to) {
                   {
                     id: "service_الفينير",
                     title: "الفينير",
-                    description: "قشور خزفية للتجميل",
+                    description: "قشور خزفية لتجميل الأسنان الأمامية",
                   },
                   {
                     id: "service_زراعة_الأسنان",
@@ -273,12 +268,12 @@ async function sendServiceList(to) {
                   {
                     id: "service_ابتسامة_هوليود",
                     title: "ابتسامة هوليود",
-                    description: "تصميم ابتسامة تجميلية",
+                    description: "تصميم ابتسامة هوليود تجميلية",
                   },
                   {
                     id: "service_خدمة_أخرى",
                     title: "خدمة أخرى",
-                    description: "اختر إذا كانت الخدمة غير موجودة",
+                    description: "اختر هذه إذا كانت الخدمة غير موجودة",
                   },
                 ],
               },
@@ -293,19 +288,19 @@ async function sendServiceList(to) {
         },
       }
     );
-
     console.log("✅ DEBUG => Service dropdown list sent successfully");
   } catch (err) {
     console.error(
       "❌ DEBUG => Error sending service dropdown list:",
       err.response?.data || err.message
     );
+    // Fallback to regular buttons if list fails
     await sendServiceButtons(to);
   }
 }
 
 // ---------------------------------------------
-// 🗓️ Wrapper
+// 🗓️ Send appointment options (shortcut)
 // ---------------------------------------------
 async function sendAppointmentOptions(to) {
   console.log(`📤 DEBUG => Sending appointment options to ${to}`);
@@ -313,56 +308,47 @@ async function sendAppointmentOptions(to) {
 }
 
 // ---------------------------------------------
-// 🆔 Generate unique booking ID
-// ---------------------------------------------
-function generateBookingId() {
-  return `BK${Date.now()}${Math.random().toString(36).substr(2, 4)}`;
-}
-
-// ---------------------------------------------
-// 🧾 Save booking to Google Sheets (WITH ID)
+// 🧾 Save booking to Google Sheets
 // ---------------------------------------------
 async function saveBooking({ name, phone, service, appointment }) {
   try {
-    const bookingId = generateBookingId();
-    const timestamp = new Date().toISOString();
-
-    const values = [[bookingId, name, phone, service, appointment, timestamp]];
-
+    const values = [
+      [name, phone, service, appointment, new Date().toISOString()],
+    ];
     console.log("📤 DEBUG => Data to send to Google Sheets:", values);
+    console.log(
+      `🔍 DEBUG => Appending to sheet "${DEFAULT_SHEET_NAME}" in spreadsheet "${SPREADSHEET_ID}"`
+    );
 
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${DEFAULT_SHEET_NAME}!A:F`,
+      range: `${DEFAULT_SHEET_NAME}!A:E`,
       valueInputOption: "USER_ENTERED",
       requestBody: { values },
     });
 
     console.log(
-      "✅ DEBUG => Booking saved with ID:",
-      bookingId,
-      "Status:",
+      "✅ DEBUG => Google Sheets API append response:",
       result.statusText || result.status
     );
-
-    return bookingId;
   } catch (err) {
     console.error(
       "❌ DEBUG => Google Sheets append error:",
       err.response?.data || err.message
     );
-    throw err;
   }
 }
 
 // ---------------------------------------------
-// 📝 Update booking
+// 🧾 Update an existing booking
+// (optional future enhancement)
 // ---------------------------------------------
 async function updateBooking(rowIndex, { name, phone, service, appointment }) {
   try {
-    const timestamp = new Date().toISOString();
-    const values = [[name, phone, service, appointment, timestamp]];
-    const range = `${DEFAULT_SHEET_NAME}!B${rowIndex}:F${rowIndex}`;
+    const values = [
+      [name, phone, service, appointment, new Date().toISOString()],
+    ];
+    const range = `${DEFAULT_SHEET_NAME}!A${rowIndex}:E${rowIndex}`;
     console.log(`✏️ DEBUG => Updating booking at row ${rowIndex}:`, values);
 
     await sheets.spreadsheets.values.update({
@@ -379,14 +365,14 @@ async function updateBooking(rowIndex, { name, phone, service, appointment }) {
 }
 
 // ---------------------------------------------
-// 📥 Get all bookings (Dashboard)
+// 📖 Get all bookings from Google Sheets (for dashboard)
 // ---------------------------------------------
 async function getAllBookings() {
   try {
     console.log(
       `📥 DEBUG => Fetching all bookings from "${DEFAULT_SHEET_NAME}"`
     );
-    const range = `${DEFAULT_SHEET_NAME}!A:F`;
+    const range = `${DEFAULT_SHEET_NAME}!A:E`;
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range,
@@ -397,12 +383,9 @@ async function getAllBookings() {
 
     if (rows.length === 0) return [];
 
-    // Skip header row if it exists
-    const dataRows = rows[0][0] === "ID" ? rows.slice(1) : rows;
-
-    return dataRows.map(
-      ([id, name, phone, service, appointment, timestamp]) => ({
-        id: id || "",
+    // Convert rows to structured JSON objects
+    const bookings = rows.map(
+      ([name, phone, service, appointment, timestamp]) => ({
         name: name || "",
         phone: phone || "",
         service: service || "",
@@ -410,6 +393,8 @@ async function getAllBookings() {
         time: timestamp || "",
       })
     );
+
+    return bookings;
   } catch (err) {
     console.error(
       "❌ DEBUG => Error fetching bookings:",
@@ -420,262 +405,7 @@ async function getAllBookings() {
 }
 
 // ---------------------------------------------
-// 🔍 Get bookings by phone number
-// ---------------------------------------------
-async function getBookingsByPhone(phone) {
-  try {
-    console.log(`🔍 DEBUG => Fetching bookings for phone: ${phone}`);
-
-    const range = `${DEFAULT_SHEET_NAME}!A:F`;
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range,
-    });
-
-    const rows = response.data.values || [];
-    console.log(`📊 DEBUG => Total rows in sheet: ${rows.length}`);
-
-    if (rows.length === 0) {
-      console.log("⚠️ DEBUG => No data in sheet");
-      return [];
-    }
-
-    // Skip header row if exists
-    const dataRows = rows[0][0] === "ID" ? rows.slice(1) : rows;
-
-    // Filter bookings by phone number
-    const matchingBookings = [];
-
-    for (let i = 0; i < dataRows.length; i++) {
-      const row = dataRows[i];
-      const [id, name, rowPhone, service, appointment, timestamp] = row;
-
-      // Normalize both phone numbers for comparison
-      const normalizedRowPhone = (rowPhone || "").toString().trim();
-      const normalizedSearchPhone = phone.toString().trim();
-
-      console.log(
-        `🔍 DEBUG => Comparing: "${normalizedRowPhone}" with "${normalizedSearchPhone}"`
-      );
-
-      if (normalizedRowPhone === normalizedSearchPhone) {
-        matchingBookings.push({
-          id: id || `row_${i + 2}`, // +2 because of header and 1-indexing
-          name: name || "غير معروف",
-          phone: rowPhone || "",
-          service: service || "N/A",
-          appointment: appointment || "N/A",
-          timestamp: timestamp || "",
-          rowIndex: i + 2, // Actual row number in sheet
-        });
-      }
-    }
-
-    console.log(
-      `✅ DEBUG => Found ${matchingBookings.length} bookings for ${phone}`
-    );
-    return matchingBookings;
-  } catch (err) {
-    console.error(
-      "❌ DEBUG => Error fetching bookings by phone:",
-      err.response?.data || err.message
-    );
-    throw err;
-  }
-}
-
-// ---------------------------------------------
-// 🗑️ Delete booking by ID
-// ---------------------------------------------
-async function deleteBookingById(bookingId) {
-  try {
-    console.log(`🗑️ DEBUG => Deleting booking with ID: ${bookingId}`);
-
-    const range = `${DEFAULT_SHEET_NAME}!A:F`;
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range,
-    });
-
-    const rows = response.data.values || [];
-    console.log(`📊 DEBUG => Total rows: ${rows.length}`);
-
-    if (rows.length === 0) {
-      console.log("⚠️ DEBUG => No data in sheet");
-      return false;
-    }
-
-    // Find the row with matching booking ID
-    let rowToDelete = -1;
-
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const rowId = (row[0] || "").toString().trim();
-      const searchId = bookingId.toString().trim();
-
-      console.log(
-        `🔍 DEBUG => Row ${i + 1}: Comparing "${rowId}" with "${searchId}"`
-      );
-
-      if (rowId === searchId) {
-        rowToDelete = i;
-        break;
-      }
-    }
-
-    if (rowToDelete === -1) {
-      console.log(`⚠️ DEBUG => Booking ID ${bookingId} not found`);
-      return false;
-    }
-
-    console.log(
-      `🎯 DEBUG => Found booking at row ${rowToDelete + 1}, deleting...`
-    );
-
-    // Delete the row using batchUpdate
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: SPREADSHEET_ID,
-      requestBody: {
-        requests: [
-          {
-            deleteDimension: {
-              range: {
-                sheetId: 0, // Usually the first sheet is ID 0
-                dimension: "ROWS",
-                startIndex: rowToDelete,
-                endIndex: rowToDelete + 1,
-              },
-            },
-          },
-        ],
-      },
-    });
-
-    console.log(`✅ DEBUG => Successfully deleted booking ${bookingId}`);
-    return true;
-  } catch (err) {
-    console.error(
-      "❌ DEBUG => Error deleting booking:",
-      err.response?.data || err.message
-    );
-    throw err;
-  }
-}
-
-// ---------------------------------------------
-// 📋 Send bookings list to WhatsApp
-// ---------------------------------------------
-async function sendBookingsList(to, bookings) {
-  try {
-    if (!bookings || bookings.length === 0) {
-      await sendTextMessage(
-        to,
-        "❌ لم يتم العثور على حجوزات مسجلة بهذا الرقم."
-      );
-      return;
-    }
-
-    console.log(`📋 DEBUG => Sending ${bookings.length} bookings to ${to}`);
-
-    await sendTextMessage(
-      to,
-      `📋 وجدنا *${bookings.length}* حجز/حجوزات مسجلة:\n\nاختر الحجز الذي ترغب بحذفه 👇`
-    );
-
-    await new Promise((r) => setTimeout(r, 500));
-
-    // Prepare list rows (max 10 items for WhatsApp)
-    const rows = bookings.slice(0, 10).map((booking) => {
-      const title = (booking.name || "غير معروف").substring(0, 24); // WhatsApp limit
-      const description = `📅 ${booking.appointment || "N/A"} | 💊 ${
-        booking.service || "N/A"
-      }`.substring(0, 72); // WhatsApp limit
-
-      return {
-        id: `delete_${booking.id}`,
-        title: title,
-        description: description,
-      };
-    });
-
-    const payload = {
-      messaging_product: "whatsapp",
-      to: to,
-      type: "interactive",
-      interactive: {
-        type: "list",
-        header: { type: "text", text: "حجوزاتك 📋" },
-        body: { text: "اختر الحجز الذي تريد حذفه من القائمة:" },
-        footer: { text: "عيادة ابتسامة الطبية" },
-        action: {
-          button: "عرض الحجوزات",
-          sections: [
-            {
-              title: "حجوزاتك",
-              rows: rows,
-            },
-          ],
-        },
-      },
-    };
-
-    await axios.post(
-      `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    console.log("✅ DEBUG => Bookings list sent successfully");
-
-    // Send "Keep booking" option
-    await new Promise((r) => setTimeout(r, 1000));
-
-    const keepPayload = {
-      messaging_product: "whatsapp",
-      to: to,
-      type: "interactive",
-      interactive: {
-        type: "button",
-        body: { text: "أو إذا غيّرت رأيك:" },
-        action: {
-          buttons: [
-            {
-              type: "reply",
-              reply: { id: "keep_booking", title: "إبقاء حجوزاتي ✅" },
-            },
-          ],
-        },
-      },
-    };
-
-    await axios.post(
-      `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
-      keepPayload,
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    console.log("✅ DEBUG => Keep booking button sent");
-  } catch (err) {
-    console.error(
-      "❌ DEBUG => Error sending bookings list:",
-      err.response?.data || err.message
-    );
-    throw err;
-  }
-}
-
-// ---------------------------------------------
-// 🧪 Test Google Sheets Connection
+// 🧠 Validate if Google Sheet connection works
 // ---------------------------------------------
 async function testGoogleConnection() {
   try {
@@ -691,285 +421,20 @@ async function testGoogleConnection() {
   }
 }
 
-/**
- * Get bookings by phone - uses existing Google Sheets API
- */
-async function getBookingsByPhone(phone) {
-  try {
-    console.log(`🔍 Fetching bookings for phone: ${phone}`);
-
-    // Use existing sheets API connection
-    const range = `${DEFAULT_SHEET_NAME}!A:F`;
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range,
-    });
-
-    const rows = response.data.values || [];
-    console.log(`📊 Total rows in sheet: ${rows.length}`);
-
-    if (rows.length === 0) {
-      return [];
-    }
-
-    // Skip header row if exists
-    const dataRows =
-      rows.length > 0 && rows[0][0] === "Name" ? rows.slice(1) : rows;
-
-    // Find bookings with matching phone
-    const matchingBookings = [];
-
-    for (let i = 0; i < dataRows.length; i++) {
-      const row = dataRows[i];
-
-      // Adjust these indices based on YOUR column order
-      // Current assumption: [Name, Phone, Service, Appointment, Timestamp]
-      const name = row[0] || "";
-      const rowPhone = row[1] || "";
-      const service = row[2] || "";
-      const appointment = row[3] || "";
-      const timestamp = row[4] || "";
-
-      // Normalize phone numbers for comparison
-      const normalizedRowPhone = rowPhone.toString().trim();
-      const normalizedSearchPhone = phone.toString().trim();
-
-      if (normalizedRowPhone === normalizedSearchPhone) {
-        const actualRowNumber =
-          rows.length > 0 && rows[0][0] === "Name" ? i + 2 : i + 1;
-
-        matchingBookings.push({
-          id: `row_${actualRowNumber}`,
-          name: name,
-          phone: rowPhone,
-          service: service,
-          appointment: appointment,
-          timestamp: timestamp,
-          rowIndex: actualRowNumber,
-        });
-      }
-    }
-
-    console.log(`✅ Found ${matchingBookings.length} bookings for ${phone}`);
-    return matchingBookings;
-  } catch (err) {
-    console.error(
-      "❌ Error fetching bookings:",
-      err.response?.data || err.message
-    );
-    return [];
-  }
-}
-
-/**
- * Delete booking by row number - uses existing Google Sheets API
- */
-async function deleteBookingById(bookingId) {
-  try {
-    console.log(`🗑️ Deleting booking: ${bookingId}`);
-
-    // Extract row number from ID (format: row_5)
-    const rowNumber = parseInt(bookingId.replace("row_", ""));
-
-    if (!rowNumber || rowNumber <= 0) {
-      console.log("❌ Invalid booking ID");
-      return false;
-    }
-
-    console.log(`🎯 Deleting row ${rowNumber}`);
-
-    // Get sheet ID (usually 0 for first sheet)
-    const meta = await sheets.spreadsheets.get({
-      spreadsheetId: SPREADSHEET_ID,
-    });
-
-    const sheetId = meta.data.sheets[0].properties.sheetId;
-
-    // Delete the row using batchUpdate
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: SPREADSHEET_ID,
-      requestBody: {
-        requests: [
-          {
-            deleteDimension: {
-              range: {
-                sheetId: sheetId,
-                dimension: "ROWS",
-                startIndex: rowNumber - 1, // 0-indexed
-                endIndex: rowNumber, // exclusive
-              },
-            },
-          },
-        ],
-      },
-    });
-
-    console.log(`✅ Successfully deleted booking at row ${rowNumber}`);
-    return true;
-  } catch (err) {
-    console.error(
-      "❌ Error deleting booking:",
-      err.response?.data || err.message
-    );
-    return false;
-  }
-}
-
-/**
- * Send bookings list to WhatsApp
- */
-async function sendBookingsList(to, bookings) {
-  try {
-    if (!bookings || bookings.length === 0) {
-      await sendTextMessage(
-        to,
-        "❌ لم يتم العثور على حجوزات مسجلة بهذا الرقم."
-      );
-      return;
-    }
-
-    console.log(`📋 Sending ${bookings.length} bookings to ${to}`);
-
-    await sendTextMessage(
-      to,
-      `📋 وجدنا *${bookings.length}* حجز/حجوزات:\n\nاختر الحجز الذي تريد حذفه 👇`
-    );
-
-    await new Promise((r) => setTimeout(r, 500));
-
-    // Prepare list (max 10 items for WhatsApp)
-    const rows = bookings.slice(0, 10).map((booking) => {
-      const title = (booking.name || "غير معروف").substring(0, 24);
-      const description = `📅 ${booking.appointment || "N/A"} | 💊 ${
-        booking.service || "N/A"
-      }`.substring(0, 72);
-
-      return {
-        id: `delete_${booking.id}`,
-        title: title,
-        description: description,
-      };
-    });
-
-    const payload = {
-      messaging_product: "whatsapp",
-      to: to,
-      type: "interactive",
-      interactive: {
-        type: "list",
-        header: { type: "text", text: "حجوزاتك 📋" },
-        body: { text: "اختر الحجز الذي تريد حذفه من القائمة:" },
-        footer: { text: "عيادة ابتسامة الطبية" },
-        action: {
-          button: "عرض الحجوزات",
-          sections: [{ title: "حجوزاتك", rows: rows }],
-        },
-      },
-    };
-
-    await axios.post(
-      `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    console.log("✅ Bookings list sent");
-
-    // Send "Keep booking" option
-    await new Promise((r) => setTimeout(r, 1000));
-
-    const keepPayload = {
-      messaging_product: "whatsapp",
-      to: to,
-      type: "interactive",
-      interactive: {
-        type: "button",
-        body: { text: "أو إذا غيّرت رأيك:" },
-        action: {
-          buttons: [
-            {
-              type: "reply",
-              reply: { id: "keep_booking", title: "إبقاء حجوزاتي ✅" },
-            },
-          ],
-        },
-      },
-    };
-
-    await axios.post(
-      `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`,
-      keepPayload,
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-  } catch (err) {
-    console.error(
-      "❌ Error sending bookings list:",
-      err.response?.data || err.message
-    );
-  }
-}
-
-function isDeleteBookingRequest(text = "") {
-  const keywords = [
-    "delete",
-    "remove",
-    "cancel",
-    "حذف",
-    "احذف",
-    "مسح",
-    "امسح",
-    "الغاء",
-    "إلغاء",
-    "الغي",
-    "حذف الحجز",
-    "إلغاء الحجز",
-    "ابي احذف",
-    "ودي احذف",
-  ];
-  return keywords.some((k) => text.toLowerCase().includes(k));
-}
-
-function isCancelRequest(text = "") {
-  const keywords = ["cancel", "الغاء", "إلغاء", "الغي", "كانسل"];
-  return keywords.some((k) => text.toLowerCase().includes(k));
-}
-
-/* ===========================================================
-   ==================== EXPORT EVERYTHING =====================
-   ===========================================================
-*/
-
+// ---------------------------------------------
+// ✅ Export everything
+// ---------------------------------------------
 module.exports = {
   askAI,
   validateNameWithAI,
   detectSheetName,
-
   sendTextMessage,
   sendAppointmentButtons,
   sendServiceButtons,
-  sendServiceList,
+  sendServiceList, // ✅ Export the new dropdown function
   sendAppointmentOptions,
-
   saveBooking,
   updateBooking,
   getAllBookings,
   testGoogleConnection,
-
-  // Booking management
-  getBookingsByPhone,
-  deleteBookingById,
-  sendBookingsList,
-
-  isDeleteBookingRequest,
-  isCancelRequest,
 };
