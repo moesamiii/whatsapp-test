@@ -9,6 +9,8 @@ const {
   updateBooking,
   getAllBookings,
   testGoogleConnection,
+  findBookingByPhone, // NEW
+  cancelBookingByPhone, // NEW
 } = require("./sheetsHelper"); // ✅ Import Sheets functions
 
 // Environment variables
@@ -289,4 +291,6 @@ module.exports = {
   updateBooking,
   getAllBookings,
   testGoogleConnection,
+  findBookingByPhone, // NEW
+  cancelBookingByPhone, // NEW
 };

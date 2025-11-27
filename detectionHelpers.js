@@ -2,7 +2,7 @@
  * detectionHelpers.js
  *
  * Purpose:
- * - Detect user intent from text (location/offers/doctors/booking/greeting)
+ * - Detect user intent from text (location/offers/doctors/booking/greeting/cancellation)
  * - Language detection (English vs Arabic)
  * - Random greeting generation
  *
@@ -266,6 +266,50 @@ function isBookingRequest(text = "") {
 }
 
 // ---------------------------------------------
+// ❌ Cancellation Detection Helper (NEW)
+// ---------------------------------------------
+function isCancellationRequest(text = "") {
+  const keywords = [
+    // Arabic
+    "الغاء",
+    "إلغاء",
+    "الغي",
+    "إلغي",
+    "الغو",
+    "إلغو",
+    "الغيت",
+    "الغوا",
+    "الغاء الحجز",
+    "الغاء الموعد",
+    "الغي الحجز",
+    "الغي الموعد",
+    "ابغى الغي",
+    "ابي الغي",
+    "ابغى الغاء",
+    "ابي الغاء",
+    "ما ابي",
+    "ماابي",
+    "ما ابغى",
+    "ماابغى",
+
+    // English
+    "cancel",
+    "cancell",
+    "cancle",
+    "cancellation",
+    "cancel booking",
+    "cancel appointment",
+    "cancel my booking",
+    "cancel my appointment",
+    "i want to cancel",
+    "want to cancel",
+    "need to cancel",
+  ];
+  const lower = text.toLowerCase();
+  return keywords.some((k) => lower.includes(k));
+}
+
+// ---------------------------------------------
 // 🌐 Language Detector
 // ---------------------------------------------
 function isEnglish(text = "") {
@@ -282,6 +326,7 @@ module.exports = {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isCancellationRequest, // NEW
   isEnglish,
   isGreeting,
   getGreeting,

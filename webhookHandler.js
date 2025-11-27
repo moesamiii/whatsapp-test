@@ -19,6 +19,7 @@ const {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isCancellationRequest, // NEW
   isEnglish,
   containsBanWords,
   sendBanWordsResponse,
@@ -33,6 +34,8 @@ const {
   handleTextMessage,
   getSession,
 } = require("./bookingFlowHandler");
+
+const { cancelBookingByPhone } = require("./sheetsHelper"); // NEW
 
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
   // Webhook verification
@@ -101,6 +104,61 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
           console.log(
             `⚠️ Cleared booking state for ${from} due to ban word usage`
           );
+        }
+
+        return res.sendStatus(200);
+      }
+
+      // ❌ CANCELLATION DETECTION (NEW - Priority check before other intents)
+      if (isCancellationRequest(text)) {
+        console.log(`❌ Cancellation request detected from ${from}`);
+
+        const language = isEnglish(text) ? "en" : "ar";
+
+        // Cancel any ongoing booking session first
+        if (tempBookings[from]) {
+          delete tempBookings[from];
+          console.log(`🗑️ Cleared active booking session for ${from}`);
+        }
+
+        // Try to cancel the booking in the database
+        const result = await cancelBookingByPhone(from);
+
+        if (result.success) {
+          const confirmationMessage =
+            language === "en"
+              ? `✅ Your booking has been cancelled successfully.
+
+📋 Cancelled booking details:
+👤 Name: ${result.booking.name}
+📅 Appointment: ${result.booking.appointment}
+💊 Service: ${result.booking.service}
+
+If you'd like to book again, just let me know! 😊`
+              : `✅ تم إلغاء حجزك بنجاح.
+
+📋 تفاصيل الحجز الملغي:
+👤 الاسم: ${result.booking.name}
+📅 الموعد: ${result.booking.appointment}
+💊 الخدمة: ${result.booking.service}
+
+إذا رغبت بالحجز مرة أخرى، فقط أخبرني! 😊`;
+
+          await sendTextMessage(from, confirmationMessage);
+        } else if (result.message === "no_booking_found") {
+          const noBookingMessage =
+            language === "en"
+              ? "❌ No active booking found for your number. If you'd like to make a new booking, just let me know! 📅"
+              : "❌ لم أجد حجز نشط برقمك. إذا رغبت بحجز موعد جديد، فقط أخبرني! 📅";
+
+          await sendTextMessage(from, noBookingMessage);
+        } else {
+          const errorMessage =
+            language === "en"
+              ? "⚠️ Sorry, there was an error processing your cancellation. Please contact us directly."
+              : "⚠️ عذراً، حدث خطأ في معالجة طلب الإلغاء. يرجى التواصل معنا مباشرة.";
+
+          await sendTextMessage(from, errorMessage);
         }
 
         return res.sendStatus(200);

@@ -18,6 +18,7 @@ const {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isCancellationRequest, // NEW
   isEnglish,
   isGreeting,
   getGreeting,
@@ -45,6 +46,7 @@ module.exports = {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isCancellationRequest, // NEW
   isEnglish,
   isGreeting,
   getGreeting,
