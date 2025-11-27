@@ -37,6 +37,7 @@ const {
 } = require("./messageHandlers");
 
 const { handleAudioMessage } = require("./webhookProcessor");
+const { processCancellation } = require("./cancelHandler");
 
 // ---------------------------------------------
 // 🧠 Session storage (per-user conversation memory)
@@ -231,6 +232,17 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
       // 💬 Text messages
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
+
+      // 🔄 NEW: handle cancellation flow first
+      const handled = await processCancellation(from, text, sessions);
+      if (handled) return res.sendStatus(200);
+
+      // 👋 Greeting detection (before any other logic)
+      if (isGreeting(text)) {
+        const reply = getGreeting(isEnglish(text));
+        await sendTextMessage(from, reply);
+        return res.sendStatus(200);
+      }
 
       // 👋 Greeting detection (before any other logic)
       if (isGreeting(text)) {
