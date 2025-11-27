@@ -343,28 +343,6 @@ async function saveBooking({ name, phone, service, appointment }) {
 // 🧾 Update an existing booking
 // (optional future enhancement)
 // ---------------------------------------------
-
-// ---------------------------------------------
-// ❗ Cancel all bookings for a phone number
-// ---------------------------------------------
-async function cancelAllBookingsByPhone(phone) {
-  try {
-    const query = `
-      UPDATE bookings
-      SET status = 'Canceled'
-      WHERE phone = ?
-    `;
-
-    const [result] = await pool.execute(query, [phone]);
-
-    return result.affectedRows; // number of canceled bookings
-  } catch (err) {
-    console.error("❌ Error canceling bookings:", err);
-    return 0;
-  }
-}
-
-// ---------------------------------------------
 async function updateBooking(rowIndex, { name, phone, service, appointment }) {
   try {
     const values = [
@@ -457,7 +435,6 @@ module.exports = {
   sendAppointmentOptions,
   saveBooking,
   updateBooking,
-  cancelAllBookingsByPhone,
   getAllBookings,
   testGoogleConnection,
 };

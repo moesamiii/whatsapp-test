@@ -482,31 +482,6 @@ function isBookingRequest(text = "") {
 }
 
 // ---------------------------------------------
-// ❗ Cancelation Intent Detection
-// ---------------------------------------------
-function isCancelRequest(text = "") {
-  if (!text) return false;
-
-  const keywords = [
-    // Arabic cancel phrases
-    "الغاء",
-    "إلغاء",
-    "الغاء الحجز",
-    "إلغاء الحجز",
-    "بدي الغي",
-
-    // English cancel phrases
-    "cancel",
-    "cancel my booking",
-    "cancel appointment",
-    "delete booking",
-  ];
-
-  const normalized = text.toLowerCase().trim();
-  return keywords.some((k) => normalized.includes(k));
-}
-
-// ---------------------------------------------
 // 🌐 Language Detector
 // ---------------------------------------------
 function isEnglish(text = "") {
@@ -778,7 +753,6 @@ module.exports = {
   isBookingRequest,
   isEnglish,
   containsBanWords,
-  isCancelRequest,
   sendBanWordsResponse,
   sendLocationMessages,
   sendOffersImages,
