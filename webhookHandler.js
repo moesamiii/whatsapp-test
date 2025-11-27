@@ -1,10 +1,14 @@
 /**
  * webhookHandler.js
  *
- * Updated with Supabase cancellation flow
+ * Responsibilities:
+ * - Register the /webhook verification route (GET) and webhook receiver (POST).
+ * - Route messages to appropriate handlers based on type.
+ * - Coordinate the overall webhook flow.
  */
 
 const { askAI, sendTextMessage, sendAppointmentOptions } = require("./helpers");
+
 const {
   sendLocationMessages,
   sendOffersImages,
@@ -15,7 +19,6 @@ const {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
-  isCancellationRequest,
   isEnglish,
   containsBanWords,
   sendBanWordsResponse,
@@ -24,18 +27,12 @@ const {
 } = require("./messageHandlers");
 
 const { handleAudioMessage } = require("./webhookProcessor");
+
 const {
   handleInteractiveMessage,
   handleTextMessage,
   getSession,
 } = require("./bookingFlowHandler");
-
-// ✅ Supabase
-const { createClient } = require("@supabase/supabase-js");
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
 
 function registerWebhookRoutes(app, VERIFY_TOKEN) {
   // Webhook verification
@@ -51,7 +48,7 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
     }
   });
 
-  // Webhook POST Handler
+  // Webhook message handling (POST)
   app.post("/webhook", async (req, res) => {
     try {
       const body = req.body;
@@ -61,191 +58,123 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
 
       if (!message || !from) return res.sendStatus(200);
 
+      // ✅ Ignore system / non-user messages (e.g. delivery, read, typing indicators)
       if (!message.text && !message.audio && !message.interactive) {
         console.log("ℹ️ Ignored non-text system webhook event");
         return res.sendStatus(200);
       }
 
+      // Ensure global tempBookings object exists
       const tempBookings = (global.tempBookings = global.tempBookings || {});
 
-      // 🎤 Audio
+      // 🎙️ Handle audio messages separately
       if (message.type === "audio") {
         await handleAudioMessage(message, from);
         return res.sendStatus(200);
       }
 
-      // 🟦 Interactive Buttons / Lists
+      // 🎛️ Interactive messages (buttons / lists)
       if (message.type === "interactive") {
         await handleInteractiveMessage(message, from, tempBookings);
         return res.sendStatus(200);
       }
 
-      // 💬 Text
+      // 💬 Text messages
       const text = message?.text?.body?.trim();
       if (!text) return res.sendStatus(200);
 
-      // 👋 Greetings first
+      // 👋 Greeting detection (before any other logic)
       if (isGreeting(text)) {
-        await sendTextMessage(from, getGreeting(isEnglish(text)));
+        const reply = getGreeting(isEnglish(text));
+        await sendTextMessage(from, reply);
         return res.sendStatus(200);
       }
 
-      // 🚫 Ban words
+      // 🚫 Check for ban words
       if (containsBanWords(text)) {
-        await sendBanWordsResponse(from, isEnglish(text) ? "en" : "ar");
-        delete global.tempBookings[from];
+        const language = isEnglish(text) ? "en" : "ar";
+        await sendBanWordsResponse(from, language);
+
+        // 🔒 Reset any ongoing booking session to prevent accidental saves
+        if (global.tempBookings && global.tempBookings[from]) {
+          delete global.tempBookings[from];
+          console.log(
+            `⚠️ Cleared booking state for ${from} due to ban word usage`
+          );
+        }
+
         return res.sendStatus(200);
       }
 
-      // =======================================
-      // ❌ SUPABASE CANCELLATION LOGIC START
-      // =======================================
-
-      // If user says "cancel"
-      if (isCancellationRequest(text)) {
-        session.waitingForCancellationPhone = true;
-
-        const msg = isEnglish(text)
-          ? "Sure! Please send me the phone number used for the booking:"
-          : "أكيد! أرسل رقم الجوال المسجل بالحجز:";
-
-        await sendTextMessage(from, msg);
-        return res.sendStatus(200);
-      }
-
-      // If system is currently waiting for user to send phone number
-      if (session.waitingForCancellationPhone) {
-        const phone = text.replace(/\D/g, "");
-
-        if (phone.length < 7) {
-          await sendTextMessage(
-            from,
-            isEnglish(text)
-              ? "❌ Invalid phone number, please send a correct one."
-              : "❌ الرقم غير صحيح، أعد إرسال رقم الجوال."
-          );
-          return res.sendStatus(200);
-        }
-
-        session.waitingForCancellationPhone = false;
-
-        // 🔍 Find booking in Supabase
-        const { data: bookings, error } = await supabase
-          .from("bookings")
-          .select("*")
-          .eq("phone", phone)
-          .neq("status", "cancelled")
-          .order("id", { ascending: false })
-          .limit(1);
-
-        if (error) {
-          console.error("Supabase error:", error);
-          await sendTextMessage(
-            from,
-            isEnglish(text)
-              ? "⚠️ Error accessing the booking system."
-              : "⚠️ حدث خطأ أثناء الوصول لقاعدة البيانات."
-          );
-          return res.sendStatus(200);
-        }
-
-        if (!bookings || bookings.length === 0) {
-          await sendTextMessage(
-            from,
-            isEnglish(text)
-              ? "❌ No active booking found with that phone number."
-              : "❌ لم يتم العثور على حجز بهذا الرقم."
-          );
-          return res.sendStatus(200);
-        }
-
-        const booking = bookings[0];
-
-        // 🟢 Update status to cancelled
-        await supabase
-          .from("bookings")
-          .update({ status: "cancelled" })
-          .eq("id", booking.id);
-
-        const responseMessage = isEnglish(text)
-          ? `✅ Your booking has been cancelled.
-
-📋 Booking Details:
-👤 Name: ${booking.name}
-📞 Phone: ${booking.phone}
-💊 Service: ${booking.service}
-📅 Appointment: ${booking.appointment}`
-          : `✅ تم إلغاء الحجز بنجاح.
-
-📋 تفاصيل الحجز:
-👤 الاسم: ${booking.name}
-📞 الجوال: ${booking.phone}
-💊 الخدمة: ${booking.service}
-📅 الموعد: ${booking.appointment}`;
-
-        await sendTextMessage(from, responseMessage);
-        return res.sendStatus(200);
-      }
-
-      // =======================================
-      // ❌ SUPABASE CANCELLATION LOGIC END
-      // =======================================
-
-      // 📍 Location request
+      // 📍 Location / offers / doctors detection
       if (isLocationRequest(text)) {
-        await sendLocationMessages(from, isEnglish(text) ? "en" : "ar");
+        const language = isEnglish(text) ? "en" : "ar";
+        await sendLocationMessages(from, language);
         return res.sendStatus(200);
       }
 
-      // 🎁 Offers
+      // Offers logic (smart)
       if (isOffersRequest(text)) {
         session.waitingForOffersConfirmation = true;
         session.lastIntent = "offers";
-        await sendOffersValidity(from, isEnglish(text) ? "en" : "ar");
+
+        const language = isEnglish(text) ? "en" : "ar";
+        await sendOffersValidity(from, language);
+
         return res.sendStatus(200);
       }
 
+      //Offer confirmation logic
       if (session.waitingForOffersConfirmation) {
         if (isOffersConfirmation(text)) {
           session.waitingForOffersConfirmation = false;
           session.lastIntent = null;
 
-          await sendOffersImages(from, isEnglish(text) ? "en" : "ar");
+          const language = isEnglish(text) ? "en" : "ar";
+          await sendOffersImages(from, language);
           return res.sendStatus(200);
         }
 
+        // User said something else → reset and keep going
         session.waitingForOffersConfirmation = false;
         session.lastIntent = null;
       }
 
-      // 👨‍⚕️ Doctors
       if (isDoctorsRequest(text)) {
-        await sendDoctorsImages(from, isEnglish(text) ? "en" : "ar");
+        const language = isEnglish(text) ? "en" : "ar";
+        await sendDoctorsImages(from, language);
         return res.sendStatus(200);
       }
 
-      // Friday off message
+      // 📅 Friday check
       const fridayWords = ["الجمعة", "Friday", "friday"];
       if (
-        fridayWords.some((w) => text.toLowerCase().includes(w.toLowerCase()))
+        fridayWords.some((word) =>
+          text.toLowerCase().includes(word.toLowerCase())
+        )
       ) {
         await sendTextMessage(
           from,
-          "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة. يرجى اختيار يوم آخر 🌷"
+          "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز بإذن الله 🌷"
         );
+
         setTimeout(async () => {
-          await sendTextMessage(from, "📅 اختر الوقت المناسب للحجز 👇");
+          await sendTextMessage(
+            from,
+            "📅 لنبدأ الحجز، اختر الوقت المناسب لك 👇"
+          );
           await sendAppointmentOptions(from);
-        }, 1200);
+        }, 2000);
+
         return res.sendStatus(200);
       }
 
-      // Otherwise continue booking flow
+      // 💬 Delegate text message handling to booking flow handler
       await handleTextMessage(text, from, tempBookings);
 
       return res.sendStatus(200);
     } catch (err) {
-      console.error("❌ Webhook handler error:", err);
+      console.error("❌ Webhook handler error:", err.message || err);
       return res.sendStatus(500);
     }
   });
