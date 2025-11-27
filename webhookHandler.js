@@ -10,6 +10,8 @@
  * - Handle side questions within booking flow and return to the exact booking step.
  */
 
+const { cancelAllBookingsByPhone } = require("./helpers");
+
 const {
   askAI,
   validateNameWithAI,
@@ -251,6 +253,66 @@ function registerWebhookRoutes(app, VERIFY_TOKEN) {
             `⚠️ Cleared booking state for ${from} due to ban word usage`
           );
         }
+
+        return res.sendStatus(200);
+      }
+
+      // ---------------------------------------------
+      // ❗ Detect cancelation request
+      // ---------------------------------------------
+      if (isCancelRequest(text)) {
+        await sendTextMessage(
+          from,
+          "📞 يرجى إرسال رقم الهاتف لإلغاء جميع الحجوزات المرتبطة به."
+        );
+        session.lastIntent = "cancel_request";
+        session.waitingForCancelPhone = true;
+        return res.sendStatus(200);
+      }
+
+      // ---------------------------------------------
+      // ❗ Detect cancelation request
+      // ---------------------------------------------
+      if (isCancelRequest(text)) {
+        await sendTextMessage(
+          from,
+          "📞 يرجى إرسال رقم الهاتف لإلغاء جميع الحجوزات المرتبطة به."
+        );
+        session.lastIntent = "cancel_request";
+        session.waitingForCancelPhone = true;
+        return res.sendStatus(200);
+      }
+
+      // ---------------------------------------------
+      // ❗ User sent phone number for cancellation
+      // ---------------------------------------------
+      if (session.waitingForCancelPhone) {
+        const phone = text.replace(/\D/g, ""); // digits only
+
+        if (phone.length < 8) {
+          await sendTextMessage(
+            from,
+            "⚠️ رقم الهاتف غير صالح. يرجى إدخال رقم صحيح."
+          );
+          return res.sendStatus(200);
+        }
+
+        const canceled = await cancelAllBookingsByPhone(phone);
+
+        if (canceled > 0) {
+          await sendTextMessage(
+            from,
+            `✅ تم إلغاء جميع الحجوزات (${canceled}) المرتبطة بالرقم: ${phone}`
+          );
+        } else {
+          await sendTextMessage(
+            from,
+            `ℹ️ لا توجد أي حجوزات مرتبطة بالرقم: ${phone}`
+          );
+        }
+
+        session.waitingForCancelPhone = false;
+        session.lastIntent = null;
 
         return res.sendStatus(200);
       }
