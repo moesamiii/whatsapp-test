@@ -86,62 +86,11 @@
         color: #222;
       }
 
-      body.dark .debug-info {
-        background: #1a1a1a;
-        color: #00ff00;
-        border-color: #333;
-      }
-
-      .debug-info h4 {
-        color: #7c3aed;
-        margin-top: 0;
-      }
-
-      /* Modal styles */
-      .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-      }
-
-      .modal-content {
-        background: #fff;
-        padding: 20px;
-        border-radius: 10px;
-        width: 400px;
-        max-height: 70vh;
-        overflow-y: auto;
-        color: #222; /* readable on white */
-      }
-
-      .modal-content h3 {
-        color: #7c3aed;
-        text-align: center;
-        margin-top: 0;
-      }
-
-      /* ✅ Dark mode fixes */
-      body.dark .modal-content {
-        background: #222;
-        color: #e5e7eb; /* light gray text for readability */
-      }
-
-      body.dark .modal-content h3 {
-        color: #b48cf0; /* soft purple to match dark theme */
-      }
-
-      /* ✅ Table + general dark text fix */
+      /* Dark mode */
       body.dark table,
       body.dark th,
       body.dark td {
-        color: #d1d5db; /* balanced light gray text */
+        color: #d1d5db;
         border-color: #333;
       }
 
@@ -159,45 +108,31 @@
           <span>CONAN DASHBOARD</span>
         </div>
         <nav class="menu">
-          <a href="dashboard.html">
-            <i class="fa-solid fa-gauge"></i>
-            لوحة القيادة
-          </a>
-
-          <a href="notifications.html" id="notificationLink">
-            <i class="fa-solid fa-bell"></i>
-            التنبيهات
-          </a>
-
-          <a href="analytics.html">
-            <i class="fa-solid fa-rocket"></i>
-            تحليلات
-          </a>
-          <a href="booking.html" class="active">
-            <i class="fa-solid fa-table"></i>
-            جدول التواصل
-          </a>
-
-          <!-- ✅ NEW MENU ITEM ADDED HERE -->
-          <a href="contactlist.html">
-            <i class="fa-solid fa-address-book"></i>
-            قائمة التواصل
-          </a>
-          <!-- ✅ END NEW ITEM -->
-
-          <a href="AIsettings.html">
-            <i class="fa-solid fa-robot"></i>
-            إعدادات الذكاء الاصطناعي
-          </a>
-
-          <a href="offers.html">
-            <i class="fa-solid fa-gift"></i>
-            الحملات الاعلانية
-          </a>
+          <a href="dashboard.html"
+            ><i class="fa-solid fa-gauge"></i> لوحة القيادة</a
+          >
+          <a href="notifications.html"
+            ><i class="fa-solid fa-bell"></i> التنبيهات</a
+          >
+          <a href="analytics.html"
+            ><i class="fa-solid fa-rocket"></i> تحليلات</a
+          >
+          <a href="booking.html" class="active"
+            ><i class="fa-solid fa-table"></i> جدول التواصل</a
+          >
+          <a href="contactlist.html"
+            ><i class="fa-solid fa-address-book"></i> قائمة التواصل</a
+          >
+          <a href="AIsettings.html"
+            ><i class="fa-solid fa-robot"></i> إعدادات الذكاء الاصطناعي</a
+          >
+          <a href="offers.html"
+            ><i class="fa-solid fa-gift"></i> الحملات الاعلانية</a
+          >
         </nav>
       </aside>
 
-      <main class="main-content" id="dashboardContent">
+      <main class="main-content">
         <header class="header">
           <div class="header-left">
             <button class="menu-toggle icon-btn" id="menuToggle">
@@ -216,12 +151,14 @@
           <div class="table-card">
             <h3>جدول الحجوزات</h3>
 
+            <!-- FILTER FIXED -->
             <select id="statusFilter">
               <option value="all">الكل</option>
+              <option value="new">جديد</option>
               <option value="Contacted">تم التواصل</option>
-              <option value="Still">قيد الانتظار</option>
               <option value="Booking Complete">تم الحجز</option>
               <option value="SentNoReply">تم الإرسال ولم يتم الرد</option>
+              <option value="Canceled">ملغى</option>
             </select>
 
             <table id="tbl">
@@ -237,11 +174,6 @@
               </thead>
               <tbody></tbody>
             </table>
-
-            <div class="debug-info" id="debugInfo">
-              <h4>🔍 معلومات التشخيص</h4>
-              <div id="debugContent"></div>
-            </div>
           </div>
         </section>
 
@@ -249,31 +181,7 @@
       </main>
     </div>
 
-    <!-- ✅ History Modal -->
-    <div id="historyModal" class="modal">
-      <div class="modal-content">
-        <h3>سجل التعديلات</h3>
-        <div id="historyContent"></div>
-        <button
-          onclick='document.getElementById("historyModal").style.display="none"'
-          style="
-            margin-top: 10px;
-            width: 100%;
-            padding: 8px;
-            background: #7c3aed;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-          "
-        >
-          إغلاق
-        </button>
-      </div>
-    </div>
-
     <script>
-      // ✅ Supabase setup
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -281,159 +189,77 @@
 
       let allData = [];
 
-      // ✅ Debug log
-      function addDebugLog(msg, type = "info") {
-        const box = document.getElementById("debugInfo");
-        const content = document.getElementById("debugContent");
-        box.style.display = "block";
-        const time = new Date().toLocaleTimeString("ar-EG");
-        const icon = type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
-        content.innerHTML += `<div>[${time}] ${icon} ${msg}</div>`;
-        content.scrollTop = content.scrollHeight;
-        console.log(`[${time}] ${msg}`);
-      }
-
-      // ✅ Load bookings
+      // LOAD BOOKINGS (REAL STATUS)
       async function load() {
-        const { data, error } = await supabase.from("bookings").select("*");
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("*")
+          .order("time", { ascending: false });
+
         if (error) {
-          console.error("Error fetching bookings:", error);
+          console.error(error);
           return;
         }
-        allData = data.map((b) => ({ ...b, status: b.status || "Still" }));
+
+        allData = data;
         applyFilter();
       }
 
-      // ✅ Update status and log history
+      // UPDATE STATUS
       async function updateStatus(id, newStatus, oldStatus) {
-        const { error: updateError } = await supabase
+        await supabase
           .from("bookings")
           .update({ status: newStatus })
           .eq("id", id);
 
-        if (updateError) {
-          console.error("Error updating status:", updateError);
-          addDebugLog(
-            `❌ خطأ في تحديث الحالة: ${updateError.message}`,
-            "error"
-          );
-          return;
-        }
-
-        const { error: logError } = await supabase
-          .from("booking_history")
-          .insert([
-            {
-              booking_id: id,
-              old_status: oldStatus,
-              new_status: newStatus,
-              changed_by: "Admin",
-            },
-          ]);
-
-        if (logError) {
-          console.error("Error logging history:", logError);
-          addDebugLog(
-            `⚠️ فشل تسجيل التعديل في التاريخ: ${logError.message}`,
-            "error"
-          );
-        } else {
-          addDebugLog(
-            `✅ تم تسجيل تعديل الحالة (${oldStatus} → ${newStatus})`,
-            "success"
-          );
-        }
+        await supabase.from("booking_history").insert([
+          {
+            booking_id: id,
+            old_status: oldStatus,
+            new_status: newStatus,
+            changed_by: "Admin",
+          },
+        ]);
       }
 
-      // ✅ Send WhatsApp reminder
-      async function sendWhatsAppReminder(booking, idx) {
-        const indicator = document.getElementById(`sending-${idx}`);
-        indicator.style.display = "inline";
-        addDebugLog(`بدء إرسال تذكير للعميل ${booking.name}`);
-
-        const testPhone = "962781685210";
-
-        const payload = {
-          name: booking.name || "عميلنا الكريم",
-          phone: testPhone,
-          service: booking.service,
-          appointment: booking.appointment || "",
-          image: null,
-        };
-
-        try {
-          addDebugLog("إرسال الطلب إلى WhatsApp API...");
-          const res = await fetch(
-            "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            }
-          );
-
-          const data = await res.json();
-          if (data.success) {
-            await updateStatus(booking.id, "SentNoReply", booking.status);
-            addDebugLog(
-              `✅ تم إرسال التذكير بنجاح إلى ${booking.name}`,
-              "success"
-            );
-            alert(`✅ تم إرسال التذكير بنجاح إلى ${booking.name}`);
-          } else {
-            addDebugLog(`⚠️ فشل الإرسال: ${data.message}`, "error");
-            alert(`⚠️ فشل إرسال التذكير: ${data.message || "خطأ غير معروف"}`);
-          }
-        } catch (err) {
-          addDebugLog(`❌ خطأ في الإرسال: ${err.message}`, "error");
-          alert("❌ خطأ أثناء إرسال التذكير: " + err.message);
-        } finally {
-          indicator.style.display = "none";
-          load();
-        }
-      }
-
-      // ✅ Render table
+      // RENDER TABLE
       function renderTable(data) {
         const tb = document.querySelector("#tbl tbody");
         tb.innerHTML = "";
 
         data.forEach((b, idx) => {
           const row = document.createElement("tr");
+
           row.innerHTML = `
             <td>${b.name || "-"}</td>
             <td>${b.phone || "-"}</td>
             <td>${b.service || "-"}</td>
             <td>${b.appointment || "-"}</td>
             <td>${b.time || "-"}</td>
+
             <td>
-              <div style="display:flex;align-items:center;gap:5px;">
-                <span class="save-indicator" id="saved-${idx}">✔</span>
-                <span class="sending-indicator" id="sending-${idx}">
-                  جاري الإرسال... <span class="spinner"></span>
-                </span>
-                <select class="status-dropdown" data-index="${idx}" data-id="${
+              <select class="status-dropdown" data-index="${idx}" data-id="${
             b.id
           }">
-                  <option value="Contacted" ${
-                    b.status === "Contacted" ? "selected" : ""
-                  }>تم التواصل</option>
-                  <option value="Still" ${
-                    b.status === "Still" ? "selected" : ""
-                  }>قيد الانتظار</option>
-                  <option value="Booking Complete" ${
-                    b.status === "Booking Complete" ? "selected" : ""
-                  }>تم الحجز</option>
-                  <option value="SentNoReply" ${
-                    b.status === "SentNoReply" ? "selected" : ""
-                  }>تم الإرسال ولم يتم الرد</option>
-                </select>
-                <button class="history-btn" data-id="${b.id}">
-                  <i class="fa-solid fa-clock-rotate-left"></i> السجل
-                </button>
-              </div>
+                <option value="new" ${
+                  b.status === "new" ? "selected" : ""
+                }>جديد</option>
+                <option value="Contacted" ${
+                  b.status === "Contacted" ? "selected" : ""
+                }>تم التواصل</option>
+                <option value="Booking Complete" ${
+                  b.status === "Booking Complete" ? "selected" : ""
+                }>تم الحجز</option>
+                <option value="SentNoReply" ${
+                  b.status === "SentNoReply" ? "selected" : ""
+                }>تم الإرسال ولم يتم الرد</option>
+                <option value="Canceled" ${
+                  b.status === "Canceled" ? "selected" : ""
+                }>ملغى</option>
+              </select>
             </td>
           `;
+
           tb.appendChild(row);
         });
 
@@ -441,117 +267,45 @@
           sel.addEventListener("change", async (e) => {
             const index = e.target.dataset.index;
             const id = e.target.dataset.id;
+
             const newStatus = e.target.value;
-            const booking = allData[index];
-            const oldStatus = booking.status; // Capture old status before updating
+            const oldStatus = allData[index].status;
 
             allData[index].status = newStatus;
             await updateStatus(id, newStatus, oldStatus);
-
-            const saved = document.getElementById(`saved-${index}`);
-            saved.style.display = "inline";
-            setTimeout(() => (saved.style.display = "none"), 1500);
-
-            if (newStatus === "SentNoReply") {
-              await sendWhatsAppReminder(booking, index);
-            }
 
             applyFilter();
           });
         });
       }
 
-      // ✅ Filter
+      // FILTER
       function applyFilter() {
         const val = document.getElementById("statusFilter").value;
 
         if (val === "all") {
           renderTable(allData);
-          return;
+        } else {
+          const filtered = allData.filter((b) => b.status === val);
+          renderTable(filtered);
         }
-
-        // Normalize both sides
-        const filtered = allData.filter((b) => {
-          const status = (b.status || "").trim().toLowerCase();
-          return status === val.trim().toLowerCase();
-        });
-
-        renderTable(filtered);
       }
 
       document
         .getElementById("statusFilter")
         .addEventListener("change", applyFilter);
 
-      // ✅ Theme toggle
+      // THEME
       const themeToggle = document.getElementById("themeToggle");
       themeToggle.addEventListener("click", () => {
         document.body.classList.toggle("dark");
-        const icon = themeToggle.querySelector("i");
-        if (document.body.classList.contains("dark")) {
-          icon.classList.replace("fa-moon", "fa-sun");
-          localStorage.setItem("clinic_theme", "dark");
-        } else {
-          icon.classList.replace("fa-sun", "fa-moon");
-          localStorage.setItem("clinic_theme", "light");
-        }
-      });
-      if (localStorage.getItem("clinic_theme") === "dark") {
-        document.body.classList.add("dark");
-        themeToggle.querySelector("i").classList.replace("fa-moon", "fa-sun");
-      }
-
-      // ✅ Sidebar toggle
-      const menuToggle = document.getElementById("menuToggle");
-      const sidebar = document.getElementById("sidebar");
-      menuToggle.addEventListener("click", () =>
-        sidebar.classList.toggle("active")
-      );
-
-      // ✅ Show booking history
-      async function showHistory(bookingId) {
-        const { data, error } = await supabase
-          .from("booking_history")
-          .select("*")
-          .eq("booking_id", bookingId)
-          .order("timestamp", { ascending: false });
-
-        const content = document.getElementById("historyContent");
-        if (error) {
-          content.innerHTML = `<p style="color:red;">خطأ في جلب السجل</p>`;
-          return;
-        }
-
-        if (!data.length) {
-          content.innerHTML = `<p>لا يوجد تعديلات سابقة لهذا الحجز</p>`;
-          return;
-        }
-
-        content.innerHTML = data
-          .map(
-            (h) => `
-            <div style="border-bottom:1px solid #ddd;padding:6px 0;">
-              <b>${h.changed_by || "غير معروف"}</b><br>
-              الحالة: <span style="color:#7c3aed;">${
-                h.old_status
-              }</span> → <span style="color:green;">${h.new_status}</span><br>
-              <small>${new Date(h.timestamp).toLocaleString("ar-EG")}</small>
-            </div>`
-          )
-          .join("");
-
-        document.getElementById("historyModal").style.display = "flex";
-      }
-
-      document.addEventListener("click", (e) => {
-        if (e.target.closest(".history-btn")) {
-          const id = e.target.closest(".history-btn").dataset.id;
-          showHistory(id);
-        }
       });
 
-      // ✅ Auto refresh bookings
-      // ✅✅✅✅✅
+      // SIDEBAR TOGGLE
+      document.getElementById("menuToggle").addEventListener("click", () => {
+        document.getElementById("sidebar").classList.toggle("active");
+      });
+
       load();
       setInterval(load, 15000);
     </script>
