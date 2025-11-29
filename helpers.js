@@ -1,5 +1,5 @@
 /**
- * helpers.js (FINAL MERGED VERSION — Booking logic from OLD version + NEW Cancellation)
+ * helpers.js (FINAL MERGED VERSION — Booking logic from OLD version + NEW Cancellation + NEW Supabase SAVE)
  */
 
 const axios = require("axios");
@@ -10,19 +10,19 @@ const { askAI, validateNameWithAI } = require("./aiHelper");
 // =============================================
 const {
   detectSheetName,
-  saveBooking, // KEEP OLD BOOKING FLOW
-  updateBooking, // KEEP OLD BOOKING FLOW
-  getAllBookings, // KEEP OLD BOOKING FLOW
+  saveBooking, // OLD SAVE (still used inside dual save)
+  updateBooking,
+  getAllBookings,
   testGoogleConnection,
 } = require("./sheetsHelper");
 
 // =============================================
-// 🗄 SUPABASE (USED ONLY FOR CANCELLATION + NOW SAVING)
+// 🗄 SUPABASE (USED FOR CANCELLATION + SAVING NEW BOOKINGS)
 // =============================================
 const {
   findLastBookingByPhone,
   updateBookingStatus,
-  insertBookingToSupabase, // <── NEW IMPORT
+  insertBookingToSupabase, // <── NEW
 } = require("./databaseHelper");
 
 // =============================================
@@ -60,7 +60,30 @@ async function sendTextMessage(to, text) {
 }
 
 // =============================================
-// 📅 APPOINTMENT BUTTONS (FROM OLD VERSION)
+// ⭐ NEW — SAVE TO GOOGLE SHEETS + SUPABASE
+// =============================================
+async function saveBookingDual(booking) {
+  try {
+    // 1️⃣ Save booking to Google Sheets (old flow)
+    await saveBooking(booking);
+
+    // 2️⃣ Save booking to Supabase (new)
+    await insertBookingToSupabase({
+      name: booking.name,
+      phone: booking.phone,
+      service: booking.service,
+      appointment: booking.appointment,
+      status: "new",
+    });
+
+    console.log("✅ Booking saved to BOTH Google Sheets + Supabase!");
+  } catch (err) {
+    console.error("❌ Error saving booking to DB:", err.message);
+  }
+}
+
+// =============================================
+// 📅 APPOINTMENT BUTTONS
 // =============================================
 async function sendAppointmentButtons(to) {
   try {
@@ -242,7 +265,6 @@ async function sendServiceList(to) {
 // ======================================================
 // 🔥 CANCEL BOOKING (SUPABASE + PHONE NORMALIZATION)
 // ======================================================
-
 async function askForCancellationPhone(to) {
   await sendTextMessage(
     to,
@@ -253,7 +275,6 @@ async function askForCancellationPhone(to) {
 async function processCancellation(to, phone) {
   try {
     console.log("📌 Raw phone received:", phone);
-
     phone = phone.replace(/\D/g, "").replace(/^0+/, "");
 
     const booking = await findLastBookingByPhone(phone);
@@ -295,13 +316,13 @@ module.exports = {
 
   // OLD Booking Logic (Google Sheets)
   detectSheetName,
-  saveBooking,
+  saveBooking: saveBookingDual, // <── REPLACED WITH DUAL SAVE
   updateBooking,
   getAllBookings,
   testGoogleConnection,
 
-  // Supabase (NEW)
-  insertBookingToSupabase, // <── ADDED HERE
+  // Supabase
+  insertBookingToSupabase,
 
   // Cancellation
   askForCancellationPhone,
