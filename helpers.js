@@ -1,26 +1,32 @@
 /**
- * helpers.js (FINAL WITH PHONE NORMALIZATION)
+ * helpers.js (FINAL MERGED VERSION — Booking logic from OLD version + NEW Cancellation)
  */
 
 const axios = require("axios");
 const { askAI, validateNameWithAI } = require("./aiHelper");
 
-// Google Sheets helper functions
+// =============================================
+// 📄 GOOGLE SHEETS (OLD BOOKING LOGIC — KEPT EXACTLY)
+// =============================================
 const {
   detectSheetName,
-  saveBooking,
-  updateBooking,
-  getAllBookings,
+  saveBooking, // KEEP OLD BOOKING FLOW
+  updateBooking, // KEEP OLD BOOKING FLOW
+  getAllBookings, // KEEP OLD BOOKING FLOW
   testGoogleConnection,
 } = require("./sheetsHelper");
 
-// Supabase database functions
+// =============================================
+// 🗄 SUPABASE (USED ONLY FOR CANCELLATION)
+// =============================================
 const {
   findLastBookingByPhone,
   updateBookingStatus,
 } = require("./databaseHelper");
 
-// Environment vars
+// =============================================
+// 🌍 ENVIRONMENT VARIABLES
+// =============================================
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
@@ -53,10 +59,12 @@ async function sendTextMessage(to, text) {
 }
 
 // =============================================
-// 📅 APPOINTMENT BUTTONS
+// 📅 APPOINTMENT BUTTONS (FROM OLD VERSION)
 // =============================================
 async function sendAppointmentButtons(to) {
   try {
+    console.log(`📤 Sending appointment buttons to ${to}`);
+
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -94,10 +102,12 @@ async function sendAppointmentOptions(to) {
 }
 
 // =============================================
-// 💊 SERVICE BUTTONS (OLD)
+// 💊 SERVICE BUTTONS (OLD VERSION)
 // =============================================
 async function sendServiceButtons(to) {
   try {
+    console.log(`📤 Sending service buttons to ${to}`);
+
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -140,10 +150,12 @@ async function sendServiceButtons(to) {
 }
 
 // =============================================
-// 💊 SERVICE LIST (NEW)
+// 💊 SERVICE LIST (NEW DROPDOWN)
 // =============================================
 async function sendServiceList(to) {
   try {
+    console.log(`📤 Sending service dropdown list to ${to}`);
+
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -222,17 +234,14 @@ async function sendServiceList(to) {
     console.log("✅ Service list sent");
   } catch (err) {
     console.error("❌ Error sending service list:", err.message);
-    sendServiceButtons(to); // fallback
+    sendServiceButtons(to); // fallback to old buttons
   }
 }
 
 // ======================================================
-// 🔥 CANCEL BOOKING: FIXED WITH PHONE NORMALIZATION
+// 🔥 CANCEL BOOKING (SUPABASE + PHONE NORMALIZATION)
 // ======================================================
 
-/**
- * Step 1 — Ask user for the booking phone number
- */
 async function askForCancellationPhone(to) {
   await sendTextMessage(
     to,
@@ -240,14 +249,11 @@ async function askForCancellationPhone(to) {
   );
 }
 
-/**
- * Step 2 — Normalize phone & cancel booking
- */
 async function processCancellation(to, phone) {
   try {
     console.log("📌 Raw phone received:", phone);
 
-    // 🔥 Normalize phone number (remove 0 at beginning)
+    // Normalize number
     phone = phone.replace(/\D/g, ""); // remove non-digits
     phone = phone.replace(/^0+/, ""); // remove leading zeros
 
@@ -270,30 +276,34 @@ async function processCancellation(to, phone) {
       `🟣 تم إلغاء الحجز بنجاح:\n👤 ${booking.name}\n📅 ${booking.appointment}\n💊 ${booking.service}`
     );
   } catch (err) {
-    console.error("❌ Error processing cancellation:", err.message);
+    console.error("❌ Error during cancellation:", err.message);
     await sendTextMessage(to, "⚠️ حدث خطأ أثناء إلغاء الحجز. حاول لاحقًا.");
   }
 }
 
 // =============================================
-// EXPORTS
+// 📤 EXPORTS
 // =============================================
 module.exports = {
+  // AI
   askAI,
   validateNameWithAI,
 
+  // WhatsApp
   sendTextMessage,
   sendAppointmentButtons,
   sendAppointmentOptions,
   sendServiceButtons,
   sendServiceList,
 
+  // OLD Booking Logic (Google Sheets)
   detectSheetName,
   saveBooking,
   updateBooking,
   getAllBookings,
   testGoogleConnection,
 
+  // Cancellation
   askForCancellationPhone,
   processCancellation,
 };
