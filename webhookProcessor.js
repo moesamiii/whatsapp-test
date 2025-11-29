@@ -1,66 +1,270 @@
 /**
- * webhookProcessor.js (CLEAN ROUTER VERSION)
+ * webhookProcessor.js
  *
- * Purpose:
- * - Only route messages (text/audio/interactive)
- * - No business logic here at all
- * - Prevent conflicts between handlers
+ * Updated to:
+ * - Detect user questions during booking.
+ * - Answer using AI.
+ * - Then return to the correct booking step.
  */
 
 const {
-  handleTextMessage,
-  handleInteractiveMessage,
-} = require("./bookingFlowHandler");
-const { transcribeAudio } = require("./transcriptionService");
+  askAI,
+  validateNameWithAI,
+  sendTextMessage,
+  sendServiceList,
+  sendAppointmentOptions,
+  saveBooking,
+} = require("./helpers");
 
-// ------------------------------------------------------------
-//              🟣 TEXT MESSAGE ROUTER
-// ------------------------------------------------------------
-async function handleTextMessageRouter(text, from) {
-  try {
-    global.tempBookings = global.tempBookings || {};
-    await handleTextMessage(text, from, global.tempBookings);
-  } catch (err) {
-    console.error("❌ Error in handleTextMessageRouter:", err.message);
-  }
+const {
+  transcribeAudio,
+  sendLocationMessages,
+  sendOffersImages,
+  sendDoctorsImages,
+  isLocationRequest,
+  isOffersRequest,
+  isDoctorsRequest,
+  isEnglish,
+} = require("./messageHandlers");
+
+/**
+ * Normalize Arabic digits and non-digit characters into ascii digits string.
+ */
+function normalizeArabicDigits(input = "") {
+  return input
+    .replace(/[^\d٠-٩]/g, "")
+    .replace(/٠/g, "0")
+    .replace(/١/g, "1")
+    .replace(/٢/g, "2")
+    .replace(/٣/g, "3")
+    .replace(/٤/g, "4")
+    .replace(/٥/g, "5")
+    .replace(/٦/g, "6")
+    .replace(/٧/g, "7")
+    .replace(/٨/g, "8")
+    .replace(/٩/g, "9");
 }
 
-// ------------------------------------------------------------
-//              🟡 INTERACTIVE MESSAGE ROUTER
-// ------------------------------------------------------------
-async function handleInteractiveRouter(message, from) {
-  try {
-    global.tempBookings = global.tempBookings || {};
-    await handleInteractiveMessage(message, from, global.tempBookings);
-  } catch (err) {
-    console.error("❌ Error in handleInteractiveRouter:", err.message);
-  }
+/**
+ * Detect if the user is asking a question.
+ */
+function isQuestion(text = "") {
+  if (!text) return false;
+
+  const questionWords = [
+    "?",
+    "كيف",
+    "ليش",
+    "متى",
+    "أين",
+    "وين",
+    "شو",
+    "what",
+    "why",
+    "how",
+    "when",
+    "where",
+    "who",
+  ];
+
+  return (
+    text.trim().endsWith("?") ||
+    questionWords.some((w) => text.toLowerCase().includes(w.toLowerCase()))
+  );
 }
 
-// ------------------------------------------------------------
-//              🔵 AUDIO MESSAGE ROUTER
-// ------------------------------------------------------------
+/**
+ * Detect Friday words.
+ */
+function containsFriday(text = "") {
+  const fridayWords = ["الجمعة", "Friday", "friday"];
+  return fridayWords.some((w) => text.toLowerCase().includes(w.toLowerCase()));
+}
+
+/**
+ * Send booking confirmation message.
+ */
+async function sendBookingConfirmation(to, booking) {
+  await sendTextMessage(
+    to,
+    `✅ تم حفظ حجزك بنجاح:
+👤 ${booking.name}
+📱 ${booking.phone}
+💊 ${booking.service}
+📅 ${booking.appointment}`
+  );
+}
+
+/**
+ * ---------------------------
+ * MAIN AUDIO PROCESSOR
+ * ---------------------------
+ */
 async function handleAudioMessage(message, from) {
   try {
-    global.tempBookings = global.tempBookings || {};
+    const tempBookings = (global.tempBookings = global.tempBookings || {});
 
     const mediaId = message?.audio?.id;
     if (!mediaId) return;
 
+    console.log("🎙️ Audio message received. Transcribing:", mediaId);
+
     const transcript = await transcribeAudio(mediaId);
+
     if (!transcript) {
-      await sendTextMessage(from, "⚠️ لم أتمكن من فهم الصوت، حاول مرة أخرى.");
+      await sendTextMessage(
+        from,
+        "⚠️ لم أتمكن من فهم الرسالة الصوتية، حاول مرة أخرى 🎙️"
+      );
       return;
     }
 
-    await handleTextMessage(transcript, from, global.tempBookings);
+    console.log(`🗣️ User said: "${transcript}"`);
+
+    /* -------------------------------------------------------
+     STEP 1 — QUICK INTENT CHECKS
+    ------------------------------------------------------- */
+
+    if (isLocationRequest(transcript)) {
+      const lang = isEnglish(transcript) ? "en" : "ar";
+      await sendLocationMessages(from, lang);
+      return;
+    }
+
+    if (isOffersRequest(transcript)) {
+      const lang = isEnglish(transcript) ? "en" : "ar";
+      await sendOffersImages(from, lang);
+      return;
+    }
+
+    if (isDoctorsRequest(transcript)) {
+      const lang = isEnglish(transcript) ? "en" : "ar";
+      await sendDoctorsImages(from, lang);
+      return;
+    }
+
+    if (containsFriday(transcript)) {
+      await sendTextMessage(
+        from,
+        "📅 يوم الجمعة عطلة رسمية والعيادة مغلقة، اختر يومًا آخر للحجز 🌷"
+      );
+      setTimeout(async () => {
+        await sendTextMessage(from, "📅 اختر الموعد المناسب لك 👇");
+        await sendAppointmentOptions(from);
+      }, 2000);
+      return;
+    }
+
+    /* -------------------------------------------------------
+     STEP 2 — QUESTION DETECTION (NEW FEATURE)
+    ------------------------------------------------------- */
+
+    if (isQuestion(transcript)) {
+      console.log("❓ Detected question during conversation.");
+
+      // AI answers the question
+      const answer = await askAI(transcript);
+      await sendTextMessage(from, answer);
+
+      // After answering → return to booking stage
+      const userBooking = tempBookings[from];
+
+      if (userBooking) {
+        if (!userBooking.name) {
+          await sendTextMessage(from, "👤 الآن يرجى تزويدي باسمك:");
+        } else if (!userBooking.phone) {
+          await sendTextMessage(from, "📱 الرجاء إرسال رقم جوالك:");
+        } else if (!userBooking.service) {
+          await sendTextMessage(
+            from,
+            "💊 يرجى اختيار الخدمة من القائمة المنسدلة:"
+          );
+        }
+      } else {
+        await sendTextMessage(
+          from,
+          "هل ترغب في بدء الحجز؟ قل: أريد حجز موعد 👍"
+        );
+      }
+
+      return;
+    }
+
+    /* -------------------------------------------------------
+     STEP 3 — BOOKING FLOW
+    ------------------------------------------------------- */
+
+    // No booking yet
+    if (!tempBookings[from]) {
+      if (
+        transcript.includes("حجز") ||
+        transcript.toLowerCase().includes("book") ||
+        transcript.includes("موعد") ||
+        transcript.includes("appointment")
+      ) {
+        tempBookings[from] = {}; // start session
+        await sendAppointmentOptions(from);
+      } else {
+        // Regular AI chat
+        const reply = await askAI(transcript);
+        await sendTextMessage(from, reply);
+      }
+      return;
+    }
+
+    // User must send name
+    if (!tempBookings[from].name) {
+      const isValidName = await validateNameWithAI(transcript);
+
+      if (!isValidName) {
+        await sendTextMessage(
+          from,
+          "⚠️ الرجاء إدخال اسم حقيقي مثل: أحمد، محمد علي، سارة..."
+        );
+        return;
+      }
+
+      tempBookings[from].name = transcript;
+
+      await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
+      return;
+    }
+
+    // User must send phone
+    if (!tempBookings[from].phone) {
+      const normalized = normalizeArabicDigits(transcript);
+
+      if (!/^07\d{8}$/.test(normalized)) {
+        await sendTextMessage(
+          from,
+          "⚠️ الرجاء إدخال رقم أردني صحيح مثل: 078XXXXXXX"
+        );
+        return;
+      }
+
+      tempBookings[from].phone = normalized;
+
+      await sendServiceList(from);
+      await sendTextMessage(from, "💊 يرجى اختيار الخدمة من القائمة المنسدلة:");
+      return;
+    }
+
+    // User selects service
+    if (!tempBookings[from].service) {
+      tempBookings[from].service = transcript;
+
+      const booking = tempBookings[from];
+
+      await saveBooking(booking);
+      await sendBookingConfirmation(from, booking);
+
+      delete tempBookings[from];
+      return;
+    }
   } catch (err) {
-    console.error("❌ Error in handleAudioMessage:", err.message);
+    console.error("❌ Audio processing error:", err);
+    throw err;
   }
 }
 
-module.exports = {
-  handleTextMessageRouter,
-  handleInteractiveRouter,
-  handleAudioMessage,
-};
+module.exports = { handleAudioMessage };
