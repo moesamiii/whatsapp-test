@@ -1,17 +1,21 @@
-// Fix fetch issue in Vercel
-const fetch = require("cross-fetch");
-global.fetch = fetch;
-
-/**
- * databaseHelper.js
- */
 const { createClient } = require("@supabase/supabase-js");
 
-const supabase = createClient(
+// ==============================================
+// 🔥 Create Supabase client (WORKS ON VERCEL)
+// ==============================================
+const supabase = new createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
+  process.env.SUPABASE_SERVICE_KEY,
+  {
+    global: {
+      fetch: (...args) => fetch(...args), // ensures fetch works on Vercel
+    },
+  }
 );
 
+// ==============================================
+// 📌 Normalize phone number
+// ==============================================
 function normalizePhone(phone) {
   if (!phone) return "";
   let cleaned = phone.toString().replace(/\D/g, "");
@@ -19,43 +23,57 @@ function normalizePhone(phone) {
   return cleaned;
 }
 
-async function findLastBookingByPhone(rawPhone) {
+// ==============================================
+// 🔍 Find booking by phone
+// ==============================================
+async function findLastBookingByPhone(phoneInput) {
   try {
-    const normalized = normalizePhone(rawPhone);
+    const normalized = normalizePhone(phoneInput);
+
     console.log("📌 Searching for phone:", normalized);
 
+    // Try normalized phone
     let { data, error } = await supabase
       .from("bookings")
       .select("*")
       .eq("phone", normalized)
-      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
       .limit(1);
 
     if (error) {
-      console.error("❌ Supabase error:", error.message);
+      console.error("❌ Supabase error:", error);
       return null;
     }
 
-    if (data?.length) return data[0];
+    if (data && data.length > 0) return data[0];
 
-    const raw = rawPhone.toString().replace(/\D/g, "");
+    // Try raw phone as backup
+    const raw = phoneInput.toString().replace(/\D/g, "");
 
     ({ data, error } = await supabase
       .from("bookings")
       .select("*")
       .eq("phone", raw)
-      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
       .limit(1));
 
-    if (error) return null;
+    if (error) {
+      console.error("❌ Supabase fallback error:", error);
+      return null;
+    }
 
-    return data?.length ? data[0] : null;
-  } catch (err) {
-    console.error("❌ Unexpected error:", err.message);
+    if (data && data.length > 0) return data[0];
+
+    return null;
+  } catch (e) {
+    console.error("❌ findLastBookingByPhone error:", e);
     return null;
   }
 }
 
+// ==============================================
+// ✏️ Update booking status
+// ==============================================
 async function updateBookingStatus(id, newStatus) {
   try {
     const { error } = await supabase
@@ -64,12 +82,13 @@ async function updateBookingStatus(id, newStatus) {
       .eq("id", id);
 
     if (error) {
-      console.error("❌ Supabase update error:", error.message);
+      console.error("❌ updateBookingStatus error:", error);
       return false;
     }
+
     return true;
-  } catch (err) {
-    console.error("❌ Unexpected error:", err.message);
+  } catch (e) {
+    console.error("❌ Unexpected error:", e);
     return false;
   }
 }
