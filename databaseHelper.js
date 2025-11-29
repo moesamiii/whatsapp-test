@@ -11,21 +11,18 @@ function getSupabase() {
 }
 
 // ==============================================
-// Normalize phone
+// Normalize phone (FIXED "do NOT remove leading zero")
 // ==============================================
 function normalizePhone(phone) {
   if (!phone) return "";
-  let cleaned = phone.toString().replace(/\D/g, "");
-  cleaned = cleaned.replace(/^0+/, "");
-  return cleaned;
+  return phone.toString().replace(/\D/g, "");
 }
 
 // ==============================================
-// Save NEW booking into Supabase (FIXED)
+// Save NEW booking into Supabase
 // ==============================================
 async function insertBookingToSupabase(booking) {
   try {
-    // 🔥 CHECK ENV INSIDE, not at top level
     console.log(
       "🔑 SUPABASE_SERVICE_KEY:",
       process.env.SUPABASE_SERVICE_KEY ? "Loaded" : "❌ NOT LOADED"
