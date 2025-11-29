@@ -1,4 +1,7 @@
-// helpers.js (UPDATED WITH CANCEL BOOKING FEATURE)
+/**
+ * helpers.js (FINAL WITH PHONE NORMALIZATION)
+ */
+
 const axios = require("axios");
 const { askAI, validateNameWithAI } = require("./aiHelper");
 
@@ -11,23 +14,23 @@ const {
   testGoogleConnection,
 } = require("./sheetsHelper");
 
-// 🔥 NEW — Database helper functions (for status updates only)
+// Supabase database functions
 const {
   findLastBookingByPhone,
   updateBookingStatus,
-} = require("./databaseHelper"); // <-- YOU MUST CREATE THIS FILE (I'll send it next)
+} = require("./databaseHelper");
 
-// Environment variables
+// Environment vars
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
 // =============================================
-// 💬 WHATSAPP MESSAGING FUNCTIONS
+// 💬 SEND WHATSAPP TEXT MESSAGE
 // =============================================
-
 async function sendTextMessage(to, text) {
   try {
-    console.log(`📤 DEBUG => Sending WhatsApp message to ${to}:`, text);
+    console.log(`📤 Sending WhatsApp message to ${to}:`, text);
+
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -42,20 +45,17 @@ async function sendTextMessage(to, text) {
         },
       }
     );
-    console.log("✅ DEBUG => Message sent successfully");
+
+    console.log("✅ Message sent successfully");
   } catch (err) {
-    console.error(
-      "❌ DEBUG => WhatsApp send error:",
-      err.response?.data || err.message
-    );
+    console.error("❌ WhatsApp send error:", err.response?.data || err.message);
   }
 }
 
-// ---------------------------------------------
-// 📅 Appointment Buttons
-// ---------------------------------------------
+// =============================================
+// 📅 APPOINTMENT BUTTONS
+// =============================================
 async function sendAppointmentButtons(to) {
-  console.log(`📤 DEBUG => Sending appointment buttons to ${to}`);
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -82,6 +82,7 @@ async function sendAppointmentButtons(to) {
         },
       }
     );
+
     console.log("✅ Appointment buttons sent");
   } catch (err) {
     console.error("❌ Error sending appointment buttons:", err.message);
@@ -89,15 +90,13 @@ async function sendAppointmentButtons(to) {
 }
 
 async function sendAppointmentOptions(to) {
-  console.log(`📤 DEBUG => Sending appointment options to ${to}`);
-  await sendAppointmentButtons(to);
+  return sendAppointmentButtons(to);
 }
 
-// ---------------------------------------------
-// 💊 Service Buttons (OLD)
-// ---------------------------------------------
+// =============================================
+// 💊 SERVICE BUTTONS (OLD)
+// =============================================
 async function sendServiceButtons(to) {
-  console.log(`📤 DEBUG => Sending service buttons to ${to}`);
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -133,17 +132,17 @@ async function sendServiceButtons(to) {
         },
       }
     );
+
     console.log("✅ Service buttons sent");
   } catch (err) {
     console.error("❌ Error sending service buttons:", err.message);
   }
 }
 
-// ---------------------------------------------
-// 💊 Service Dropdown List (NEW)
-// ---------------------------------------------
+// =============================================
+// 💊 SERVICE LIST (NEW)
+// =============================================
 async function sendServiceList(to) {
-  console.log(`📤 DEBUG => Sending service dropdown list to ${to}`);
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -153,13 +152,8 @@ async function sendServiceList(to) {
         type: "interactive",
         interactive: {
           type: "list",
-          header: {
-            type: "text",
-            text: "💊 اختر الخدمة المطلوبة",
-          },
-          body: {
-            text: "يرجى اختيار نوع الخدمة من القائمة:",
-          },
+          header: { type: "text", text: "💊 اختر الخدمة المطلوبة" },
+          body: { text: "يرجى اختيار نوع الخدمة من القائمة:" },
           action: {
             button: "عرض الخدمات",
             sections: [
@@ -169,22 +163,22 @@ async function sendServiceList(to) {
                   {
                     id: "service_فحص_عام",
                     title: "فحص عام",
-                    description: "فحص شامل للأسنان والتشخيص",
+                    description: "فحص شامل للأسنان",
                   },
                   {
                     id: "service_تنظيف_الأسنان",
                     title: "تنظيف الأسنان",
-                    description: "تنظيف وإزالة الجير والتصبغات",
+                    description: "تنظيف وإزالة الجير",
                   },
                   {
                     id: "service_تبييض_الأسنان",
                     title: "تبييض الأسنان",
-                    description: "تبييض الأسنان بالليزر",
+                    description: "تبييض بالليزر",
                   },
                   {
                     id: "service_حشو_الأسنان",
                     title: "حشو الأسنان",
-                    description: "علاج التسوس وحشو الأسنان",
+                    description: "علاج التسوس",
                   },
                 ],
               },
@@ -194,12 +188,12 @@ async function sendServiceList(to) {
                   {
                     id: "service_علاج_الجذور",
                     title: "علاج الجذور",
-                    description: "علاج قناة الجذر والعصب",
+                    description: "قناة الجذر",
                   },
                   {
                     id: "service_تركيب_التركيبات",
-                    title: "تركيب التركيبات",
-                    description: "تركيب التيجان والجسور",
+                    title: "التركيبات",
+                    description: "تيجان وجسور",
                   },
                   {
                     id: "service_تقويم_الأسنان",
@@ -224,19 +218,20 @@ async function sendServiceList(to) {
         },
       }
     );
+
     console.log("✅ Service list sent");
   } catch (err) {
     console.error("❌ Error sending service list:", err.message);
-    await sendServiceButtons(to); // fallback
+    sendServiceButtons(to); // fallback
   }
 }
 
 // ======================================================
-// 🔥🔥🔥 NEW — CANCEL BOOKING FEATURE
+// 🔥 CANCEL BOOKING: FIXED WITH PHONE NORMALIZATION
 // ======================================================
 
 /**
- * Step 1 ⮕ Ask user for phone number when they say "cancel"
+ * Step 1 — Ask user for the booking phone number
  */
 async function askForCancellationPhone(to) {
   await sendTextMessage(
@@ -246,11 +241,17 @@ async function askForCancellationPhone(to) {
 }
 
 /**
- * Step 2 ⮕ Process cancellation once phone is received
+ * Step 2 — Normalize phone & cancel booking
  */
 async function processCancellation(to, phone) {
   try {
-    console.log("🔍 Looking for last booking with phone:", phone);
+    console.log("📌 Raw phone received:", phone);
+
+    // 🔥 Normalize phone number (remove 0 at beginning)
+    phone = phone.replace(/\D/g, ""); // remove non-digits
+    phone = phone.replace(/^0+/, ""); // remove leading zeros
+
+    console.log("📌 Normalized phone:", phone);
 
     const booking = await findLastBookingByPhone(phone);
 
@@ -262,7 +263,6 @@ async function processCancellation(to, phone) {
       return;
     }
 
-    // Update status → Canceled (OFFICIAL CHOICE)
     await updateBookingStatus(booking.id, "Canceled");
 
     await sendTextMessage(
@@ -279,25 +279,21 @@ async function processCancellation(to, phone) {
 // EXPORTS
 // =============================================
 module.exports = {
-  // AI
   askAI,
   validateNameWithAI,
 
-  // WhatsApp
   sendTextMessage,
   sendAppointmentButtons,
   sendAppointmentOptions,
   sendServiceButtons,
   sendServiceList,
 
-  // Sheets
   detectSheetName,
   saveBooking,
   updateBooking,
   getAllBookings,
   testGoogleConnection,
 
-  // NEW — CANCEL BOOKING
   askForCancellationPhone,
   processCancellation,
 };

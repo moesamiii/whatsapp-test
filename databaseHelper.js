@@ -1,10 +1,11 @@
 /**
- * databaseHelper.js
+ * databaseHelper.js (FINAL)
  *
- * Purpose:
- * - Handle all Supabase database operations
+ * Handles:
+ * - Supabase connection
+ * - Normalize phone number
  * - Find booking by phone
- * - Update booking status (including cancellation)
+ * - Update booking status
  */
 
 const { createClient } = require("@supabase/supabase-js");
@@ -18,15 +19,32 @@ const supabase = createClient(
 );
 
 // ==============================================
-// 🔍 1) Find last booking by phone
+// 📌 Normalize phone number
 // ==============================================
-async function findLastBookingByPhone(phone) {
+function normalizePhone(phone) {
+  if (!phone) return "";
+
+  let cleaned = phone.toString().replace(/\D/g, ""); // remove non-digits
+  cleaned = cleaned.replace(/^0+/, ""); // remove leading zeros
+
+  return cleaned;
+}
+
+// ==============================================
+// 🔍 1) Find last booking by phone (smart search)
+// ==============================================
+async function findLastBookingByPhone(rawPhone) {
   try {
-    const { data, error } = await supabase
+    const normalized = normalizePhone(rawPhone);
+
+    console.log("📌 Searching for phone:", normalized);
+
+    // Try EXACT match first
+    let { data, error } = await supabase
       .from("bookings")
       .select("*")
-      .eq("phone", phone)
-      .order("id", { ascending: false }) // newest first
+      .eq("phone", normalized)
+      .order("id", { ascending: false })
       .limit(1);
 
     if (error) {
@@ -34,7 +52,33 @@ async function findLastBookingByPhone(phone) {
       return null;
     }
 
-    return data && data.length > 0 ? data[0] : null;
+    if (data && data.length > 0) {
+      console.log("✅ Found booking by normalized phone");
+      return data[0];
+    }
+
+    // Try match original phone (backup)
+    const raw = rawPhone.toString().replace(/\D/g, "");
+
+    ({ data, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("phone", raw)
+      .order("id", { ascending: false })
+      .limit(1));
+
+    if (error) {
+      console.error("❌ Supabase error (fallback):", error.message);
+      return null;
+    }
+
+    if (data && data.length > 0) {
+      console.log("✅ Found booking by RAW phone");
+      return data[0];
+    }
+
+    console.log("⚠️ No booking found");
+    return null;
   } catch (err) {
     console.error(
       "❌ Unexpected error in findLastBookingByPhone:",
@@ -59,6 +103,7 @@ async function updateBookingStatus(id, newStatus) {
       return false;
     }
 
+    console.log("✅ Booking status updated →", newStatus);
     return true;
   } catch (err) {
     console.error("❌ Unexpected error in updateBookingStatus:", err.message);
