@@ -11,7 +11,7 @@ const {
   askAI,
   sendTextMessage,
   sendAppointmentOptions,
-  saveBooking, // <── now saves ONLY to Supabase (helpers.js)
+  insertBookingToSupabase, // ✔ FIXED — USE THIS
   askForCancellationPhone,
   processCancellation,
 } = require("./helpers");
@@ -35,7 +35,6 @@ function getSession(userId) {
       waitingForOffersConfirmation: false,
       waitingForDoctorConfirmation: false,
       waitingForBookingDetails: false,
-
       waitingForCancelPhone: false,
       lastIntent: null,
     };
@@ -80,8 +79,8 @@ async function handleInteractiveMessage(message, from, tempBookings) {
     tempBookings[from].service = serviceName;
     const booking = tempBookings[from];
 
-    // 1️⃣ SAVE BOOKING (helpers.js → ONLY Supabase)
-    await saveBooking(booking);
+    // 1️⃣ SAVE BOOKING → SUPABASE ONLY (FIXED)
+    await insertBookingToSupabase(booking);
 
     // 2️⃣ Confirmation
     await sendTextMessage(
