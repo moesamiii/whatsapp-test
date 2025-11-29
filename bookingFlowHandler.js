@@ -1,5 +1,5 @@
 /**
- * bookingFlowHandler.js (FINAL UPDATED WITH CANCEL FEATURE)
+ * bookingFlowHandler.js (UPDATED — Save bookings to BOTH Google Sheets + Supabase)
  *
  * Responsibilities:
  * - Handle booking flow (name → phone → service)
@@ -14,6 +14,7 @@ const {
   saveBooking,
   askForCancellationPhone,
   processCancellation,
+  insertBookingToSupabase, // <── NEW IMPORT
 } = require("./helpers");
 
 const { isBookingRequest, isCancelRequest } = require("./messageHandlers");
@@ -36,7 +37,7 @@ function getSession(userId) {
       waitingForDoctorConfirmation: false,
       waitingForBookingDetails: false,
 
-      waitingForCancelPhone: false, // NEW
+      waitingForCancelPhone: false,
       lastIntent: null,
     };
   }
@@ -79,8 +80,13 @@ async function handleInteractiveMessage(message, from, tempBookings) {
     tempBookings[from].service = serviceName;
     const booking = tempBookings[from];
 
+    // 1️⃣ Save to Google Sheet
     await saveBooking(booking);
 
+    // 2️⃣ Save to Supabase (NEW)
+    await insertBookingToSupabase(booking);
+
+    // 3️⃣ Confirmation
     await sendTextMessage(
       from,
       `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
@@ -109,7 +115,7 @@ async function handleTextMessage(text, from, tempBookings) {
   if (isCancelRequest(text)) {
     session.waitingForCancelPhone = true;
 
-    // stop any booking flow currently running
+    // Stop any booking flow currently running
     if (tempBookings[from]) delete tempBookings[from];
 
     await askForCancellationPhone(from);

@@ -1,5 +1,5 @@
 /**
- * helpers.js (FINAL MERGED VERSION — Booking logic from OLD version + NEW Cancellation)
+ * helpers.js (UPDATED — Now saves new bookings to BOTH Google Sheets + Supabase)
  */
 
 const axios = require("axios");
@@ -17,11 +17,12 @@ const {
 } = require("./sheetsHelper");
 
 // =============================================
-// 🗄 SUPABASE (USED ONLY FOR CANCELLATION)
+// 🗄 SUPABASE — NOW USED FOR SAVING + CANCELLATION
 // =============================================
 const {
   findLastBookingByPhone,
   updateBookingStatus,
+  insertBookingToSupabase, // <── NEW FUNCTION
 } = require("./databaseHelper");
 
 // =============================================
@@ -59,7 +60,7 @@ async function sendTextMessage(to, text) {
 }
 
 // =============================================
-// 📅 APPOINTMENT BUTTONS (FROM OLD VERSION)
+// 📅 APPOINTMENT BUTTONS
 // =============================================
 async function sendAppointmentButtons(to) {
   try {
@@ -234,7 +235,7 @@ async function sendServiceList(to) {
     console.log("✅ Service list sent");
   } catch (err) {
     console.error("❌ Error sending service list:", err.message);
-    sendServiceButtons(to); // fallback to old buttons
+    sendServiceButtons(to); // fallback
   }
 }
 
@@ -253,11 +254,7 @@ async function processCancellation(to, phone) {
   try {
     console.log("📌 Raw phone received:", phone);
 
-    // Normalize number
-    phone = phone.replace(/\D/g, ""); // remove non-digits
-    phone = phone.replace(/^0+/, ""); // remove leading zeros
-
-    console.log("📌 Normalized phone:", phone);
+    phone = phone.replace(/\D/g, "").replace(/^0+/, "");
 
     const booking = await findLastBookingByPhone(phone);
 
@@ -296,12 +293,15 @@ module.exports = {
   sendServiceButtons,
   sendServiceList,
 
-  // OLD Booking Logic (Google Sheets)
+  // OLD Booking Logic
   detectSheetName,
   saveBooking,
   updateBooking,
   getAllBookings,
   testGoogleConnection,
+
+  // Supabase
+  insertBookingToSupabase, // <── NEW EXPORT
 
   // Cancellation
   askForCancellationPhone,

@@ -1,5 +1,5 @@
 /**
- * bookingSteps.js
+ * bookingSteps.js (UPDATED — Now saves booking to BOTH Google Sheets + Supabase)
  *
  * Responsibilities:
  * - Handle individual booking steps (name, phone, service)
@@ -14,6 +14,7 @@ const {
   sendTextMessage,
   sendServiceList,
   saveBooking,
+  insertBookingToSupabase, // <── NEW IMPORT
 } = require("./helpers");
 
 /**
@@ -221,11 +222,19 @@ async function handleServiceStep(text, from, tempBookings) {
     return;
   }
 
-  // Service accepted → save booking
+  // ============================================
+  // ✔ SERVICE MATCHED → SAVE BOOKING (SHEETS + DB)
+  // ============================================
+
   booking.service = matchedService;
 
+  // 1) Save to Google Sheet
   await saveBooking(booking);
 
+  // 2) Save to Supabase (NEW)
+  await insertBookingToSupabase(booking);
+
+  // 3) Confirmation message
   await sendTextMessage(
     from,
     `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`

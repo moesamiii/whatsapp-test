@@ -1,4 +1,3 @@
-console.log("🔑 SUPABASE_URL:", process.env.SUPABASE_URL);
 console.log(
   "🔑 SUPABASE_SERVICE_KEY:",
   process.env.SUPABASE_SERVICE_KEY ? "Loaded" : "❌ NOT LOADED"
@@ -27,11 +26,47 @@ function normalizePhone(phone) {
 }
 
 // ==============================================
+// Save NEW booking into Supabase (NEW FUNCTION)
+// ==============================================
+async function insertBookingToSupabase(booking) {
+  try {
+    const supabase = getSupabase();
+
+    const now = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from("bookings")
+      .insert([
+        {
+          name: booking.name,
+          phone: booking.phone,
+          service: booking.service,
+          appointment: booking.appointment,
+          time: now,
+          status: "new",
+        },
+      ])
+      .select();
+
+    if (error) {
+      console.error("❌ Supabase insert error:", error.message);
+      return null;
+    }
+
+    console.log("✅ Saved to Supabase:", data);
+    return data;
+  } catch (err) {
+    console.error("❌ Unexpected Supabase insert error:", err.message);
+    return null;
+  }
+}
+
+// ==============================================
 // Find last booking by phone
 // ==============================================
 async function findLastBookingByPhone(rawPhone) {
   try {
-    const supabase = getSupabase(); // <── FIX 🔥🔥🔥
+    const supabase = getSupabase();
 
     const normalized = normalizePhone(rawPhone);
     console.log("📌 Searching for phone:", normalized);
@@ -40,7 +75,7 @@ async function findLastBookingByPhone(rawPhone) {
       .from("bookings")
       .select("*")
       .eq("phone", normalized)
-      .order("id", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(1);
 
     if (error) {
@@ -50,23 +85,6 @@ async function findLastBookingByPhone(rawPhone) {
 
     if (data && data.length > 0) return data[0];
 
-    // fallback
-    const raw = rawPhone.toString().replace(/\D/g, "");
-
-    const { data: rawData, error: rawErr } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("phone", raw)
-      .order("id", { ascending: false })
-      .limit(1);
-
-    if (rawErr) {
-      console.error("❌ Supabase fallback error:", rawErr.message);
-      return null;
-    }
-
-    if (rawData && rawData.length > 0) return rawData[0];
-
     return null;
   } catch (err) {
     console.error("❌ Unexpected Supabase find error:", err.message);
@@ -75,11 +93,11 @@ async function findLastBookingByPhone(rawPhone) {
 }
 
 // ==============================================
-// Update booking
+// Update booking - cancel
 // ==============================================
 async function updateBookingStatus(id, newStatus) {
   try {
-    const supabase = getSupabase(); // <── FIX 🔥🔥🔥
+    const supabase = getSupabase();
 
     const { error } = await supabase
       .from("bookings")
@@ -101,4 +119,5 @@ async function updateBookingStatus(id, newStatus) {
 module.exports = {
   findLastBookingByPhone,
   updateBookingStatus,
+  insertBookingToSupabase, // <── NEW EXPORT
 };
