@@ -1,3 +1,4 @@
+require("cross-fetch/polyfill");
 /**
  * databaseHelper.js (FINAL)
  *
