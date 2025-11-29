@@ -1,23 +1,12 @@
 /**
- * helpers.js (FINAL VERSION — Save ONLY to SUPABASE)
+ * helpers.js (FINAL — Supabase ONLY, No Google Sheets)
  */
 
 const axios = require("axios");
 const { askAI, validateNameWithAI } = require("./aiHelper");
 
 // =============================================
-// ❌ GOOGLE SHEETS (old booking logic — KEEP FUNCTIONS but NOT USED)
-// =============================================
-const {
-  detectSheetName,
-  saveBooking, // NOT USED ANYMORE
-  updateBooking,
-  getAllBookings,
-  testGoogleConnection,
-} = require("./sheetsHelper");
-
-// =============================================
-// 🗄 SUPABASE (USED FOR NEW BOOKINGS + CANCELLATION)
+// 🗄 SUPABASE — ALL BOOKING LOGIC HERE
 // =============================================
 const {
   findLastBookingByPhone,
@@ -36,7 +25,7 @@ const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 // =============================================
 async function sendTextMessage(to, text) {
   try {
-    console.log(`📤 Sending WhatsApp message to ${to}:`, text);
+    console.log(`📤 Sending WhatsApp: ${to}`, text);
 
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -52,36 +41,15 @@ async function sendTextMessage(to, text) {
         },
       }
     );
-
-    console.log("✅ Message sent successfully");
   } catch (err) {
     console.error("❌ WhatsApp send error:", err.response?.data || err.message);
   }
 }
 
 // =============================================
-// ⭐ NEW — SAVE ONLY TO SUPABASE
-// =============================================
-async function saveBookingSupabaseOnly(booking) {
-  try {
-    await insertBookingToSupabase({
-      name: booking.name,
-      phone: booking.phone,
-      service: booking.service,
-      appointment: booking.appointment,
-      status: "new",
-    });
-
-    console.log("✅ Booking saved to SUPABASE successfully!");
-  } catch (err) {
-    console.error("❌ Error saving booking to Supabase:", err.message);
-  }
-}
-
-// =============================================
 // 📅 APPOINTMENT BUTTONS
 // =============================================
-async function sendAppointmentButtons(to) {
+async function sendAppointmentOptions(to) {
   try {
     await axios.post(
       `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
@@ -104,60 +72,11 @@ async function sendAppointmentButtons(to) {
       {
         headers: {
           Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
         },
       }
     );
   } catch (err) {
-    console.error("❌ Error sending appointment buttons:", err.message);
-  }
-}
-
-async function sendAppointmentOptions(to) {
-  return sendAppointmentButtons(to);
-}
-
-// =============================================
-// 💊 SERVICE BUTTONS
-// =============================================
-async function sendServiceButtons(to) {
-  try {
-    await axios.post(
-      `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to,
-        type: "interactive",
-        interactive: {
-          type: "button",
-          body: { text: "💊 اختر نوع الخدمة المطلوبة:" },
-          action: {
-            buttons: [
-              {
-                type: "reply",
-                reply: { id: "service_تنظيف", title: "تنظيف الأسنان" },
-              },
-              {
-                type: "reply",
-                reply: { id: "service_تبييض", title: "تبييض الأسنان" },
-              },
-              {
-                type: "reply",
-                reply: { id: "service_حشو", title: "حشو الأسنان" },
-              },
-            ],
-          },
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-  } catch (err) {
-    console.error("❌ Error sending service buttons:", err.message);
+    console.error("❌ Appointment button error:", err.message);
   }
 }
 
@@ -175,58 +94,26 @@ async function sendServiceList(to) {
         interactive: {
           type: "list",
           header: { type: "text", text: "💊 اختر الخدمة المطلوبة" },
-          body: { text: "يرجى اختيار نوع الخدمة من القائمة:" },
+          body: { text: "اختر نوع الخدمة من القائمة:" },
           action: {
             button: "عرض الخدمات",
             sections: [
               {
                 title: "الخدمات الأساسية",
                 rows: [
-                  {
-                    id: "service_فحص_عام",
-                    title: "فحص عام",
-                    description: "فحص شامل للأسنان",
-                  },
-                  {
-                    id: "service_تنظيف_الأسنان",
-                    title: "تنظيف الأسنان",
-                    description: "تنظيف وإزالة الجير",
-                  },
-                  {
-                    id: "service_تبييض_الأسنان",
-                    title: "تبييض الأسنان",
-                    description: "تبييض بالليزر",
-                  },
-                  {
-                    id: "service_حشو_الأسنان",
-                    title: "حشو الأسنان",
-                    description: "علاج التسوس",
-                  },
+                  { id: "service_فحص عام", title: "فحص عام" },
+                  { id: "service_تنظيف الأسنان", title: "تنظيف الأسنان" },
+                  { id: "service_تبييض الأسنان", title: "تبييض الأسنان" },
+                  { id: "service_حشو الأسنان", title: "حشو الأسنان" },
                 ],
               },
               {
                 title: "الخدمات المتقدمة",
                 rows: [
-                  {
-                    id: "service_علاج_الجذور",
-                    title: "علاج الجذور",
-                    description: "قناة الجذر",
-                  },
-                  {
-                    id: "service_تركيب_التركيبات",
-                    title: "التركيبات",
-                    description: "تيجان وجسور",
-                  },
-                  {
-                    id: "service_تقويم_الأسنان",
-                    title: "تقويم الأسنان",
-                    description: "تنظيم الأسنان",
-                  },
-                  {
-                    id: "service_خلع_الأسنان",
-                    title: "خلع الأسنان",
-                    description: "خلع بسيط أو جراحي",
-                  },
+                  { id: "service_علاج الجذور", title: "علاج الجذور" },
+                  { id: "service_تركيب التركيبات", title: "التركيبات" },
+                  { id: "service_تقويم الأسنان", title: "تقويم الأسنان" },
+                  { id: "service_خلع الأسنان", title: "خلع الأسنان" },
                 ],
               },
             ],
@@ -236,13 +123,11 @@ async function sendServiceList(to) {
       {
         headers: {
           Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
         },
       }
     );
   } catch (err) {
-    console.error("❌ Error sending service list:", err.message);
-    sendServiceButtons(to);
+    console.error("❌ Service list error:", err.message);
   }
 }
 
@@ -252,21 +137,16 @@ async function sendServiceList(to) {
 async function askForCancellationPhone(to) {
   await sendTextMessage(
     to,
-    "📌 من فضلك ارسل رقم الجوال المستخدم في الحجز حتى أقوم بإلغاء الحجز."
+    "📌 أرسل رقم الجوال المستخدم بالحجز لإلغاء الموعد."
   );
 }
 
 async function processCancellation(to, phone) {
   try {
-    phone = phone.replace(/\D/g, "").replace(/^0+/, "");
-
     const booking = await findLastBookingByPhone(phone);
 
     if (!booking) {
-      await sendTextMessage(
-        to,
-        "❌ لم أجد أي حجز مرتبط بهذا الرقم. تأكد من كتابته بشكل صحيح."
-      );
+      await sendTextMessage(to, "❌ لا يوجد حجز مرتبط بهذا الرقم.");
       return;
     }
 
@@ -274,11 +154,11 @@ async function processCancellation(to, phone) {
 
     await sendTextMessage(
       to,
-      `🟣 تم إلغاء الحجز بنجاح:\n👤 ${booking.name}\n📅 ${booking.appointment}\n💊 ${booking.service}`
+      `🟣 تم إلغاء الحجز:\n👤 ${booking.name}\n💊 ${booking.service}\n📅 ${booking.appointment}`
     );
   } catch (err) {
-    console.error("❌ Error during cancellation:", err.message);
-    await sendTextMessage(to, "⚠️ حدث خطأ أثناء إلغاء الحجز. حاول لاحقًا.");
+    console.error("❌ Cancel error:", err.message);
+    await sendTextMessage(to, "⚠️ حدث خطأ أثناء الإلغاء. حاول لاحقًا.");
   }
 }
 
@@ -292,21 +172,10 @@ module.exports = {
 
   // WhatsApp
   sendTextMessage,
-  sendAppointmentButtons,
   sendAppointmentOptions,
-  sendServiceButtons,
   sendServiceList,
 
-  // Booking: use ONLY Supabase
-  saveBooking: saveBookingSupabaseOnly,
-
-  // Keep Sheets helpers (even if unused)
-  detectSheetName,
-  updateBooking,
-  getAllBookings,
-  testGoogleConnection,
-
-  // Supabase
+  // Supabase ONLY
   insertBookingToSupabase,
 
   // Cancellation
