@@ -2,10 +2,10 @@
  * bookingSteps.js
  *
  * Responsibilities:
- * - Handle individual booking steps (name, phone, service).
- * - Validate input for each step.
- * - Handle side questions during each step.
- * - Perform service keyword matching and validation.
+ * - Handle individual booking steps (name, phone, service)
+ * - Validate each step
+ * - Handle side questions during booking (AI answer + return to step)
+ * - Fuzzy keyword detection for services
  */
 
 const {
@@ -17,7 +17,7 @@ const {
 } = require("./helpers");
 
 /**
- * Detect if message is a side question
+ * Detect if message is a side question during booking
  */
 function isSideQuestion(text = "") {
   if (!text) return false;
@@ -38,15 +38,15 @@ function isSideQuestion(text = "") {
 }
 
 /**
- * Handle name input step
+ * ------------------------------
+ * STEP 1 — Handle name input
+ * ------------------------------
  */
 async function handleNameStep(text, from, tempBookings) {
-  // ⭐ User asked a side question while booking
   if (isSideQuestion(text)) {
     const answer = await askAI(text);
     await sendTextMessage(from, answer);
 
-    // Return to the name step
     await sendTextMessage(from, "نكمّل الحجز؟ أرسل اسمك 😊");
     return;
   }
@@ -64,23 +64,25 @@ async function handleNameStep(text, from, tempBookings) {
   }
 
   tempBookings[from].name = userName;
+
   await sendTextMessage(from, "📱 ممتاز! الآن أرسل رقم جوالك:");
 }
 
 /**
- * Handle phone input step
+ * ------------------------------
+ * STEP 2 — Handle phone input
+ * ------------------------------
  */
 async function handlePhoneStep(text, from, tempBookings) {
-  // ⭐ User asked a side question while booking
   if (isSideQuestion(text)) {
     const answer = await askAI(text);
     await sendTextMessage(from, answer);
 
-    // Return to the phone step
     await sendTextMessage(from, "تمام! الآن أرسل رقم جوالك:");
     return;
   }
 
+  // Normalize Arabic digits → English digits
   const normalized = text
     .replace(/[^\d٠-٩]/g, "")
     .replace(/٠/g, "0")
@@ -105,6 +107,7 @@ async function handlePhoneStep(text, from, tempBookings) {
   }
 
   tempBookings[from].phone = normalized;
+
   await sendServiceList(from);
   await sendTextMessage(
     from,
@@ -113,15 +116,15 @@ async function handlePhoneStep(text, from, tempBookings) {
 }
 
 /**
- * Handle service input step
+ * ------------------------------
+ * STEP 3 — Handle service selection
+ * ------------------------------
  */
 async function handleServiceStep(text, from, tempBookings) {
-  // ⭐ User asked a side question while booking
   if (isSideQuestion(text)) {
     const answer = await askAI(text);
     await sendTextMessage(from, answer);
 
-    // Return to the service step
     await sendTextMessage(from, "نرجع للحجز… ما هي الخدمة المطلوبة؟");
     return;
   }
@@ -129,21 +132,19 @@ async function handleServiceStep(text, from, tempBookings) {
   const booking = tempBookings[from];
   const userService = text.trim();
 
-  // ✅ Define valid services and their possible keywords
   const SERVICE_KEYWORDS = {
-    "تنظيف الأسنان": ["تنظيف", "كلين", "كلينينج", "clean", "تنضيف"],
+    "تنظيف الأسنان": ["تنظيف", "clean", "كلين", "كلينينج", "تنضيف"],
     "تبييض الأسنان": ["تبييض", "تبيض", "whitening"],
-    "حشو الأسنان": ["حشو", "حشوة", "حشوات", "fill", "filling"],
-    "زراعة الأسنان": ["زراعة", "زرع", "implant", "زراعه"],
-    "ابتسامة هوليود": ["ابتسامة", "هوليود", "ابتسامه", "smile"],
+    "حشو الأسنان": ["حشو", "حشوة", "fill", "filling"],
+    "زراعة الأسنان": ["زراعة", "implant", "زرع"],
+    "ابتسامة هوليود": ["ابتسامة", "هوليود", "smile"],
     "تقويم الأسنان": ["تقويم", "braces"],
-    "خلع الأسنان": ["خلع", "قلع", "remove", "extraction"],
+    "خلع الأسنان": ["خلع", "extraction"],
     "جلسة ليزر بشرة": ["ليزر", "جلسة", "بشرة", "laser"],
     فيلر: ["فيلر", "filler"],
     بوتوكس: ["بوتوكس", "botox"],
   };
 
-  // ❌ Common nonsense or forbidden body areas
   const FORBIDDEN_WORDS = [
     "أنف",
     "بطن",
@@ -162,23 +163,23 @@ async function handleServiceStep(text, from, tempBookings) {
     "تسويد",
   ];
 
-  // 🔍 Normalize text for safer matching
   const normalized = userService
     .replace(/[^\u0600-\u06FFa-zA-Z0-9\s]/g, "")
     .toLowerCase();
 
-  // ❌ Detect nonsense / forbidden areas
   if (FORBIDDEN_WORDS.some((word) => normalized.includes(word))) {
     await sendTextMessage(
       from,
       "⚠️ يبدو أنك ذكرت منطقة من الجسم لا تتعلق بخدماتنا. يرجى اختيار خدمة خاصة بالأسنان أو البشرة فقط."
     );
+
     await sendServiceList(from);
     return;
   }
 
-  // ✅ Fuzzy match against valid keywords
+  // Fuzzy keyword matching
   let matchedService = null;
+
   for (const [service, keywords] of Object.entries(SERVICE_KEYWORDS)) {
     if (
       keywords.some((kw) => normalized.includes(kw.toLowerCase())) ||
@@ -189,39 +190,40 @@ async function handleServiceStep(text, from, tempBookings) {
     }
   }
 
-  // If still nothing found, use AI for backup validation
+  // Use AI as fallback if no match
   if (!matchedService) {
     try {
       const aiCheck = await askAI(
-        `هل "${userService}" خدمة تتعلق بطب الأسنان أو البشرة في عيادة تجميل؟ أجب فقط بـ نعم أو لا.`
+        `هل "${userService}" خدمة تتعلق بطب الأسنان أو البشرة؟ أجب بـ نعم أو لا فقط`
       );
+
       if (aiCheck.toLowerCase().includes("نعم")) {
-        // Still safe to ask the user to clarify which exact service
         await sendTextMessage(
           from,
-          "💬 ممكن توضح أكثر نوع الخدمة؟ مثلاً: حشو الأسنان، تبييض، فيلر..."
+          "💬 ممكن توضح أكثر نوع الخدمة؟ مثل: حشو الأسنان، تبييض، فيلر..."
         );
         return;
       }
     } catch (err) {
-      console.warn("⚠️ AI service validation fallback failed:", err.message);
+      console.warn("⚠️ AI fallback failed:", err.message);
     }
   }
 
-  // ❌ Not matched → reject gracefully
   if (!matchedService) {
     await sendTextMessage(
       from,
-      `⚠️ لا يمكننا تحديد "${userService}" كخدمة صحيحة.\nالخدمات المتاحة لدينا:\n- ${Object.keys(
+      `⚠️ لا يمكن تحديد "${userService}" كخدمة صالحة.\nالخدمات المتاحة:\n- ${Object.keys(
         SERVICE_KEYWORDS
       ).join("\n- ")}`
     );
+
     await sendServiceList(from);
     return;
   }
 
-  // ✅ Valid service found → continue booking
+  // Service accepted → save booking
   booking.service = matchedService;
+
   await saveBooking(booking);
 
   await sendTextMessage(

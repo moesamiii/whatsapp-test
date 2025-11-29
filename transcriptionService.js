@@ -1,43 +1,45 @@
 /**
- * transcriptionService.js
+ * transcriptionService.js (UPDATED WITH CANCEL DETECTION)
  *
  * Purpose:
  * - Handle audio transcription using Groq Whisper API
  * - Fetch audio files from WhatsApp Media API
  * - Convert audio to text for voice message processing
- *
- * This isolates all transcription logic for better maintainability
+ * - Detect "cancel booking" in audio messages
  */
 
 const axios = require("axios");
 const FormData = require("form-data");
 
-// ---------------------------------------------
-// Environment Variables
-// ---------------------------------------------
+const { isCancelRequest } = require("./messageHandlers");
+const { askForCancellationPhone } = require("./helpers");
+
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
-// ---------------------------------------------
-// 🧠 Voice Transcription (Groq Whisper)
-// ---------------------------------------------
-async function transcribeAudio(mediaId) {
+// ------------------------------------------------------
+// 🎙️ MAIN — VOICE TRANSCRIPTION FUNCTION
+// ------------------------------------------------------
+async function transcribeAudio(mediaId, from) {
   try {
-    // Step 1: Get media URL from WhatsApp
+    // STEP 1 — GET MEDIA URL
     const mediaUrlResponse = await axios.get(
       `https://graph.facebook.com/v21.0/${mediaId}`,
-      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
+      {
+        headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+      }
     );
+
     const mediaUrl = mediaUrlResponse.data.url;
     if (!mediaUrl) return null;
 
-    // Step 2: Download the audio file
+    // STEP 2 — DOWNLOAD MEDIA
     const audioResponse = await axios.get(mediaUrl, {
       responseType: "arraybuffer",
       headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
     });
 
-    // Step 3: Prepare form data for Groq Whisper API
+    // STEP 3 — SEND TO GROQ API
     const form = new FormData();
     form.append("file", Buffer.from(audioResponse.data), {
       filename: "voice.ogg",
@@ -47,7 +49,6 @@ async function transcribeAudio(mediaId) {
     form.append("language", "ar");
     form.append("response_format", "json");
 
-    // Step 4: Send to Groq for transcription
     const result = await axios.post(
       "https://api.groq.com/openai/v1/audio/transcriptions",
       form,
@@ -59,7 +60,21 @@ async function transcribeAudio(mediaId) {
       }
     );
 
-    return result.data.text;
+    const text = result.data.text?.trim() || null;
+    if (!text) return null;
+
+    console.log("🎧 TRANSCRIBED:", text);
+
+    // ------------------------------------------------------
+    // 🔥 NEW: Detect "Cancel Booking" Intent From Audio
+    // ------------------------------------------------------
+    if (isCancelRequest(text)) {
+      console.log("🔍 CANCEL detected from audio for user:", from);
+      await askForCancellationPhone(from);
+      return null; // stop normal flow
+    }
+
+    return text;
   } catch (err) {
     console.error(
       "❌ Voice transcription failed:",
@@ -69,9 +84,6 @@ async function transcribeAudio(mediaId) {
   }
 }
 
-// --------------------------------------------
-// Exports
-// --------------------------------------------
 module.exports = {
   transcribeAudio,
 };

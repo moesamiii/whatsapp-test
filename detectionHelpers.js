@@ -1,12 +1,5 @@
 /**
- * detectionHelpers.js
- *
- * Purpose:
- * - Detect user intent from text (location/offers/doctors/booking/greeting)
- * - Language detection (English vs Arabic)
- * - Random greeting generation
- *
- * All detection logic is centralized here for easy maintenance
+ * detectionHelpers.js (UPDATED WITH CANCEL DETECTION)
  */
 
 const crypto = require("crypto");
@@ -101,8 +94,7 @@ function isLocationRequest(text = "") {
     "وينكم",
     "فينكم",
   ];
-  const lower = text.toLowerCase();
-  return keywords.some((k) => lower.includes(k));
+  return includesAny(keywords, text);
 }
 
 // ---------------------------------------------
@@ -122,12 +114,8 @@ function isOffersRequest(text = "") {
     "عرض اليوم",
     "وش عروضكم",
     "فيه عروض",
-    "في عروض",
-    "عندكم عروض",
     "ابي عرض",
-    "ابي عروض",
     "عطوني العرض",
-    "عطوني العروض",
     "بكم",
     "كم السعر",
     "offer",
@@ -136,25 +124,18 @@ function isOffersRequest(text = "") {
     "price",
     "deal",
   ];
-
-  const lower = text.toLowerCase();
-  return keywords.some((k) => lower.includes(k));
+  return includesAny(keywords, text);
 }
 
-// ---------------------------------------------
-// ✔ Detect explicit confirmation to send the offers
-// ---------------------------------------------
 function isOffersConfirmation(text = "") {
   if (!text) return false;
-
   const normalizedText = text
-    .replace(/\u0640/g, "") // remove tatweel
-    .replace(/[^\u0600-\u06FFa-zA-Z0-9 ]/g, "") // remove weird unicode
+    .replace(/\u0640/g, "")
+    .replace(/[^\u0600-\u06FFa-zA-Z0-9 ]/g, "")
     .trim()
     .toLowerCase();
 
   const patterns = [
-    // Arabic confirmation
     "ارسل",
     "رسل",
     "أرسل",
@@ -167,16 +148,11 @@ function isOffersConfirmation(text = "") {
     "ايوه",
     "أيوه",
     "نعم",
-    "شوف",
-    "عرض",
     "ارسلي",
     "ابعث",
-    "ابعثي",
     "ارسلهم",
     "ارسله",
     "ارسل العرض",
-
-    // English confirmation
     "yes",
     "yeah",
     "yup",
@@ -186,10 +162,8 @@ function isOffersConfirmation(text = "") {
     "send",
     "send it",
     "send them",
-    "send offers",
     "show",
     "show me",
-    "show offers",
     "i want",
     "i need",
   ];
@@ -198,7 +172,7 @@ function isOffersConfirmation(text = "") {
 }
 
 // ---------------------------------------------
-// 👨‍⚕️ Doctors Detection Helper
+// 👨‍⚕️ Doctors
 // ---------------------------------------------
 function isDoctorsRequest(text = "") {
   const keywords = [
@@ -206,82 +180,70 @@ function isDoctorsRequest(text = "") {
     "دكاترة",
     "طبيب",
     "أطباء",
-    "الدكتور",
-    "الطبيب",
     "doctor",
     "doctors",
-    "physician",
     "dr",
-    "اطباء",
-    "الاطباء",
   ];
-  const lower = text.toLowerCase();
-  return keywords.some((k) => lower.includes(k));
+  return includesAny(keywords, text);
 }
 
 // ---------------------------------------------
-// 📅 Booking Detection Helper
+// 📅 Booking Detection
 // ---------------------------------------------
 function isBookingRequest(text = "") {
   const keywords = [
     "book",
     "booking",
-    "boocing",
-    "bocking",
-    "bokking",
-    "pooking",
-    "pocking",
-    "boking",
-    "boocking",
-    "bokin",
-    "boonking",
     "appointment",
     "reserve",
-    "reservation",
-    "schedul",
-    "shedule",
-    "schedual",
-    "resrv",
-    "appoint",
-    "appoinment",
-    "احجز",
-    "احجر",
-    "احجد",
-    "اجحر",
-    "احجذ",
-    "ابغى احجز",
-    "ابي احجز",
-    "ابي موعد",
-    "ابغى موعد",
-    "موعد",
     "حجز",
-    "ارغب بالحجز",
-    "اريد حجز",
-    "ودي احجز",
-    "ودّي احجز",
-    "احجوز",
+    "موعد",
+    "احجز",
+    "ابغى احجز",
   ];
-  const lower = text.toLowerCase();
-  return keywords.some((k) => lower.includes(k));
+  return includesAny(keywords, text);
 }
 
 // ---------------------------------------------
-// 🌐 Language Detector
+// ❗❗ NEW — CANCEL Booking Detection
+// ---------------------------------------------
+function isCancelRequest(text = "") {
+  const keywords = [
+    "cancel",
+    "cancel booking",
+    "cancel appointment",
+    "الغاء",
+    "إلغاء",
+    "الغي",
+    "ألغي",
+    "ابغى الغي",
+    "ابي الغي",
+    "اريد الغاء",
+    "الغاء الحجز",
+    "بدي الغي",
+    "ما بدي الموعد",
+    "كنسل",
+    "cancel my booking",
+  ];
+  return includesAny(keywords, text);
+}
+
+// ---------------------------------------------
+// Language Detection
 // ---------------------------------------------
 function isEnglish(text = "") {
   const arabicPattern = /[\u0600-\u06FF]/;
   return !arabicPattern.test(text);
 }
 
-// --------------------------------------------
-// Exports
-// --------------------------------------------
+// ---------------------------------------------
 module.exports = {
   isLocationRequest,
   isOffersRequest,
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isCancelRequest,
   isEnglish,
   isGreeting,
   getGreeting,

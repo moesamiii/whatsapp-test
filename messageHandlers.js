@@ -18,6 +18,7 @@ const {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isCancelRequest, // ✅ NEW — export cancel detection
   isEnglish,
   isGreeting,
   getGreeting,
@@ -45,6 +46,7 @@ module.exports = {
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
+  isCancelRequest, // ✅ export cancel intent detection
   isEnglish,
   isGreeting,
   getGreeting,

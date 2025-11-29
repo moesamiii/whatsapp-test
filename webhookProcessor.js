@@ -1,10 +1,5 @@
 /**
- * webhookProcessor.js
- *
- * Updated to:
- * - Detect user questions during booking.
- * - Answer using AI.
- * - Then return to the correct booking step.
+ * webhookProcessor.js (FINAL UPDATED WITH AUDIO CANCELLATION SUPPORT)
  */
 
 const {
@@ -14,6 +9,8 @@ const {
   sendServiceList,
   sendAppointmentOptions,
   saveBooking,
+  askForCancellationPhone,
+  processCancellation,
 } = require("./helpers");
 
 const {
@@ -25,6 +22,7 @@ const {
   isOffersRequest,
   isDoctorsRequest,
   isEnglish,
+  isCancelRequest, // NEW
 } = require("./messageHandlers");
 
 /**
@@ -95,11 +93,9 @@ async function sendBookingConfirmation(to, booking) {
   );
 }
 
-/**
- * ---------------------------
- * MAIN AUDIO PROCESSOR
- * ---------------------------
- */
+// ------------------------------------------------------------
+//               🔥🔥🔥 AUDIO PROCESSOR
+// ------------------------------------------------------------
 async function handleAudioMessage(message, from) {
   try {
     const tempBookings = (global.tempBookings = global.tempBookings || {});
@@ -121,9 +117,39 @@ async function handleAudioMessage(message, from) {
 
     console.log(`🗣️ User said: "${transcript}"`);
 
-    /* -------------------------------------------------------
-     STEP 1 — QUICK INTENT CHECKS
-    ------------------------------------------------------- */
+    // ------------------------------------------------------------
+    // 🔥 NEW — Detect cancellation inside audio
+    // ------------------------------------------------------------
+    if (isCancelRequest(transcript)) {
+      console.log("❗ AUDIO CANCEL REQUEST DETECTED");
+
+      await askForCancellationPhone(from); // “أرسل رقم الهاتف لإلغاء الحجز”
+      tempBookings[from] = tempBookings[from] || {};
+      tempBookings[from].waitingForCancelPhone = true;
+
+      return;
+    }
+
+    // If user previously said “I want to cancel” and now sent audio with number
+    if (tempBookings[from]?.waitingForCancelPhone) {
+      const phone = normalizeArabicDigits(transcript);
+
+      if (!/^07\d{8}$/.test(phone)) {
+        await sendTextMessage(
+          from,
+          "⚠️ رقم الجوال غير صحيح. يرجى إعادة الإرسال:"
+        );
+        return;
+      }
+
+      tempBookings[from].waitingForCancelPhone = false;
+      await processCancellation(from, phone); // ← UPDATE
+      return;
+    }
+
+    // -------------------------------------------------------
+    // STEP 1 — QUICK INTENT CHECKS
+    // -------------------------------------------------------
 
     if (isLocationRequest(transcript)) {
       const lang = isEnglish(transcript) ? "en" : "ar";
@@ -155,18 +181,17 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
-    /* -------------------------------------------------------
-     STEP 2 — QUESTION DETECTION (NEW FEATURE)
-    ------------------------------------------------------- */
+    // -------------------------------------------------------
+    // STEP 2 — QUESTION DETECTION
+    // -------------------------------------------------------
 
     if (isQuestion(transcript)) {
-      console.log("❓ Detected question during conversation.");
+      console.log("❓ Question detected");
 
-      // AI answers the question
       const answer = await askAI(transcript);
       await sendTextMessage(from, answer);
 
-      // After answering → return to booking stage
+      // Return user back to booking step if needed
       const userBooking = tempBookings[from];
 
       if (userBooking) {
@@ -190,11 +215,10 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
-    /* -------------------------------------------------------
-     STEP 3 — BOOKING FLOW
-    ------------------------------------------------------- */
+    // -------------------------------------------------------
+    // STEP 3 — BOOKING FLOW
+    // -------------------------------------------------------
 
-    // No booking yet
     if (!tempBookings[from]) {
       if (
         transcript.includes("حجز") ||
@@ -202,17 +226,16 @@ async function handleAudioMessage(message, from) {
         transcript.includes("موعد") ||
         transcript.includes("appointment")
       ) {
-        tempBookings[from] = {}; // start session
+        tempBookings[from] = {};
         await sendAppointmentOptions(from);
       } else {
-        // Regular AI chat
         const reply = await askAI(transcript);
         await sendTextMessage(from, reply);
       }
       return;
     }
 
-    // User must send name
+    // NAME STEP
     if (!tempBookings[from].name) {
       const isValidName = await validateNameWithAI(transcript);
 
@@ -230,7 +253,7 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
-    // User must send phone
+    // PHONE STEP
     if (!tempBookings[from].phone) {
       const normalized = normalizeArabicDigits(transcript);
 
@@ -249,7 +272,7 @@ async function handleAudioMessage(message, from) {
       return;
     }
 
-    // User selects service
+    // SERVICE STEP
     if (!tempBookings[from].service) {
       tempBookings[from].service = transcript;
 
