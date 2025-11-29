@@ -1,32 +1,34 @@
 /**
- * messageHandlers.js
+ * messageHandlers.js (FINAL FIX)
  *
- * Purpose:
- * - Main orchestration file for message handling
- * - Coordinates detection, responses, and media sending
- *
- * Dependencies:
- * - detectionHelpers.js: Intent and language detection
- * - contentFilter.js: Ban words and inappropriate content filtering
- * - mediaService.js: Sending images, location, and offers
- * - transcriptionService.js: Audio transcription via Groq
+ * This file only RE-EXPORTS functions from other modules.
+ * The actual detection logic exists in detectionHelpers.js
+ * and the media sending logic exists in mediaService.js
  */
 
 const {
+  // INTENT DETECTION
   isLocationRequest,
   isOffersRequest,
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
-  isCancelRequest, // ✅ NEW — export cancel detection
+  isCancelRequest, // MUST EXIST IN detectionHelpers.js
+
+  // LANGUAGE & GREETING
   isEnglish,
   isGreeting,
   getGreeting,
 } = require("./detectionHelpers");
 
-const { containsBanWords, sendBanWordsResponse } = require("./contentFilter");
+const {
+  // BANNED WORDS
+  containsBanWords,
+  sendBanWordsResponse,
+} = require("./contentFilter");
 
 const {
+  // MEDIA SENDING
   sendLocationMessages,
   sendOffersImages,
   sendDoctorsImages,
@@ -34,34 +36,37 @@ const {
   sendOffersValidity,
 } = require("./mediaService");
 
-const { transcribeAudio } = require("./transcriptionService");
+const {
+  // AUDIO TRANSCRIPTION
+  transcribeAudio,
+} = require("./transcriptionService");
 
 // --------------------------------------------
-// Exports - Main API
+// EXPORT EVERYTHING IN ONE CLEAN OBJECT
 // --------------------------------------------
 module.exports = {
-  // Detection helpers
+  // Intent Detection
   isLocationRequest,
   isOffersRequest,
   isOffersConfirmation,
   isDoctorsRequest,
   isBookingRequest,
-  isCancelRequest, // ✅ export cancel intent detection
+  isCancelRequest,
   isEnglish,
   isGreeting,
   getGreeting,
 
-  // Content filtering
+  // Content Filter
   containsBanWords,
   sendBanWordsResponse,
 
-  // Media & messaging
+  // Media
   sendLocationMessages,
   sendOffersImages,
   sendDoctorsImages,
   sendImageMessage,
   sendOffersValidity,
 
-  // Transcription
+  // Audio Transcription
   transcribeAudio,
 };
