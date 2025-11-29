@@ -1,5 +1,5 @@
 /**
- * helpers.js (UPDATED — Now saves new bookings to BOTH Google Sheets + Supabase)
+ * helpers.js (FINAL MERGED VERSION — Booking logic from OLD version + NEW Cancellation)
  */
 
 const axios = require("axios");
@@ -17,12 +17,12 @@ const {
 } = require("./sheetsHelper");
 
 // =============================================
-// 🗄 SUPABASE — NOW USED FOR SAVING + CANCELLATION
+// 🗄 SUPABASE (USED ONLY FOR CANCELLATION + NOW SAVING)
 // =============================================
 const {
   findLastBookingByPhone,
   updateBookingStatus,
-  insertBookingToSupabase, // <── NEW FUNCTION
+  insertBookingToSupabase, // <── NEW IMPORT
 } = require("./databaseHelper");
 
 // =============================================
@@ -60,7 +60,7 @@ async function sendTextMessage(to, text) {
 }
 
 // =============================================
-// 📅 APPOINTMENT BUTTONS
+// 📅 APPOINTMENT BUTTONS (FROM OLD VERSION)
 // =============================================
 async function sendAppointmentButtons(to) {
   try {
@@ -293,15 +293,15 @@ module.exports = {
   sendServiceButtons,
   sendServiceList,
 
-  // OLD Booking Logic
+  // OLD Booking Logic (Google Sheets)
   detectSheetName,
   saveBooking,
   updateBooking,
   getAllBookings,
   testGoogleConnection,
 
-  // Supabase
-  insertBookingToSupabase, // <── NEW EXPORT
+  // Supabase (NEW)
+  insertBookingToSupabase, // <── ADDED HERE
 
   // Cancellation
   askForCancellationPhone,
