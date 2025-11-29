@@ -1,5 +1,5 @@
 /**
- * bookingFlowHandler.js (UPDATED — Save bookings to BOTH Google Sheets + Supabase)
+ * bookingFlowHandler.js (FINAL — Save ONLY to Supabase)
  *
  * Responsibilities:
  * - Handle booking flow (name → phone → service)
@@ -11,10 +11,9 @@ const {
   askAI,
   sendTextMessage,
   sendAppointmentOptions,
-  saveBooking,
+  saveBooking, // <── now saves ONLY to Supabase (helpers.js)
   askForCancellationPhone,
   processCancellation,
-  insertBookingToSupabase, // <── NEW IMPORT
 } = require("./helpers");
 
 const { isBookingRequest, isCancelRequest } = require("./messageHandlers");
@@ -51,6 +50,7 @@ function getSession(userId) {
  */
 async function handleInteractiveMessage(message, from, tempBookings) {
   const itype = message.interactive?.type;
+
   const id =
     itype === "list_reply"
       ? message.interactive?.list_reply?.id
@@ -80,13 +80,10 @@ async function handleInteractiveMessage(message, from, tempBookings) {
     tempBookings[from].service = serviceName;
     const booking = tempBookings[from];
 
-    // 1️⃣ Save to Google Sheet
+    // 1️⃣ SAVE BOOKING (helpers.js → ONLY Supabase)
     await saveBooking(booking);
 
-    // 2️⃣ Save to Supabase (NEW)
-    await insertBookingToSupabase(booking);
-
-    // 3️⃣ Confirmation
+    // 2️⃣ Confirmation
     await sendTextMessage(
       from,
       `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
@@ -115,14 +112,14 @@ async function handleTextMessage(text, from, tempBookings) {
   if (isCancelRequest(text)) {
     session.waitingForCancelPhone = true;
 
-    // Stop any booking flow currently running
+    // stop any booking flow currently running
     if (tempBookings[from]) delete tempBookings[from];
 
     await askForCancellationPhone(from);
     return;
   }
 
-  // Step 2 — Waiting for phone input
+  // Step 2 — Waiting for phone input to cancel booking
   if (session.waitingForCancelPhone) {
     const phone = text.replace(/\D/g, "");
 
@@ -143,7 +140,7 @@ async function handleTextMessage(text, from, tempBookings) {
    * ---------------------------------------------
    */
 
-  // Shortcut (3,6,9 → PM)
+  // Quick shortcut (3,6,9 → PM)
   if (!tempBookings[from] && ["3", "6", "9"].includes(text)) {
     const appointment = `${text} PM`;
     tempBookings[from] = { appointment };
@@ -170,7 +167,7 @@ async function handleTextMessage(text, from, tempBookings) {
     return;
   }
 
-  // User wants to book
+  // User wants to start booking
   if (!tempBookings[from] && isBookingRequest(text)) {
     await sendAppointmentOptions(from);
     return;

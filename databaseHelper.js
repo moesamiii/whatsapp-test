@@ -1,8 +1,3 @@
-console.log(
-  "🔑 SUPABASE_SERVICE_KEY:",
-  process.env.SUPABASE_SERVICE_KEY ? "Loaded" : "❌ NOT LOADED"
-);
-
 const { createClient } = require("@supabase/supabase-js");
 
 // ==============================================
@@ -26,12 +21,17 @@ function normalizePhone(phone) {
 }
 
 // ==============================================
-// Save NEW booking into Supabase (NEW FUNCTION)
+// Save NEW booking into Supabase (FIXED)
 // ==============================================
 async function insertBookingToSupabase(booking) {
   try {
-    const supabase = getSupabase();
+    // 🔥 CHECK ENV INSIDE, not at top level
+    console.log(
+      "🔑 SUPABASE_SERVICE_KEY:",
+      process.env.SUPABASE_SERVICE_KEY ? "Loaded" : "❌ NOT LOADED"
+    );
 
+    const supabase = getSupabase();
     const now = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -67,8 +67,8 @@ async function insertBookingToSupabase(booking) {
 async function findLastBookingByPhone(rawPhone) {
   try {
     const supabase = getSupabase();
-
     const normalized = normalizePhone(rawPhone);
+
     console.log("📌 Searching for phone:", normalized);
 
     const { data, error } = await supabase
@@ -119,5 +119,5 @@ async function updateBookingStatus(id, newStatus) {
 module.exports = {
   findLastBookingByPhone,
   updateBookingStatus,
-  insertBookingToSupabase, // <── NEW EXPORT
+  insertBookingToSupabase,
 };

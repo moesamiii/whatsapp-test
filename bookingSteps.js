@@ -1,5 +1,5 @@
 /**
- * bookingSteps.js (UPDATED — Now saves booking to BOTH Google Sheets + Supabase)
+ * bookingSteps.js (FINAL — Now saves ONLY to Supabase through helpers.js)
  *
  * Responsibilities:
  * - Handle individual booking steps (name, phone, service)
@@ -13,8 +13,7 @@ const {
   validateNameWithAI,
   sendTextMessage,
   sendServiceList,
-  saveBooking,
-  insertBookingToSupabase, // <── NEW IMPORT
+  saveBooking, // <── this now saves ONLY to Supabase (helpers.js updated)
 } = require("./helpers");
 
 /**
@@ -191,7 +190,7 @@ async function handleServiceStep(text, from, tempBookings) {
     }
   }
 
-  // Use AI as fallback if no match
+  // AI fallback
   if (!matchedService) {
     try {
       const aiCheck = await askAI(
@@ -205,9 +204,7 @@ async function handleServiceStep(text, from, tempBookings) {
         );
         return;
       }
-    } catch (err) {
-      console.warn("⚠️ AI fallback failed:", err.message);
-    }
+    } catch {}
   }
 
   if (!matchedService) {
@@ -223,18 +220,13 @@ async function handleServiceStep(text, from, tempBookings) {
   }
 
   // ============================================
-  // ✔ SERVICE MATCHED → SAVE BOOKING (SHEETS + DB)
+  // ✔ SERVICE MATCHED → SAVE BOOKING
   // ============================================
-
   booking.service = matchedService;
 
-  // 1) Save to Google Sheet
+  // Save using updated helpers.js → ONLY SUPABASE
   await saveBooking(booking);
 
-  // 2) Save to Supabase (NEW)
-  await insertBookingToSupabase(booking);
-
-  // 3) Confirmation message
   await sendTextMessage(
     from,
     `✅ تم حفظ حجزك بنجاح:\n👤 ${booking.name}\n📱 ${booking.phone}\n💊 ${booking.service}\n📅 ${booking.appointment}`
