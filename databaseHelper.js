@@ -1,16 +1,28 @@
+console.log("🔑 SUPABASE_URL:", process.env.SUPABASE_URL);
+console.log(
+  "🔑 SUPABASE_SERVICE_KEY:",
+  process.env.SUPABASE_SERVICE_KEY ? "Loaded" : "❌ NOT LOADED"
+);
+
+/**
+ *
+ * databaseHelper.js (FINAL — NO POLYFILL NEEDED)
+ *
+ * Handles:
+ * - Supabase connection
+ * - Normalize phone number
+ * - Find booking by phone
+ * - Update booking status
+ */
+
 const { createClient } = require("@supabase/supabase-js");
 
 // ==============================================
-// 🔥 Create Supabase client (WORKS ON VERCEL)
+// 🔥 Supabase Connection
 // ==============================================
-const supabase = new createClient(
+const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY,
-  {
-    global: {
-      fetch: (...args) => fetch(...args), // ensures fetch works on Vercel
-    },
-  }
+  process.env.SUPABASE_SERVICE_KEY
 );
 
 // ==============================================
@@ -18,22 +30,24 @@ const supabase = new createClient(
 // ==============================================
 function normalizePhone(phone) {
   if (!phone) return "";
-  let cleaned = phone.toString().replace(/\D/g, "");
-  cleaned = cleaned.replace(/^0+/, "");
+
+  let cleaned = phone.toString().replace(/\D/g, ""); // remove non-digits
+  cleaned = cleaned.replace(/^0+/, ""); // remove leading zeros
+
   return cleaned;
 }
 
 // ==============================================
-// 🔍 Find booking by phone
+// 🔍 1) Find last booking by phone (smart search)
 // ==============================================
-async function findLastBookingByPhone(phoneInput) {
+async function findLastBookingByPhone(rawPhone) {
   try {
-    const normalized = normalizePhone(phoneInput);
+    const normalized = normalizePhone(rawPhone);
 
     console.log("📌 Searching for phone:", normalized);
 
-    // Try normalized phone
-    let { data, error } = await supabase
+    // Try EXACT match first
+    const { data, error } = await supabase
       .from("bookings")
       .select("*")
       .eq("phone", normalized)
@@ -41,38 +55,48 @@ async function findLastBookingByPhone(phoneInput) {
       .limit(1);
 
     if (error) {
-      console.error("❌ Supabase error:", error);
+      console.error("❌ Supabase error (find booking):", error.message);
       return null;
     }
 
-    if (data && data.length > 0) return data[0];
+    if (data && data.length > 0) {
+      console.log("✅ Found booking by normalized phone");
+      return data[0];
+    }
 
-    // Try raw phone as backup
-    const raw = phoneInput.toString().replace(/\D/g, "");
+    // Try match original phone
+    const raw = rawPhone.toString().replace(/\D/g, "");
 
-    ({ data, error } = await supabase
+    const { data: rawData, error: rawErr } = await supabase
       .from("bookings")
       .select("*")
       .eq("phone", raw)
       .order("id", { ascending: false })
-      .limit(1));
+      .limit(1);
 
-    if (error) {
-      console.error("❌ Supabase fallback error:", error);
+    if (rawErr) {
+      console.error("❌ Supabase error (fallback):", rawErr.message);
       return null;
     }
 
-    if (data && data.length > 0) return data[0];
+    if (rawData && rawData.length > 0) {
+      console.log("✅ Found booking by RAW phone");
+      return rawData[0];
+    }
 
+    console.log("⚠️ No booking found");
     return null;
-  } catch (e) {
-    console.error("❌ findLastBookingByPhone error:", e);
+  } catch (err) {
+    console.error(
+      "❌ Unexpected error in findLastBookingByPhone:",
+      err.message
+    );
     return null;
   }
 }
 
 // ==============================================
-// ✏️ Update booking status
+// ✏️ 2) Update booking status
 // ==============================================
 async function updateBookingStatus(id, newStatus) {
   try {
@@ -82,17 +106,21 @@ async function updateBookingStatus(id, newStatus) {
       .eq("id", id);
 
     if (error) {
-      console.error("❌ updateBookingStatus error:", error);
+      console.error("❌ Supabase error (update status):", error.message);
       return false;
     }
 
+    console.log(`✅ Booking status updated → ${newStatus}`);
     return true;
-  } catch (e) {
-    console.error("❌ Unexpected error:", e);
+  } catch (err) {
+    console.error("❌ Unexpected error in updateBookingStatus:", err.message);
     return false;
   }
 }
 
+// ==============================================
+// EXPORTS
+// ==============================================
 module.exports = {
   findLastBookingByPhone,
   updateBookingStatus,
