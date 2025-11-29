@@ -1,20 +1,12 @@
 /**
- * databaseHelper.js (FINAL FIXED FOR VERCEL)
+ * databaseHelper.js (FINAL)
  *
- * Supports:
+ * Handles:
  * - Supabase connection
- * - Fetch polyfill for Vercel
- * - Phone normalization
- * - Find latest booking by phone
+ * - Normalize phone number
+ * - Find booking by phone
  * - Update booking status
  */
-
-// ===========================
-// 🔥 REQUIRED FIX FOR VERCEL
-// ===========================
-require("cross-fetch/polyfill");
-// ⬆ هذا السطر يحل خطأ (fetch failed)
-// ويجب أن يكون أول سطر في الملف
 
 const { createClient } = require("@supabase/supabase-js");
 
@@ -45,8 +37,7 @@ async function findLastBookingByPhone(rawPhone) {
   try {
     const normalized = normalizePhone(rawPhone);
 
-    console.log("📌 Normalized phone:", normalized);
-    console.log("🔍 Searching for phone:", normalized);
+    console.log("📌 Searching for phone:", normalized);
 
     // Try EXACT match first
     let { data, error } = await supabase
@@ -69,8 +60,6 @@ async function findLastBookingByPhone(rawPhone) {
     // Try match original phone (backup)
     const raw = rawPhone.toString().replace(/\D/g, "");
 
-    console.log("📌 Trying RAW phone:", raw);
-
     ({ data, error } = await supabase
       .from("bookings")
       .select("*")
@@ -88,7 +77,7 @@ async function findLastBookingByPhone(rawPhone) {
       return data[0];
     }
 
-    console.log("⚠️ No booking found in database");
+    console.log("⚠️ No booking found");
     return null;
   } catch (err) {
     console.error(
@@ -114,7 +103,7 @@ async function updateBookingStatus(id, newStatus) {
       return false;
     }
 
-    console.log(`✅ Booking status updated → ${newStatus}`);
+    console.log("✅ Booking status updated →", newStatus);
     return true;
   } catch (err) {
     console.error("❌ Unexpected error in updateBookingStatus:", err.message);
