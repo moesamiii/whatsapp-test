@@ -1,4 +1,11 @@
+console.log("🔑 SUPABASE_URL:", process.env.SUPABASE_URL);
+console.log(
+  "🔑 SUPABASE_SERVICE_KEY:",
+  process.env.SUPABASE_SERVICE_KEY ? "Loaded" : "❌ NOT LOADED"
+);
+
 /**
+ *
  * databaseHelper.js (FINAL — NO POLYFILL NEEDED)
  *
  * Handles:
