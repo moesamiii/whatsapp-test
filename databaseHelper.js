@@ -1,6 +1,5 @@
-require("cross-fetch/polyfill");
 /**
- * databaseHelper.js (FINAL)
+ * databaseHelper.js (FINAL — NO POLYFILL NEEDED)
  *
  * Handles:
  * - Supabase connection
@@ -41,7 +40,7 @@ async function findLastBookingByPhone(rawPhone) {
     console.log("📌 Searching for phone:", normalized);
 
     // Try EXACT match first
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("bookings")
       .select("*")
       .eq("phone", normalized)
@@ -58,24 +57,24 @@ async function findLastBookingByPhone(rawPhone) {
       return data[0];
     }
 
-    // Try match original phone (backup)
+    // Try match original phone
     const raw = rawPhone.toString().replace(/\D/g, "");
 
-    ({ data, error } = await supabase
+    const { data: rawData, error: rawErr } = await supabase
       .from("bookings")
       .select("*")
       .eq("phone", raw)
       .order("id", { ascending: false })
-      .limit(1));
+      .limit(1);
 
-    if (error) {
-      console.error("❌ Supabase error (fallback):", error.message);
+    if (rawErr) {
+      console.error("❌ Supabase error (fallback):", rawErr.message);
       return null;
     }
 
-    if (data && data.length > 0) {
+    if (rawData && rawData.length > 0) {
       console.log("✅ Found booking by RAW phone");
-      return data[0];
+      return rawData[0];
     }
 
     console.log("⚠️ No booking found");
@@ -104,7 +103,7 @@ async function updateBookingStatus(id, newStatus) {
       return false;
     }
 
-    console.log("✅ Booking status updated →", newStatus);
+    console.log(`✅ Booking status updated → ${newStatus}`);
     return true;
   } catch (err) {
     console.error("❌ Unexpected error in updateBookingStatus:", err.message);
