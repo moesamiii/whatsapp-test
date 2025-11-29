@@ -1,11 +1,11 @@
 /**
- * bookingSteps.js (FINAL — Now saves ONLY to Supabase through helpers.js)
+ * bookingSteps.js (FINAL — Supabase ONLY)
  *
  * Responsibilities:
- * - Handle individual booking steps (name, phone, service)
+ * - Handle booking steps (name, phone, service)
  * - Validate each step
- * - Handle side questions during booking (AI answer + return to step)
- * - Fuzzy keyword detection for services
+ * - Allow side questions (AI answer, then return to flow)
+ * - Detect service using fuzzy + AI fallback
  */
 
 const {
@@ -13,7 +13,7 @@ const {
   validateNameWithAI,
   sendTextMessage,
   sendServiceList,
-  saveBooking, // <── this now saves ONLY to Supabase (helpers.js updated)
+  insertBookingToSupabase, // ✔ Supabase ONLY
 } = require("./helpers");
 
 /**
@@ -46,13 +46,11 @@ async function handleNameStep(text, from, tempBookings) {
   if (isSideQuestion(text)) {
     const answer = await askAI(text);
     await sendTextMessage(from, answer);
-
     await sendTextMessage(from, "نكمّل الحجز؟ أرسل اسمك 😊");
     return;
   }
 
   const userName = text.trim();
-
   const isValid = await validateNameWithAI(userName);
 
   if (!isValid) {
@@ -77,12 +75,10 @@ async function handlePhoneStep(text, from, tempBookings) {
   if (isSideQuestion(text)) {
     const answer = await askAI(text);
     await sendTextMessage(from, answer);
-
     await sendTextMessage(from, "تمام! الآن أرسل رقم جوالك:");
     return;
   }
 
-  // Normalize Arabic digits → English digits
   const normalized = text
     .replace(/[^\d٠-٩]/g, "")
     .replace(/٠/g, "0")
@@ -124,7 +120,6 @@ async function handleServiceStep(text, from, tempBookings) {
   if (isSideQuestion(text)) {
     const answer = await askAI(text);
     await sendTextMessage(from, answer);
-
     await sendTextMessage(from, "نرجع للحجز… ما هي الخدمة المطلوبة؟");
     return;
   }
@@ -167,22 +162,21 @@ async function handleServiceStep(text, from, tempBookings) {
     .replace(/[^\u0600-\u06FFa-zA-Z0-9\s]/g, "")
     .toLowerCase();
 
-  if (FORBIDDEN_WORDS.some((word) => normalized.includes(word))) {
+  if (FORBIDDEN_WORDS.some((w) => normalized.includes(w))) {
     await sendTextMessage(
       from,
-      "⚠️ يبدو أنك ذكرت منطقة من الجسم لا تتعلق بخدماتنا. يرجى اختيار خدمة خاصة بالأسنان أو البشرة فقط."
+      "⚠️ الخدمة غير مرتبطة بالأسنان أو البشرة. اختر خدمة صحيحة."
     );
-
     await sendServiceList(from);
     return;
   }
 
-  // Fuzzy keyword matching
+  // Fuzzy match
   let matchedService = null;
 
-  for (const [service, keywords] of Object.entries(SERVICE_KEYWORDS)) {
+  for (const [service, words] of Object.entries(SERVICE_KEYWORDS)) {
     if (
-      keywords.some((kw) => normalized.includes(kw.toLowerCase())) ||
+      words.some((kw) => normalized.includes(kw.toLowerCase())) ||
       normalized.includes(service.replace(/\s/g, ""))
     ) {
       matchedService = service;
@@ -196,12 +190,8 @@ async function handleServiceStep(text, from, tempBookings) {
       const aiCheck = await askAI(
         `هل "${userService}" خدمة تتعلق بطب الأسنان أو البشرة؟ أجب بـ نعم أو لا فقط`
       );
-
       if (aiCheck.toLowerCase().includes("نعم")) {
-        await sendTextMessage(
-          from,
-          "💬 ممكن توضح أكثر نوع الخدمة؟ مثل: حشو الأسنان، تبييض، فيلر..."
-        );
+        await sendTextMessage(from, "💬 وضّح أكثر نوع الخدمة؟");
         return;
       }
     } catch {}
@@ -210,22 +200,18 @@ async function handleServiceStep(text, from, tempBookings) {
   if (!matchedService) {
     await sendTextMessage(
       from,
-      `⚠️ لا يمكن تحديد "${userService}" كخدمة صالحة.\nالخدمات المتاحة:\n- ${Object.keys(
-        SERVICE_KEYWORDS
-      ).join("\n- ")}`
+      `⚠️ لا يمكن تحديد "${userService}".\nاختر من القائمة.`
     );
-
     await sendServiceList(from);
     return;
   }
 
   // ============================================
-  // ✔ SERVICE MATCHED → SAVE BOOKING
+  // ✔ SERVICE MATCHED → SAVE TO SUPABASE ONLY
   // ============================================
   booking.service = matchedService;
 
-  // Save using updated helpers.js → ONLY SUPABASE
-  await saveBooking(booking);
+  await insertBookingToSupabase(booking);
 
   await sendTextMessage(
     from,
