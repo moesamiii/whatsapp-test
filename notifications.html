@@ -362,47 +362,23 @@
       }
 
       /* ------------------------------
-         🟣 SAVE BOOKINGS TO SUPABASE
-      -------------------------------*/
-      async function saveNewBookingsToSupabase(bookings) {
-        for (const b of bookings) {
-          if (!b.phone || !b.time) continue;
-
-          const { data: existing } = await supabase
-            .from("bookings")
-            .select("*")
-            .eq("phone", b.phone)
-            .eq("time", b.time)
-            .maybeSingle();
-
-          if (existing) continue;
-
-          await supabase.from("bookings").insert([
-            {
-              name: b.name || null,
-              phone: b.phone || null,
-              service: b.service || null,
-              appointment: b.appointment || null,
-              time: b.time || null,
-              status: "new",
-            },
-          ]);
-        }
-      }
-
-      /* ------------------------------
-         🔄 LOAD & SAVE
+         🔄 LOAD FROM DATABASE
       -------------------------------*/
       async function loadNotifications() {
         try {
-          const res = await fetch("/api/bookings");
-          if (!res.ok) throw new Error("Failed to fetch bookings");
+          // ✅ LOAD DIRECTLY FROM SUPABASE DATABASE
+          const { data, error } = await supabase
+            .from("bookings")
+            .select("*")
+            .order("time", { ascending: false });
 
-          const rawData = await res.json();
-          allBookings = rawData.slice(1).reverse();
+          if (error) {
+            console.error("❌ Error loading notifications:", error);
+            return;
+          }
+
+          allBookings = data || [];
           filteredBookings = [...allBookings];
-
-          await saveNewBookingsToSupabase(allBookings);
 
           renderNotifications();
         } catch (error) {
