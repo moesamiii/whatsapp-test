@@ -102,7 +102,7 @@
     </div>
 
     <script>
-      // ======= SUPABASE LOGIN LOGIC =======
+      // ======= SUPABASE CONNECTION =======
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
@@ -113,12 +113,18 @@
       const q = (s) => document.querySelector(s);
 
       async function load() {
-        const res = await fetch("/api/bookings");
-        const rawData = await res.json();
+        // ✅ LOAD FROM SUPABASE DATABASE
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("*")
+          .order("time", { ascending: false });
 
-        // Skip the first row (header row)
-        allData = rawData.slice(1);
+        if (error) {
+          console.error("Error loading analytics data:", error);
+          return;
+        }
 
+        allData = data || [];
         drawCharts(allData);
       }
 
@@ -254,8 +260,8 @@
         ];
         const counts = [0, 0, 0, 0, 0, 0, 0];
         d.forEach((b) => {
-          if (b.timestamp) {
-            const day = new Date(b.timestamp).getDay();
+          if (b.time) {
+            const day = new Date(b.time).getDay();
             counts[day]++;
           }
         });
