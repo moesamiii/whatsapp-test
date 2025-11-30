@@ -368,16 +368,25 @@
         window.location.href = "notifications.html";
       });
 
-      // ======= DASHBOARD LOGIC =======
+      // ======= DASHBOARD LOGIC (NOW FROM DATABASE) =======
       let bar, pie, line;
       let allData = [];
       let sortDirection = 1;
       const q = (s) => document.querySelector(s);
 
       async function load() {
-        const res = await fetch("/api/bookings");
-        const rawData = await res.json();
-        allData = rawData.slice(1);
+        // ✅ LOAD FROM SUPABASE DATABASE INSTEAD OF /api/bookings
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("*")
+          .order("time", { ascending: false });
+
+        if (error) {
+          console.error("Error loading bookings:", error);
+          return;
+        }
+
+        allData = data || [];
 
         checkForNewBookings(allData.length);
         filterAndRender();
@@ -400,9 +409,7 @@
             b.phone || "-"
           }</td><td>${b.service || "-"}</td><td>${
             b.appointment || "-"
-          }</td><td>${
-            b.timestamp ? new Date(b.timestamp).toLocaleString() : "-"
-          }</td>`;
+          }</td><td>${b.time ? new Date(b.time).toLocaleString() : "-"}</td>`;
           tb.appendChild(r);
         });
       }
