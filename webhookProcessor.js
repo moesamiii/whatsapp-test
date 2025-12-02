@@ -2,9 +2,10 @@
  * webhookProcessor.js
  *
  * Updated to:
- * - Detect user questions during booking.
- * - Answer using AI.
- * - Then return to the correct booking step.
+ * - Handle cancellation from voice messages
+ * - Detect user questions during booking
+ * - Answer using AI
+ * - Then return to the correct booking step
  */
 
 const {
@@ -14,6 +15,7 @@ const {
   sendServiceList,
   sendAppointmentOptions,
   saveBooking,
+  askForCancellationPhone,
 } = require("./helpers");
 
 const {
@@ -24,6 +26,7 @@ const {
   isLocationRequest,
   isOffersRequest,
   isDoctorsRequest,
+  isCancelRequest, // ✅ ADD THIS
   isEnglish,
 } = require("./messageHandlers");
 
@@ -96,6 +99,22 @@ async function sendBookingConfirmation(to, booking) {
 }
 
 /**
+ * Get session helper
+ */
+function getSession(from) {
+  if (!global.userSessions) {
+    global.userSessions = {};
+  }
+  if (!global.userSessions[from]) {
+    global.userSessions[from] = {
+      waitingForCancelPhone: false,
+      waitingForOffersConfirmation: false,
+    };
+  }
+  return global.userSessions[from];
+}
+
+/**
  * ---------------------------
  * MAIN AUDIO PROCESSOR
  * ---------------------------
@@ -103,13 +122,14 @@ async function sendBookingConfirmation(to, booking) {
 async function handleAudioMessage(message, from) {
   try {
     const tempBookings = (global.tempBookings = global.tempBookings || {});
+    const session = getSession(from);
 
     const mediaId = message?.audio?.id;
     if (!mediaId) return;
 
     console.log("🎙️ Audio message received. Transcribing:", mediaId);
 
-    const transcript = await transcribeAudio(mediaId);
+    const transcript = await transcribeAudio(mediaId, from);
 
     if (!transcript) {
       await sendTextMessage(
@@ -122,7 +142,20 @@ async function handleAudioMessage(message, from) {
     console.log(`🗣️ User said: "${transcript}"`);
 
     /* -------------------------------------------------------
-     STEP 1 — QUICK INTENT CHECKS
+     STEP 1 — CANCELLATION CHECK (HIGHEST PRIORITY)
+    ------------------------------------------------------- */
+    if (isCancelRequest(transcript)) {
+      console.log("🔍 CANCEL detected from voice message for user:", from);
+
+      session.waitingForCancelPhone = true;
+      delete tempBookings[from];
+
+      await askForCancellationPhone(from);
+      return;
+    }
+
+    /* -------------------------------------------------------
+     STEP 2 — QUICK INTENT CHECKS
     ------------------------------------------------------- */
 
     if (isLocationRequest(transcript)) {
@@ -156,7 +189,7 @@ async function handleAudioMessage(message, from) {
     }
 
     /* -------------------------------------------------------
-     STEP 2 — QUESTION DETECTION (NEW FEATURE)
+     STEP 3 — QUESTION DETECTION
     ------------------------------------------------------- */
 
     if (isQuestion(transcript)) {
@@ -191,7 +224,7 @@ async function handleAudioMessage(message, from) {
     }
 
     /* -------------------------------------------------------
-     STEP 3 — BOOKING FLOW
+     STEP 4 — BOOKING FLOW
     ------------------------------------------------------- */
 
     // No booking yet

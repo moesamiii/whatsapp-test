@@ -1,18 +1,15 @@
 /**
- * transcriptionService.js (UPDATED WITH CANCEL DETECTION)
+ * transcriptionService.js (FIXED - NO DUPLICATE CANCEL DETECTION)
  *
  * Purpose:
  * - Handle audio transcription using Groq Whisper API
  * - Fetch audio files from WhatsApp Media API
  * - Convert audio to text for voice message processing
- * - Detect "cancel booking" in audio messages
+ * - Return transcribed text WITHOUT handling intents
  */
 
 const axios = require("axios");
 const FormData = require("form-data");
-
-const { isCancelRequest } = require("./messageHandlers");
-const { askForCancellationPhone } = require("./helpers");
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
@@ -61,19 +58,12 @@ async function transcribeAudio(mediaId, from) {
     );
 
     const text = result.data.text?.trim() || null;
-    if (!text) return null;
 
-    console.log("🎧 TRANSCRIBED:", text);
-
-    // ------------------------------------------------------
-    // 🔥 NEW: Detect "Cancel Booking" Intent From Audio
-    // ------------------------------------------------------
-    if (isCancelRequest(text)) {
-      console.log("🔍 CANCEL detected from audio for user:", from);
-      await askForCancellationPhone(from);
-      return null; // stop normal flow
+    if (text) {
+      console.log("🎧 TRANSCRIBED:", text);
     }
 
+    // ✅ FIXED: Just return the text, let webhookProcessor handle intents
     return text;
   } catch (err) {
     console.error(
