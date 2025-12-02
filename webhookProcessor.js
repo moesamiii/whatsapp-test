@@ -109,7 +109,7 @@ async function handleAudioMessage(message, from) {
 
     console.log("🎙️ Audio message received. Transcribing:", mediaId);
 
-    const transcript = await transcribeAudio(mediaId);
+    const transcript = await transcribeAudio(mediaId, from);
 
     if (!transcript) {
       await sendTextMessage(
