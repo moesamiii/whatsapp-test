@@ -1,5 +1,5 @@
 /**
- * bookingFlowHandler.js (FINAL — Save ONLY to Supabase)
+ * bookingFlowHandler.js (FIXED SERVICE SELECTION)
  *
  * Responsibilities:
  * - Handle booking flow (name → phone → service)
@@ -11,7 +11,7 @@ const {
   askAI,
   sendTextMessage,
   sendAppointmentOptions,
-  insertBookingToSupabase, // ✔ FIXED — USE THIS
+  insertBookingToSupabase,
   askForCancellationPhone,
   processCancellation,
 } = require("./helpers");
@@ -55,6 +55,8 @@ async function handleInteractiveMessage(message, from, tempBookings) {
       ? message.interactive?.list_reply?.id
       : message.interactive?.button_reply?.id;
 
+  console.log("🔘 Interactive message received:", { from, id, type: itype });
+
   // ========== APPOINTMENT BUTTON ==========
   if (id?.startsWith("slot_")) {
     const appointment = id.replace("slot_", "").toUpperCase();
@@ -64,11 +66,25 @@ async function handleInteractiveMessage(message, from, tempBookings) {
     return;
   }
 
-  // ========== SERVICE BUTTON ==========
+  // ========== SERVICE BUTTON (FIXED) ==========
   if (id?.startsWith("service_")) {
-    const serviceName = id.replace("service_", "").replace(/_/g, " ");
+    // ✅ FIXED: Just remove "service_" prefix, keep the Arabic text as-is
+    const serviceName = id.replace("service_", "");
 
-    if (!tempBookings[from] || !tempBookings[from].phone) {
+    console.log("💊 Service selected:", serviceName);
+    console.log("📋 Current booking state:", tempBookings[from]);
+
+    if (!tempBookings[from]) {
+      console.log("❌ No booking found for user:", from);
+      await sendTextMessage(
+        from,
+        "⚠️ يجب إكمال خطوات الحجز قبل اختيار الخدمة."
+      );
+      return;
+    }
+
+    if (!tempBookings[from].phone) {
+      console.log("❌ Phone missing for user:", from);
       await sendTextMessage(
         from,
         "⚠️ يجب إكمال خطوات الحجز قبل اختيار الخدمة."
@@ -79,7 +95,9 @@ async function handleInteractiveMessage(message, from, tempBookings) {
     tempBookings[from].service = serviceName;
     const booking = tempBookings[from];
 
-    // 1️⃣ SAVE BOOKING → SUPABASE ONLY (FIXED)
+    console.log("✅ Complete booking:", booking);
+
+    // 1️⃣ SAVE BOOKING → SUPABASE ONLY
     await insertBookingToSupabase(booking);
 
     // 2️⃣ Confirmation
