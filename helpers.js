@@ -111,7 +111,7 @@ async function sendServiceList(to) {
                 title: "الخدمات المتقدمة",
                 rows: [
                   { id: "service_علاج الجذور", title: "علاج الجذور" },
-                  { id: "service_تركيب التركيبات", title: "التركيبات" },
+                  { id: "service_تركيبات الأسنان", title: "تركيبات الأسنان" }     
                   { id: "service_تقويم الأسنان", title: "تقويم الأسنان" },
                   { id: "service_خلع الأسنان", title: "خلع الأسنان" },
                 ],
