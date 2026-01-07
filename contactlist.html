@@ -191,21 +191,24 @@
     </div>
 
     <script>
-      // ✅ Supabase setup
+      // ✅ FIXED: Supabase setup using supabaseClient to match dashboard.html
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      const supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+      );
 
       let contacts = [];
 
       // ✅ Load contacts (from bookings + contact_list)
       async function loadContacts() {
-        const { data: bookingData, error: bookingError } = await supabase
+        const { data: bookingData, error: bookingError } = await supabaseClient
           .from("bookings")
           .select("name, phone");
 
-        const { data: contactData, error: contactError } = await supabase
+        const { data: contactData, error: contactError } = await supabaseClient
           .from("contact_list")
           .select("*")
           .order("created_at", { ascending: false });
@@ -250,7 +253,7 @@
           return;
         }
 
-        const { error } = await supabase
+        const { error } = await supabaseClient
           .from("contact_list")
           .insert([{ name, phone }]);
 
