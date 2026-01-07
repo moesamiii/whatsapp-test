@@ -299,14 +299,18 @@
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      const supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+      );
 
       async function login() {
         console.log("CHECK 1 ✅ login() is running");
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
 
-        const { data } = await supabase
+        const { data } = await supabaseClient
           .from("admin_auth")
           .select("*")
           .eq("email", email)
@@ -377,7 +381,7 @@
 
       async function load() {
         // ✅ LOAD FROM SUPABASE DATABASE INSTEAD OF /api/bookings
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from("bookings")
           .select("*")
           .order("time", { ascending: false });
