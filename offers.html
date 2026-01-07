@@ -316,11 +316,14 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // 🔑 Supabase configuration
+      // 🔑 FIXED: Supabase configuration using supabaseClient
       const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
       const SUPABASE_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      const supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+      );
 
       let selectedFiles = [];
 
@@ -349,7 +352,7 @@
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
 
-        const { data } = await supabase
+        const { data } = await supabaseClient
           .from("admin_auth")
           .select("*")
           .eq("email", email)
@@ -441,7 +444,7 @@
           const uniqueName = `${Date.now()}_${Math.random()
             .toString(36)
             .substr(2, 9)}_${file.name}`;
-          const { data, error } = await supabase.storage
+          const { data, error } = await supabaseClient.storage
             .from("offers")
             .upload(uniqueName, file, {
               cacheControl: "3600",
@@ -453,7 +456,7 @@
             throw error;
           }
 
-          const { data: urlData } = supabase.storage
+          const { data: urlData } = supabaseClient.storage
             .from("offers")
             .getPublicUrl(uniqueName);
 
@@ -529,7 +532,7 @@
         sendBtn.disabled = true;
         sendBtn.innerHTML = 'جاري الإرسال... <span class="spinner"></span>';
 
-        const phone = "962781685210"; // ✅ Replace with recipient phone numberg
+        const phone = "962781685210"; // ✅ Replace with recipient phone number
         const messageText = `${desc}\n⏰ صالح حتى: ${date}`;
 
         try {
@@ -625,7 +628,7 @@
         imagesPreviewContainer.innerHTML = "";
       }
 
-      // 📱 Menu toggle for mobile fff
+      // 📱 Menu toggle for mobile
       const menuToggle = document.getElementById("menuToggle");
       const sidebar = document.getElementById("sidebar");
       if (menuToggle) {
