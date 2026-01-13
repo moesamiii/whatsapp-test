@@ -218,6 +218,21 @@
       let allData = [];
       const q = (s) => document.querySelector(s);
 
+      // Function to check if text contains Arabic characters
+      function containsArabic(text) {
+        if (!text) return false;
+        return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(
+          text
+        );
+      }
+
+      // Function to sanitize text for PDF (remove Arabic, keep English)
+      function sanitizeForPDF(text, fallback) {
+        if (!text) return fallback;
+        if (!containsArabic(text)) return text;
+        return fallback;
+      }
+
       // Show toast notification
       function showToast(message, isError = false) {
         const toast = document.getElementById("toast");
@@ -228,25 +243,22 @@
         }, 3000);
       }
 
-      // GENERATE PDF REPORT FUNCTION
+      // GENERATE PDF REPORT FUNCTION - ENGLISH ONLY
       async function generateReport() {
         const btn = document.getElementById("downloadReportBtn");
 
         if (allData.length === 0) {
-          showToast("لا توجد بيانات لإنشاء التقرير", true);
+          showToast("No data available to generate report", true);
           return;
         }
 
         // Set loading state
         btn.classList.add("loading");
-        btn.innerHTML = '<i class="fa-solid fa-spinner"></i> جاري التحميل...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner"></i> Loading...';
 
         try {
           const { jsPDF } = window.jspdf;
           const doc = new jsPDF("p", "mm", "a4");
-
-          // Add Arabic font support (using built-in Helvetica for now)
-          doc.setFont("helvetica");
 
           const pageWidth = doc.internal.pageSize.getWidth();
           const pageHeight = doc.internal.pageSize.getHeight();
@@ -254,19 +266,18 @@
           let yPos = margin;
 
           // ============ HEADER SECTION ============
-          // Header background
           doc.setFillColor(217, 70, 239);
           doc.rect(0, 0, pageWidth, 45, "F");
 
-          // Title
           doc.setTextColor(255, 255, 255);
           doc.setFontSize(24);
+          doc.setFont("helvetica", "bold");
           doc.text("Smile Clinic - Analytics Report", pageWidth / 2, 20, {
             align: "center",
           });
 
-          // Subtitle with date
           doc.setFontSize(12);
+          doc.setFont("helvetica", "normal");
           const currentDate = new Date().toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",
@@ -274,21 +285,27 @@
             hour: "2-digit",
             minute: "2-digit",
           });
-          doc.text(`Generated: ${currentDate}`, pageWidth / 2, 32, {
+          doc.text("Generated: " + currentDate, pageWidth / 2, 32, {
             align: "center",
           });
 
           yPos = 55;
 
-          // ============ SUMMARY STATISTICS ============
-          doc.setTextColor(50, 50, 50);
-          doc.setFontSize(16);
-          doc.setFont("helvetica", "bold");
-          doc.text("Summary Statistics", margin, yPos);
-          yPos += 10;
-
-          // Calculate statistics
+          // ============ CALCULATE STATISTICS ============
           const totalBookings = allData.length;
+
+          // Create service mapping (Arabic to English labels)
+          const uniqueServices = [...new Set(allData.map((b) => b.service))];
+          const serviceMapping = {};
+          uniqueServices.forEach((service, index) => {
+            if (containsArabic(service)) {
+              serviceMapping[service] = "Service " + (index + 1);
+            } else {
+              serviceMapping[service] = service || "Unknown Service";
+            }
+          });
+
+          // Count services using English labels
           const serviceCount = {};
           const dayCount = [0, 0, 0, 0, 0, 0, 0];
           const dayNames = [
@@ -302,20 +319,30 @@
           ];
 
           allData.forEach((b) => {
-            serviceCount[b.service] = (serviceCount[b.service] || 0) + 1;
+            const englishService =
+              serviceMapping[b.service] || "Unknown Service";
+            serviceCount[englishService] =
+              (serviceCount[englishService] || 0) + 1;
             if (b.time) {
               const day = new Date(b.time).getDay();
               dayCount[day]++;
             }
           });
 
-          const topService = Object.entries(serviceCount).sort(
+          const sortedServices = Object.entries(serviceCount).sort(
             (a, b) => b[1] - a[1]
-          )[0];
+          );
+          const topService = sortedServices[0];
           const busiestDayIndex = dayCount.indexOf(Math.max(...dayCount));
           const busiestDay = dayNames[busiestDayIndex];
 
-          // Summary box
+          // ============ SUMMARY STATISTICS ============
+          doc.setTextColor(50, 50, 50);
+          doc.setFontSize(16);
+          doc.setFont("helvetica", "bold");
+          doc.text("Summary Statistics", margin, yPos);
+          yPos += 10;
+
           doc.setFillColor(249, 250, 251);
           doc.roundedRect(margin, yPos, pageWidth - margin * 2, 35, 5, 5, "F");
 
@@ -324,25 +351,30 @@
           doc.setTextColor(80, 80, 80);
 
           yPos += 10;
-          doc.text(`Total Bookings: ${totalBookings}`, margin + 10, yPos);
+          doc.text("Total Bookings: " + totalBookings, margin + 10, yPos);
           doc.text(
-            `Number of Services: ${Object.keys(serviceCount).length}`,
+            "Number of Services: " + Object.keys(serviceCount).length,
             pageWidth / 2,
             yPos
           );
 
           yPos += 10;
           doc.text(
-            `Most Popular Service: ${topService ? topService[0] : "N/A"} (${
-              topService ? topService[1] : 0
-            } bookings)`,
+            "Most Popular Service: " +
+              (topService
+                ? topService[0] + " (" + topService[1] + " bookings)"
+                : "N/A"),
             margin + 10,
             yPos
           );
 
           yPos += 10;
           doc.text(
-            `Busiest Day: ${busiestDay} (${dayCount[busiestDayIndex]} bookings)`,
+            "Busiest Day: " +
+              busiestDay +
+              " (" +
+              dayCount[busiestDayIndex] +
+              " bookings)",
             margin + 10,
             yPos
           );
@@ -356,12 +388,10 @@
           doc.text("Services Distribution", margin, yPos);
           yPos += 8;
 
-          const servicesTableData = Object.entries(serviceCount)
-            .map(([service, count]) => {
-              const percentage = ((count / totalBookings) * 100).toFixed(1);
-              return [service, count.toString(), `${percentage}%`];
-            })
-            .sort((a, b) => parseInt(b[1]) - parseInt(a[1]));
+          const servicesTableData = sortedServices.map(([service, count]) => {
+            const percentage = ((count / totalBookings) * 100).toFixed(1);
+            return [service, count.toString(), percentage + "%"];
+          });
 
           doc.autoTable({
             startY: yPos,
@@ -401,7 +431,7 @@
               totalBookings > 0
                 ? ((count / totalBookings) * 100).toFixed(1)
                 : "0.0";
-            return [day, count.toString(), `${percentage}%`];
+            return [day, count.toString(), percentage + "%"];
           });
 
           doc.autoTable({
@@ -429,7 +459,7 @@
 
           yPos = doc.lastAutoTable.finalY + 15;
 
-          // Check if we need a new page for bookings list
+          // Check if we need a new page
           if (yPos > pageHeight - 60) {
             doc.addPage();
             yPos = margin;
@@ -453,18 +483,24 @@
                 })
               : "N/A";
 
+            // Use English labels for everything
+            const customerLabel = "Customer " + (index + 1);
+            const phoneNumber = booking.phone || "N/A";
+            const serviceLabel =
+              serviceMapping[booking.service] || "Unknown Service";
+
             return [
               (index + 1).toString(),
-              booking.name || "N/A",
-              booking.phone || "N/A",
-              booking.service || "N/A",
+              customerLabel,
+              phoneNumber,
+              serviceLabel,
               bookingDate,
             ];
           });
 
           doc.autoTable({
             startY: yPos,
-            head: [["#", "Name", "Phone", "Service", "Date/Time"]],
+            head: [["#", "Customer", "Phone", "Service", "Date/Time"]],
             body: bookingsTableData,
             margin: { left: margin, right: margin },
             headStyles: {
@@ -500,7 +536,11 @@
             doc.setFontSize(9);
             doc.setTextColor(150, 150, 150);
             doc.text(
-              `Page ${i} of ${totalPages} | Smile Clinic Analytics Report | Generated on ${currentDate}`,
+              "Page " +
+                i +
+                " of " +
+                totalPages +
+                " | Smile Clinic Analytics Report",
               pageWidth / 2,
               pageHeight - 10,
               { align: "center" }
@@ -508,15 +548,16 @@
           }
 
           // Save the PDF
-          const fileName = `Smile_Clinic_Report_${
-            new Date().toISOString().split("T")[0]
-          }.pdf`;
+          const fileName =
+            "Smile_Clinic_Report_" +
+            new Date().toISOString().split("T")[0] +
+            ".pdf";
           doc.save(fileName);
 
-          showToast("تم تحميل التقرير بنجاح!");
+          showToast("Report downloaded successfully!");
         } catch (error) {
           console.error("Error generating report:", error);
-          showToast("حدث خطأ أثناء إنشاء التقرير", true);
+          showToast("Error generating report", true);
         } finally {
           // Reset button state
           btn.classList.remove("loading");
