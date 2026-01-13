@@ -94,6 +94,108 @@
         background: #222;
       }
 
+      /* ========== EXPORT SECTION STYLES ========== */
+      .export-section {
+        background: linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%);
+        border: 2px solid #d946ef;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 15px;
+      }
+
+      body.dark .export-section {
+        background: linear-gradient(135deg, #4a1d6a 0%, #581c87 100%);
+        border-color: #e879f9;
+      }
+
+      .export-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .export-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #d946ef 0%, #a855f7 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 24px;
+      }
+
+      .export-text h4 {
+        margin: 0 0 4px 0;
+        font-size: 16px;
+        color: #7e22ce;
+      }
+
+      body.dark .export-text h4 {
+        color: #e879f9;
+      }
+
+      .export-text p {
+        margin: 0;
+        font-size: 13px;
+        color: #6b7280;
+      }
+
+      body.dark .export-text p {
+        color: #d1d5db;
+      }
+
+      .export-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 28px;
+        background: linear-gradient(135deg, #d946ef 0%, #a855f7 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(217, 70, 239, 0.3);
+      }
+
+      .export-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(217, 70, 239, 0.4);
+        background: linear-gradient(135deg, #e879f9 0%, #c084fc 100%);
+      }
+
+      .export-btn:active {
+        transform: translateY(0);
+      }
+
+      .export-btn i {
+        font-size: 18px;
+      }
+
+      .contact-count-badge {
+        background: rgba(217, 70, 239, 0.15);
+        color: #a855f7;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      body.dark .contact-count-badge {
+        background: rgba(217, 70, 239, 0.3);
+        color: #e879f9;
+      }
+
       /* ========== IMPORT SECTION STYLES ========== */
       .import-section {
         background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
@@ -359,6 +461,27 @@
           <div class="table-card">
             <h3>إدارة قائمة التواصل</h3>
 
+            <!-- ✅ EXPORT TO EXCEL SECTION -->
+            <div class="export-section">
+              <div class="export-info">
+                <div class="export-icon">
+                  <i class="fa-solid fa-file-excel"></i>
+                </div>
+                <div class="export-text">
+                  <h4>تصدير جهات الاتصال</h4>
+                  <p>قم بتحميل جميع جهات الاتصال كملف Excel</p>
+                </div>
+                <span class="contact-count-badge" id="contactCountBadge"
+                  >0 جهة اتصال</span
+                >
+              </div>
+              <button class="export-btn" onclick="exportToExcel()">
+                <i class="fa-solid fa-download"></i>
+                تصدير إلى Excel
+              </button>
+            </div>
+            <!-- ✅ END EXPORT SECTION -->
+
             <!-- ✅ IMPORT FROM EXCEL SECTION -->
             <div class="import-section" id="importSection">
               <div class="import-title">
@@ -465,6 +588,12 @@
         }, 3000);
       }
 
+      // Update contact count badge
+      function updateContactCountBadge() {
+        const badge = document.getElementById("contactCountBadge");
+        badge.textContent = `${contacts.length} جهة اتصال`;
+      }
+
       // ✅ Load contacts (from bookings + contact_list)
       async function loadContacts() {
         const { data: bookingData, error: bookingError } = await supabaseClient
@@ -498,6 +627,7 @@
 
         contacts = unique;
         renderContacts();
+        updateContactCountBadge();
       }
 
       // ✅ Add new contact
@@ -552,6 +682,54 @@
           `;
           tbody.appendChild(row);
         });
+      }
+
+      // ========== EXPORT TO EXCEL FUNCTION ==========
+      function exportToExcel() {
+        if (contacts.length === 0) {
+          showToast("لا توجد جهات اتصال للتصدير", "warning");
+          return;
+        }
+
+        try {
+          // Prepare data for export
+          const exportData = contacts.map((contact, index) => ({
+            "#": index + 1,
+            الاسم: contact.name,
+            "رقم الهاتف": contact.phone,
+            "تاريخ الإضافة": new Date(contact.created_at).toLocaleString(
+              "ar-EG"
+            ),
+          }));
+
+          // Create worksheet
+          const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+          // Set column widths
+          worksheet["!cols"] = [
+            { wch: 5 }, // #
+            { wch: 25 }, // Name
+            { wch: 18 }, // Phone
+            { wch: 22 }, // Date
+          ];
+
+          // Create workbook
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, "جهات الاتصال");
+
+          // Generate filename with current date
+          const today = new Date();
+          const dateStr = today.toISOString().split("T")[0];
+          const filename = `contacts_export_${dateStr}.xlsx`;
+
+          // Download file
+          XLSX.writeFile(workbook, filename);
+
+          showToast(`تم تصدير ${contacts.length} جهة اتصال بنجاح!`);
+        } catch (error) {
+          console.error("Error exporting to Excel:", error);
+          showToast("حدث خطأ أثناء التصدير", "error");
+        }
       }
 
       // ========== EXCEL IMPORT FUNCTIONS ==========
