@@ -605,523 +605,523 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // 🔑 FIXED: Supabase configuration using supabaseClient
-      const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
-      const SUPABASE_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
-      const supabaseClient = window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_KEY
-      );
-
-      let selectedFiles = [];
-      let recipientPhones = []; // Array to store phone numbers with names
-
-      // Show toast notification
-      function showToast(message, type = "success") {
-        const toast = document.getElementById("toast");
-        toast.textContent = message;
-        toast.className = "toast show";
-        if (type === "error") toast.classList.add("error");
-        if (type === "warning") toast.classList.add("warning");
-        setTimeout(() => {
-          toast.className = "toast";
-        }, 3000);
-      }
-
-      // 🔍 Debug helper
-      function addDebugLog(message, type = "info") {
-        const debugContent = document.getElementById("debugContent");
-        const debugInfo = document.getElementById("debugInfo");
-        debugInfo.style.display = "block";
-
-        const timestamp = new Date().toLocaleTimeString("ar-EG");
-        const icon = type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
-
-        debugContent.innerHTML += `<div>[${timestamp}] ${icon} ${message}</div>`;
-        debugContent.scrollTop = debugContent.scrollHeight;
-        console.log(`[${timestamp}] ${message}`);
-      }
-
-      function updateProgress(message) {
-        const progressInfo = document.getElementById("progressInfo");
-        progressInfo.style.display = "block";
-        progressInfo.textContent = message;
-      }
-
-      // ========== PHONE NUMBER MANAGEMENT ==========
-
-      // Add phone number to list
-      function addPhoneNumber() {
-        const phoneInput = document.getElementById("phoneInput");
-        const nameInput = document.getElementById("phoneNameInput");
-
-        let phone = phoneInput.value.trim();
-        const name = nameInput.value.trim() || "مستلم";
-
-        if (!phone) {
-          showToast("يرجى إدخال رقم الهاتف", "error");
-          return;
-        }
-
-        // Clean phone number (remove spaces, dashes, etc.)
-        phone = phone.replace(/[\s\-\(\)]/g, "");
-
-        // Check if already exists
-        if (recipientPhones.some((p) => p.phone === phone)) {
-          showToast("هذا الرقم موجود بالفعل", "warning");
-          return;
-        }
-
-        // Add to list
-        recipientPhones.push({ phone, name });
-
-        // Clear inputs
-        phoneInput.value = "";
-        nameInput.value = "";
-
-        // Update UI
-        renderPhoneList();
-        showToast("تم إضافة الرقم بنجاح");
-        addDebugLog(`تم إضافة رقم: ${phone} (${name})`);
-      }
-
-      // Remove phone number from list
-      function removePhone(index) {
-        const removed = recipientPhones.splice(index, 1)[0];
-        renderPhoneList();
-        addDebugLog(`تم إزالة رقم: ${removed.phone}`);
-      }
-
-      // Clear all phone numbers
-      function clearAllPhones() {
-        if (recipientPhones.length === 0) return;
-
-        if (confirm("هل أنت متأكد من مسح جميع الأرقام؟")) {
-          recipientPhones = [];
-          renderPhoneList();
-          document.getElementById("selectAllContacts").checked = false;
-          showToast("تم مسح جميع الأرقام");
-          addDebugLog("تم مسح جميع الأرقام");
-        }
-      }
-
-      // Render phone list UI
-      function renderPhoneList() {
-        const phoneList = document.getElementById("phoneList");
-        const phoneCount = document.getElementById("phoneCount");
-
-        if (recipientPhones.length === 0) {
-          phoneList.innerHTML = `
-            <div class="no-phones-msg">
-              <i class="fa-solid fa-phone-slash"></i>
-              لم يتم إضافة أي أرقام بعد
-            </div>
-          `;
-        } else {
-          phoneList.innerHTML = recipientPhones
-            .map(
-              (p, index) => `
-            <div class="phone-tag">
-              <span class="phone-number">${p.phone}</span>
-              <span class="phone-name">${p.name}</span>
-              <button class="remove-phone" onclick="removePhone(${index})">×</button>
-            </div>
-          `
-            )
-            .join("");
-        }
-
-        phoneCount.innerHTML = `عدد المستلمين: <strong>${recipientPhones.length}</strong>`;
-      }
-
-      // Load contacts from database
-      async function loadFromContacts() {
-        try {
-          updateProgress("جاري تحميل جهات الاتصال...");
-
-          // Load from bookings
-          const { data: bookingData, error: bookingError } =
-            await supabaseClient.from("bookings").select("name, phone");
-
-          // Load from contact_list
-          const { data: contactData, error: contactError } =
-            await supabaseClient.from("contact_list").select("name, phone");
-
-          if (bookingError || contactError) {
-            console.error(
-              "Error loading contacts:",
-              bookingError || contactError
+            // 🔑 FIXED: Supabase configuration using supabaseClient
+            const SUPABASE_URL = "https://ylsbmxedhycjqaorjkvm.supabase.co";
+            const SUPABASE_KEY =
+              "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlsc2JteGVkaHljanFhb3Jqa3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4MTk5NTUsImV4cCI6MjA3NjM5NTk1NX0.W61xOww2neu6RA4yCJUob66p4OfYcgLSVw3m3yttz1E";
+            const supabaseClient = window.supabase.createClient(
+              SUPABASE_URL,
+              SUPABASE_KEY
             );
-            showToast("خطأ في تحميل جهات الاتصال", "error");
-            return;
-          }
 
-          // Combine and remove duplicates
-          const combined = [...(bookingData || []), ...(contactData || [])];
-          const seen = new Set(recipientPhones.map((p) => p.phone));
-          let addedCount = 0;
+            let selectedFiles = [];
+            let recipientPhones = []; // Array to store phone numbers with names
 
-          combined.forEach((c) => {
-            if (c.phone && !seen.has(c.phone)) {
-              seen.add(c.phone);
-              recipientPhones.push({
-                phone: c.phone,
-                name: c.name || "مستلم",
-              });
-              addedCount++;
+            // Show toast notification
+            function showToast(message, type = "success") {
+              const toast = document.getElementById("toast");
+              toast.textContent = message;
+              toast.className = "toast show";
+              if (type === "error") toast.classList.add("error");
+              if (type === "warning") toast.classList.add("warning");
+              setTimeout(() => {
+                toast.className = "toast";
+              }, 3000);
             }
-          });
 
-          renderPhoneList();
+            // 🔍 Debug helper
+            function addDebugLog(message, type = "info") {
+              const debugContent = document.getElementById("debugContent");
+              const debugInfo = document.getElementById("debugInfo");
+              debugInfo.style.display = "block";
 
-          if (addedCount > 0) {
-            showToast(`تم إضافة ${addedCount} جهة اتصال`);
-            addDebugLog(
-              `تم تحميل ${addedCount} جهة اتصال من قاعدة البيانات`,
-              "success"
+              const timestamp = new Date().toLocaleTimeString("ar-EG");
+              const icon = type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
+
+              debugContent.innerHTML += `<div>[${timestamp}] ${icon} ${message}</div>`;
+              debugContent.scrollTop = debugContent.scrollHeight;
+              console.log(`[${timestamp}] ${message}`);
+            }
+
+            function updateProgress(message) {
+              const progressInfo = document.getElementById("progressInfo");
+              progressInfo.style.display = "block";
+              progressInfo.textContent = message;
+            }
+
+            // ========== PHONE NUMBER MANAGEMENT ==========
+
+            // Add phone number to list
+            function addPhoneNumber() {
+              const phoneInput = document.getElementById("phoneInput");
+              const nameInput = document.getElementById("phoneNameInput");
+
+              let phone = phoneInput.value.trim();
+              const name = nameInput.value.trim() || "مستلم";
+
+              if (!phone) {
+                showToast("يرجى إدخال رقم الهاتف", "error");
+                return;
+              }
+
+              // Clean phone number (remove spaces, dashes, etc.)
+              phone = phone.replace(/[\s\-\(\)]/g, "");
+
+              // Check if already exists
+              if (recipientPhones.some((p) => p.phone === phone)) {
+                showToast("هذا الرقم موجود بالفعل", "warning");
+                return;
+              }
+
+              // Add to list
+              recipientPhones.push({ phone, name });
+
+              // Clear inputs
+              phoneInput.value = "";
+              nameInput.value = "";
+
+              // Update UI
+              renderPhoneList();
+              showToast("تم إضافة الرقم بنجاح");
+              addDebugLog(`تم إضافة رقم: ${phone} (${name})`);
+            }
+
+            // Remove phone number from list
+            function removePhone(index) {
+              const removed = recipientPhones.splice(index, 1)[0];
+              renderPhoneList();
+              addDebugLog(`تم إزالة رقم: ${removed.phone}`);
+            }
+
+            // Clear all phone numbers
+            function clearAllPhones() {
+              if (recipientPhones.length === 0) return;
+
+              if (confirm("هل أنت متأكد من مسح جميع الأرقام؟")) {
+                recipientPhones = [];
+                renderPhoneList();
+                document.getElementById("selectAllContacts").checked = false;
+                showToast("تم مسح جميع الأرقام");
+                addDebugLog("تم مسح جميع الأرقام");
+              }
+            }
+
+            // Render phone list UI
+            function renderPhoneList() {
+              const phoneList = document.getElementById("phoneList");
+              const phoneCount = document.getElementById("phoneCount");
+
+              if (recipientPhones.length === 0) {
+                phoneList.innerHTML = `
+                  <div class="no-phones-msg">
+                    <i class="fa-solid fa-phone-slash"></i>
+                    لم يتم إضافة أي أرقام بعد
+                  </div>
+                `;
+              } else {
+                phoneList.innerHTML = recipientPhones
+                  .map(
+                    (p, index) => `
+                  <div class="phone-tag">
+                    <span class="phone-number">${p.phone}</span>
+                    <span class="phone-name">${p.name}</span>
+                    <button class="remove-phone" onclick="removePhone(${index})">×</button>
+                  </div>
+                `
+                  )
+                  .join("");
+              }
+
+              phoneCount.innerHTML = `عدد المستلمين: <strong>${recipientPhones.length}</strong>`;
+            }
+
+            // Load contacts from database
+            async function loadFromContacts() {
+              try {
+                updateProgress("جاري تحميل جهات الاتصال...");
+
+                // Load from bookings
+                const { data: bookingData, error: bookingError } =
+                  await supabaseClient.from("bookings").select("name, phone");
+
+                // Load from contact_list
+                const { data: contactData, error: contactError } =
+                  await supabaseClient.from("contact_list").select("name, phone");
+
+                if (bookingError || contactError) {
+                  console.error(
+                    "Error loading contacts:",
+                    bookingError || contactError
+                  );
+                  showToast("خطأ في تحميل جهات الاتصال", "error");
+                  return;
+                }
+
+                // Combine and remove duplicates
+                const combined = [...(bookingData || []), ...(contactData || [])];
+                const seen = new Set(recipientPhones.map((p) => p.phone));
+                let addedCount = 0;
+
+                combined.forEach((c) => {
+                  if (c.phone && !seen.has(c.phone)) {
+                    seen.add(c.phone);
+                    recipientPhones.push({
+                      phone: c.phone,
+                      name: c.name || "مستلم",
+                    });
+                    addedCount++;
+                  }
+                });
+
+                renderPhoneList();
+
+                if (addedCount > 0) {
+                  showToast(`تم إضافة ${addedCount} جهة اتصال`);
+                  addDebugLog(
+                    `تم تحميل ${addedCount} جهة اتصال من قاعدة البيانات`,
+                    "success"
+                  );
+                } else {
+                  showToast("لا توجد جهات اتصال جديدة للإضافة", "warning");
+                }
+              } catch (err) {
+                console.error("Error:", err);
+                showToast("خطأ في تحميل جهات الاتصال", "error");
+              } finally {
+                document.getElementById("progressInfo").style.display = "none";
+              }
+            }
+
+            // Toggle select all contacts
+            async function toggleSelectAll() {
+              const checkbox = document.getElementById("selectAllContacts");
+
+              if (checkbox.checked) {
+                await loadFromContacts();
+              } else {
+                // Only remove contacts that came from database, keep manually added ones
+                // For simplicity, we'll just clear all
+                recipientPhones = [];
+                renderPhoneList();
+              }
+            }
+
+            // 🔐 Login logic
+            async function login() {
+              const email = document.getElementById("email").value.trim();
+              const password = document.getElementById("password").value.trim();
+
+              const { data } = await supabaseClient
+                .from("admin_auth")
+                .select("*")
+                .eq("email", email)
+                .eq("password", password)
+                .maybeSingle();
+
+              if (data) {
+                document.getElementById("loginScreen").style.display = "none";
+                document.getElementById("dashboardContent").style.display = "block";
+                localStorage.setItem("clinic_logged_in", "true");
+              } else {
+                document.getElementById("errorMsg").style.display = "block";
+              }
+            }
+
+            function logout() {
+              localStorage.removeItem("clinic_logged_in");
+              document.getElementById("loginScreen").style.display = "flex";
+              document.getElementById("dashboardContent").style.display = "none";
+            }
+
+            if (localStorage.getItem("clinic_logged_in") === "true") {
+              document.getElementById("loginScreen").style.display = "none";
+              document.getElementById("dashboardContent").style.display = "block";
+            }
+
+            // 🌙 Theme toggle
+            const themeToggle = document.getElementById("themeToggle");
+            themeToggle.addEventListener("click", function () {
+              document.body.classList.toggle("dark");
+              const icon = themeToggle.querySelector("i");
+              if (document.body.classList.contains("dark")) {
+                icon.classList.replace("fa-moon", "fa-sun");
+                localStorage.setItem("clinic_theme", "dark");
+              } else {
+                icon.classList.replace("fa-sun", "fa-moon");
+                localStorage.setItem("clinic_theme", "light");
+              }
+            });
+            if (localStorage.getItem("clinic_theme") === "dark") {
+              document.body.classList.add("dark");
+              const icon = themeToggle.querySelector("i");
+              icon.classList.replace("fa-moon", "fa-sun");
+            }
+
+            // 🖼️ Preview multiple images
+            const offerImage = document.getElementById("offerImage");
+            const imagesPreviewContainer = document.getElementById(
+              "imagesPreviewContainer"
             );
-          } else {
-            showToast("لا توجد جهات اتصال جديدة للإضافة", "warning");
-          }
-        } catch (err) {
-          console.error("Error:", err);
-          showToast("خطأ في تحميل جهات الاتصال", "error");
-        } finally {
-          document.getElementById("progressInfo").style.display = "none";
-        }
-      }
 
-      // Toggle select all contacts
-      async function toggleSelectAll() {
-        const checkbox = document.getElementById("selectAllContacts");
-
-        if (checkbox.checked) {
-          await loadFromContacts();
-        } else {
-          // Only remove contacts that came from database, keep manually added ones
-          // For simplicity, we'll just clear all
-          recipientPhones = [];
-          renderPhoneList();
-        }
-      }
-
-      // 🔐 Login logic
-      async function login() {
-        const email = document.getElementById("email").value.trim();
-        const password = document.getElementById("password").value.trim();
-
-        const { data } = await supabaseClient
-          .from("admin_auth")
-          .select("*")
-          .eq("email", email)
-          .eq("password", password)
-          .maybeSingle();
-
-        if (data) {
-          document.getElementById("loginScreen").style.display = "none";
-          document.getElementById("dashboardContent").style.display = "block";
-          localStorage.setItem("clinic_logged_in", "true");
-        } else {
-          document.getElementById("errorMsg").style.display = "block";
-        }
-      }
-
-      function logout() {
-        localStorage.removeItem("clinic_logged_in");
-        document.getElementById("loginScreen").style.display = "flex";
-        document.getElementById("dashboardContent").style.display = "none";
-      }
-
-      if (localStorage.getItem("clinic_logged_in") === "true") {
-        document.getElementById("loginScreen").style.display = "none";
-        document.getElementById("dashboardContent").style.display = "block";
-      }
-
-      // 🌙 Theme toggle
-      const themeToggle = document.getElementById("themeToggle");
-      themeToggle.addEventListener("click", function () {
-        document.body.classList.toggle("dark");
-        const icon = themeToggle.querySelector("i");
-        if (document.body.classList.contains("dark")) {
-          icon.classList.replace("fa-moon", "fa-sun");
-          localStorage.setItem("clinic_theme", "dark");
-        } else {
-          icon.classList.replace("fa-sun", "fa-moon");
-          localStorage.setItem("clinic_theme", "light");
-        }
-      });
-      if (localStorage.getItem("clinic_theme") === "dark") {
-        document.body.classList.add("dark");
-        const icon = themeToggle.querySelector("i");
-        icon.classList.replace("fa-moon", "fa-sun");
-      }
-
-      // 🖼️ Preview multiple images
-      const offerImage = document.getElementById("offerImage");
-      const imagesPreviewContainer = document.getElementById(
-        "imagesPreviewContainer"
-      );
-
-      offerImage.addEventListener("change", () => {
-        selectedFiles = Array.from(offerImage.files);
-        renderImagePreviews();
-        addDebugLog(`تم اختيار ${selectedFiles.length} صورة`);
-      });
-
-      function renderImagePreviews() {
-        imagesPreviewContainer.innerHTML = "";
-
-        selectedFiles.forEach((file, index) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const div = document.createElement("div");
-            div.className = "image-preview-item";
-            div.innerHTML = `
-              <img src="${e.target.result}" class="image-preview" alt="صورة ${
-              index + 1
-            }">
-              <button class="remove-image-btn" onclick="removeImage(${index})">×</button>
-            `;
-            imagesPreviewContainer.appendChild(div);
-          };
-          reader.readAsDataURL(file);
-        });
-      }
-
-      function removeImage(index) {
-        selectedFiles.splice(index, 1);
-        renderImagePreviews();
-        addDebugLog(`تم إزالة صورة. المتبقي: ${selectedFiles.length} صورة`);
-      }
-
-      // 🚀 Upload single image to Supabase
-      async function uploadImage(file) {
-        try {
-          addDebugLog(`بدء رفع الصورة: ${file.name}`);
-
-          const uniqueName = `${Date.now()}_${Math.random()
-            .toString(36)
-            .substr(2, 9)}_${file.name}`;
-          const { data, error } = await supabaseClient.storage
-            .from("offers")
-            .upload(uniqueName, file, {
-              cacheControl: "3600",
-              upsert: false,
+            offerImage.addEventListener("change", () => {
+              selectedFiles = Array.from(offerImage.files);
+              renderImagePreviews();
+              addDebugLog(`تم اختيار ${selectedFiles.length} صورة`);
             });
 
-          if (error) {
-            addDebugLog(`خطأ في رفع الصورة: ${error.message}`, "error");
-            throw error;
-          }
+            function renderImagePreviews() {
+              imagesPreviewContainer.innerHTML = "";
 
-          const { data: urlData } = supabaseClient.storage
-            .from("offers")
-            .getPublicUrl(uniqueName);
-
-          const imageUrl = urlData.publicUrl;
-          addDebugLog(`✅ تم رفع الصورة بنجاح: ${file.name}`, "success");
-
-          return imageUrl;
-        } catch (err) {
-          addDebugLog(
-            `خطأ في رفع الصورة ${file.name}: ${err.message}`,
-            "error"
-          );
-          return null;
-        }
-      }
-
-      // 📤 Send single message with image
-      async function sendWhatsAppMessage(phone, messageText, imageUrl) {
-        try {
-          const payload = {
-            name: "Smile Clinic",
-            phone: phone,
-            service: document.getElementById("offerTitle").value.trim(),
-            appointment: messageText,
-            image: imageUrl,
-          };
-
-          addDebugLog(`إرسال رسالة إلى ${phone}...`);
-
-          const res = await fetch(
-            "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            }
-          );
-
-          const data = await res.json();
-
-          if (data.success) {
-            addDebugLog(`✅ تم إرسال رسالة إلى ${phone} بنجاح`, "success");
-            return true;
-          } else {
-            addDebugLog(
-              `فشل إرسال رسالة إلى ${phone}: ${JSON.stringify(data)}`,
-              "error"
-            );
-            return false;
-          }
-        } catch (err) {
-          addDebugLog(
-            `خطأ في إرسال الرسالة إلى ${phone}: ${err.message}`,
-            "error"
-          );
-          return false;
-        }
-      }
-
-      // 🚀 Main send offer function
-      async function sendOffer() {
-        const sendBtn = document.getElementById("sendBtn");
-        const title = document.getElementById("offerTitle").value.trim();
-        const desc = document.getElementById("offerDesc").value.trim();
-        const date = document.getElementById("offerDate").value;
-
-        // Clear previous debug logs
-        document.getElementById("debugContent").innerHTML = "";
-        document.getElementById("debugInfo").style.display = "block";
-        document.getElementById("progressInfo").style.display = "none";
-
-        if (!title || !desc || !date) {
-          alert("⚠️ يرجى تعبئة جميع الحقول قبل الإرسال.");
-          addDebugLog("فشل: حقول مفقودة", "error");
-          return;
-        }
-
-        // Check if there are recipients
-        if (recipientPhones.length === 0) {
-          alert("⚠️ يرجى إضافة رقم هاتف واحد على الأقل للإرسال.");
-          addDebugLog("فشل: لا توجد أرقام مستلمين", "error");
-          return;
-        }
-
-        // Disable button during send
-        sendBtn.disabled = true;
-        sendBtn.innerHTML = 'جاري الإرسال... <span class="spinner"></span>';
-
-        const messageText = `${desc}\n⏰ صالح حتى: ${date}`;
-
-        try {
-          let totalSuccess = 0;
-          let totalFail = 0;
-
-          // Upload images first if any
-          let uploadedImageUrls = [];
-
-          if (selectedFiles.length > 0) {
-            addDebugLog(`بدء رفع ${selectedFiles.length} صورة...`);
-
-            for (let i = 0; i < selectedFiles.length; i++) {
-              updateProgress(
-                `جاري رفع الصورة ${i + 1} من ${selectedFiles.length}...`
-              );
-              const imageUrl = await uploadImage(selectedFiles[i]);
-              if (imageUrl) {
-                uploadedImageUrls.push(imageUrl);
-              }
+              selectedFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                  const div = document.createElement("div");
+                  div.className = "image-preview-item";
+                  div.innerHTML = `
+                    <img src="${e.target.result}" class="image-preview" alt="صورة ${
+                    index + 1
+                  }">
+                    <button class="remove-image-btn" onclick="removeImage(${index})">×</button>
+                  `;
+                  imagesPreviewContainer.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+              });
             }
 
-            addDebugLog(
-              `تم رفع ${uploadedImageUrls.length} صورة بنجاح`,
-              "success"
-            );
-          }
+            function removeImage(index) {
+              selectedFiles.splice(index, 1);
+              renderImagePreviews();
+              addDebugLog(`تم إزالة صورة. المتبقي: ${selectedFiles.length} صورة`);
+            }
 
-          // Send to each recipient
-          const totalRecipients = recipientPhones.length;
+            // 🚀 Upload single image to Supabase
+            async function uploadImage(file) {
+              try {
+                addDebugLog(`بدء رفع الصورة: ${file.name}`);
 
-          for (let i = 0; i < recipientPhones.length; i++) {
-            const recipient = recipientPhones[i];
-            updateProgress(
-              `إرسال إلى ${recipient.name} (${i + 1}/${totalRecipients})...`
-            );
+                const uniqueName = `${Date.now()}_${Math.random()
+                  .toString(36)
+                  .substr(2, 9)}_${file.name}`;
+                const { data, error } = await supabaseClient.storage
+                  .from("offers")
+                  .upload(uniqueName, file, {
+                    cacheControl: "3600",
+                    upsert: false,
+                  });
 
-            if (uploadedImageUrls.length === 0) {
-              // No images - send text only
-              const success = await sendWhatsAppMessage(
-                recipient.phone,
-                messageText,
-                null
-              );
-              if (success) totalSuccess++;
-              else totalFail++;
-            } else {
-              // Send each image
-              for (let j = 0; j < uploadedImageUrls.length; j++) {
-                const success = await sendWhatsAppMessage(
-                  recipient.phone,
-                  messageText,
-                  uploadedImageUrls[j]
-                );
-                if (success) totalSuccess++;
-                else totalFail++;
-
-                // Wait between messages to avoid rate limiting
-                if (j < uploadedImageUrls.length - 1) {
-                  await new Promise((resolve) => setTimeout(resolve, 1500));
+                if (error) {
+                  addDebugLog(`خطأ في رفع الصورة: ${error.message}`, "error");
+                  throw error;
                 }
+
+                const { data: urlData } = supabaseClient.storage
+                  .from("offers")
+                  .getPublicUrl(uniqueName);
+
+                const imageUrl = urlData.publicUrl;
+                addDebugLog(`✅ تم رفع الصورة بنجاح: ${file.name}`, "success");
+
+                return imageUrl;
+              } catch (err) {
+                addDebugLog(
+                  `خطأ في رفع الصورة ${file.name}: ${err.message}`,
+                  "error"
+                );
+                return null;
               }
             }
 
-            // Wait between recipients
-            if (i < recipientPhones.length - 1) {
-              await new Promise((resolve) => setTimeout(resolve, 2000));
+            // 📤 Send single message with image
+            async function sendWhatsAppMessage(phone, messageText, imageUrl) {
+              try {
+                const payload = {
+                  name: "Smile Clinic",
+                  phone: phone,
+                  service: document.getElementById("offerTitle").value.trim(),
+                  appointment: messageText,
+                  image: imageUrl,
+                };
+
+                addDebugLog(`إرسال رسالة إلى ${phone}...`);
+
+                const res = await fetch(
+                  "https://whatsapp-test-rosy.vercel.app/sendWhatsApp",
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                  }
+                );
+      https://whatsapp-cloud-webhook-woad.vercel.app/
+                const data = await res.json();
+
+                if (data.success) {
+                  addDebugLog(`✅ تم إرسال رسالة إلى ${phone} بنجاح`, "success");
+                  return true;
+                } else {
+                  addDebugLog(
+                    `فشل إرسال رسالة إلى ${phone}: ${JSON.stringify(data)}`,
+                    "error"
+                  );
+                  return false;
+                }
+              } catch (err) {
+                addDebugLog(
+                  `خطأ في إرسال الرسالة إلى ${phone}: ${err.message}`,
+                  "error"
+                );
+                return false;
+              }
             }
-          }
 
-          addDebugLog(
-            `✅ اكتمل الإرسال: ${totalSuccess} نجح، ${totalFail} فشل`,
-            "success"
-          );
+            // 🚀 Main send offer function
+            async function sendOffer() {
+              const sendBtn = document.getElementById("sendBtn");
+              const title = document.getElementById("offerTitle").value.trim();
+              const desc = document.getElementById("offerDesc").value.trim();
+              const date = document.getElementById("offerDate").value;
 
-          if (totalSuccess > 0) {
-            alert(
-              `✅ تم إرسال العرض بنجاح!\n📤 نجح: ${totalSuccess}\n❌ فشل: ${totalFail}`
-            );
-            clearForm();
-          } else {
-            alert("❌ فشل إرسال جميع الرسائل");
-          }
-        } catch (err) {
-          console.error("❌ Error sending offer:", err);
-          addDebugLog(`خطأ في الإرسال: ${err.message}`, "error");
-          alert("❌ خطأ أثناء الإرسال: " + err.message);
-        } finally {
-          // Re-enable button
-          sendBtn.disabled = false;
-          sendBtn.innerHTML = "إرسال العرض الآن";
-          document.getElementById("progressInfo").style.display = "none";
-        }
-      }
+              // Clear previous debug logs
+              document.getElementById("debugContent").innerHTML = "";
+              document.getElementById("debugInfo").style.display = "block";
+              document.getElementById("progressInfo").style.display = "none";
 
-      function clearForm() {
-        document.getElementById("offerTitle").value = "";
-        document.getElementById("offerDesc").value = "";
-        document.getElementById("offerDate").value = "";
-        document.getElementById("offerImage").value = "";
-        selectedFiles = [];
-        imagesPreviewContainer.innerHTML = "";
-        recipientPhones = [];
-        renderPhoneList();
-        document.getElementById("selectAllContacts").checked = false;
-      }
+              if (!title || !desc || !date) {
+                alert("⚠️ يرجى تعبئة جميع الحقول قبل الإرسال.");
+                addDebugLog("فشل: حقول مفقودة", "error");
+                return;
+              }
 
-      // 📱 Menu toggle for mobile
-      const menuToggle = document.getElementById("menuToggle");
-      const sidebar = document.getElementById("sidebar");
-      if (menuToggle) {
-        menuToggle.addEventListener("click", () => {
-          sidebar.classList.toggle("active");
-        });
-      }
+              // Check if there are recipients
+              if (recipientPhones.length === 0) {
+                alert("⚠️ يرجى إضافة رقم هاتف واحد على الأقل للإرسال.");
+                addDebugLog("فشل: لا توجد أرقام مستلمين", "error");
+                return;
+              }
 
-      // Initialize phone list on page load
-      renderPhoneList();
+              // Disable button during send
+              sendBtn.disabled = true;
+              sendBtn.innerHTML = 'جاري الإرسال... <span class="spinner"></span>';
+
+              const messageText = `${desc}\n⏰ صالح حتى: ${date}`;
+
+              try {
+                let totalSuccess = 0;
+                let totalFail = 0;
+
+                // Upload images first if any
+                let uploadedImageUrls = [];
+
+                if (selectedFiles.length > 0) {
+                  addDebugLog(`بدء رفع ${selectedFiles.length} صورة...`);
+
+                  for (let i = 0; i < selectedFiles.length; i++) {
+                    updateProgress(
+                      `جاري رفع الصورة ${i + 1} من ${selectedFiles.length}...`
+                    );
+                    const imageUrl = await uploadImage(selectedFiles[i]);
+                    if (imageUrl) {
+                      uploadedImageUrls.push(imageUrl);
+                    }
+                  }
+
+                  addDebugLog(
+                    `تم رفع ${uploadedImageUrls.length} صورة بنجاح`,
+                    "success"
+                  );
+                }
+
+                // Send to each recipient
+                const totalRecipients = recipientPhones.length;
+
+                for (let i = 0; i < recipientPhones.length; i++) {
+                  const recipient = recipientPhones[i];
+                  updateProgress(
+                    `إرسال إلى ${recipient.name} (${i + 1}/${totalRecipients})...`
+                  );
+
+                  if (uploadedImageUrls.length === 0) {
+                    // No images - send text only
+                    const success = await sendWhatsAppMessage(
+                      recipient.phone,
+                      messageText,
+                      null
+                    );
+                    if (success) totalSuccess++;
+                    else totalFail++;
+                  } else {
+                    // Send each image
+                    for (let j = 0; j < uploadedImageUrls.length; j++) {
+                      const success = await sendWhatsAppMessage(
+                        recipient.phone,
+                        messageText,
+                        uploadedImageUrls[j]
+                      );
+                      if (success) totalSuccess++;
+                      else totalFail++;
+
+                      // Wait between messages to avoid rate limiting
+                      if (j < uploadedImageUrls.length - 1) {
+                        await new Promise((resolve) => setTimeout(resolve, 1500));
+                      }
+                    }
+                  }
+
+                  // Wait between recipients
+                  if (i < recipientPhones.length - 1) {
+                    await new Promise((resolve) => setTimeout(resolve, 2000));
+                  }
+                }
+
+                addDebugLog(
+                  `✅ اكتمل الإرسال: ${totalSuccess} نجح، ${totalFail} فشل`,
+                  "success"
+                );
+
+                if (totalSuccess > 0) {
+                  alert(
+                    `✅ تم إرسال العرض بنجاح!\n📤 نجح: ${totalSuccess}\n❌ فشل: ${totalFail}`
+                  );
+                  clearForm();
+                } else {
+                  alert("❌ فشل إرسال جميع الرسائل");
+                }
+              } catch (err) {
+                console.error("❌ Error sending offer:", err);
+                addDebugLog(`خطأ في الإرسال: ${err.message}`, "error");
+                alert("❌ خطأ أثناء الإرسال: " + err.message);
+              } finally {
+                // Re-enable button
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = "إرسال العرض الآن";
+                document.getElementById("progressInfo").style.display = "none";
+              }
+            }
+
+            function clearForm() {
+              document.getElementById("offerTitle").value = "";
+              document.getElementById("offerDesc").value = "";
+              document.getElementById("offerDate").value = "";
+              document.getElementById("offerImage").value = "";
+              selectedFiles = [];
+              imagesPreviewContainer.innerHTML = "";
+              recipientPhones = [];
+              renderPhoneList();
+              document.getElementById("selectAllContacts").checked = false;
+            }
+
+            // 📱 Menu toggle for mobile
+            const menuToggle = document.getElementById("menuToggle");
+            const sidebar = document.getElementById("sidebar");
+            if (menuToggle) {
+              menuToggle.addEventListener("click", () => {
+                sidebar.classList.toggle("active");
+              });
+            }
+
+            // Initialize phone list on page load
+            renderPhoneList();
     </script>
   </body>
 </html>
